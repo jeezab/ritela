@@ -1,0 +1,27 @@
+{
+    "schemaVersion":  1,
+    "skills":  [
+                   {
+                       "name":  "ritela-resume",
+                       "source":  "https://github.com/jeezab/ritela",
+                       "commit":  null,
+                       "path":  ".agents/skills/ritela-resume/SKILL.md",
+                       "license":  "NOASSERTION",
+                       "version":  "1.0.0",
+                       "sha256":  "f2629e6e4630106845325956fcf60db7be749ff37e40526ccb7e48cdfa4bec88",
+                       "installedAt":  "2026-10-04",
+                       "classification":  "project-local"
+                   },
+                   {
+                       "name":  "ritela-checkpoint",
+                       "source":  "https://github.com/jeezab/ritela",
+                       "commit":  null,
+                       "path":  ".agents/skills/ritela-checkpoint/SKILL.md",
+                       "license":  "NOASSERTION",
+                       "version":  "1.0.0",
+                       "sha256":  "67ed76edd44c3ff58b5b76682746d98218864ea7469ddd014cc09ac9b82337cc",
+                       "installedAt":  "2026-10-04",
+                       "classification":  "project-local"
+                   }
+               ]
+}
