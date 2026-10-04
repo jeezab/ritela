@@ -9,9 +9,11 @@ Android-трекер менструального цикла с локальны
 ```powershell
 powershell -NoProfile -File scripts/resume.ps1
 powershell -NoProfile -File scripts/check-workspace.ps1
+& ./scripts/read-brief.ps1 -Section 58,60,63
 powershell -NoProfile -File scripts/bootstrap-toolchain.ps1
+powershell -NoProfile -File scripts/bootstrap-toolchain.ps1 -VerifyOnly
 ```
 
-Первый скрипт выводит точку продолжения, Git и доступность инструментов. Второй проверяет ссылки документации, реестр скиллов и синтаксис PowerShell. Третий загружает проверенные инструменты в игнорируемую `.toolchain/`; SDK-пакеты устанавливаются отдельным шагом.
+Первый скрипт выводит точку продолжения, Git и доступность инструментов. Второй проверяет ссылки документации, реестр скиллов и синтаксис PowerShell. Третий загружает инструменты по закреплённым URL и SHA-256 в игнорируемую `.toolchain/`, повторно использует готовые установки и проверяет Java/Gradle/sdkmanager. `-VerifyOnly` проверяет уже подготовленные инструменты без загрузок. SDK-пакеты устанавливаются отдельным шагом.
 
 Команды сборки, тестов, lint, установки и пути APK будут добавлены вместе с рабочим Android-проектом. Правила коммитов: [CONTRIBUTING.md](CONTRIBUTING.md). Локальные скиллы: [AGENT_SKILLS.md](docs/AGENT_SKILLS.md).
