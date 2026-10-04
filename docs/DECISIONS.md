@@ -15,3 +15,15 @@ Lock хранит версию и hash каждого локального SKILL
 ## 2026-10-04: коммиты
 
 Пользователь явно требует регулярные коммиты. Отдельный проверенный логический шаг сохраняется через `type(scope): concrete change`; правила находятся в CONTRIBUTING. Переписывание истории и автоматический push не входят в процедуру.
+
+## 2026-10-04: bootstrap toolchain
+
+Существующий bootstrap дополнен JDK 17 и JSON с фиксированными URL/SHA-256. Gradle 9.6.0 оставлен: [AGP 9.4 compatibility](https://developer.android.com/build/releases/agp-9-4-0-release-notes) указывает Gradle 9.6.0 и JDK 17. Сам AGP пока не установлен. [Google Play requirements](https://developer.android.com/google/play/requirements/target-sdk) требует target API 36 для новых обычных Android-приложений с 31 августа 2026; значение внести в Gradle при создании проекта.
+
+JDK-архив и checksum получены из официального [Adoptium API](https://api.adoptium.net/v3/assets/latest/17/hotspot?architecture=x64&image_type=jdk&os=windows&vendor=eclipse); bootstrap использует конкретный release URL, а не latest API. Gradle checksum проверен по официальному distribution endpoint. Android CLI URL/hash сохранены из исходного bootstrap и требуют проверки фактической загрузкой.
+
+Архивы проверяются до распаковки. Готовые установки повторно используются по marker соответствующей checksum; `-VerifyOnly` запускает version checks без скачивания. Этот marker подтверждает исходный архив, а не побайтную целостность всех распакованных файлов. SDK licenses и пакеты — отдельный шаг.
+
+Фактическая загрузка всех трёх архивов и version checks прошли. При сетевой задержке curl докачивает сохранённый partial, делает не более трёх попыток и завершает шаг ошибкой при неуспехе. Унаследованный DEBUG включал подробное echo в upstream batch launcher; bootstrap временно снимает его только на время version checks и восстанавливает вместе с JAVA_HOME.
+
+SDK tools содержит Android CLI launcher, который отдельно скачал runtime 1.0.16500706 при проверке версии. Этот runtime пока не является закреплённой частью bootstrap. CLI сообщает о сборе метрик и поддержке `--no-metrics`; дальнейшие вызовы выполнять с этим флагом. Не вызывать рекомендуемый им `android init`, поскольку проект выбирает и проверяет скиллы по одному.

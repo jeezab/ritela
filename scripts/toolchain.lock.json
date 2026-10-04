@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-10-04",
+  "jdk": {
+    "version": "17.0.20.1+1",
+    "url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jdk_x64_windows_hotspot_17.0.20.1_1.zip",
+    "sha256": "e53a79c3c3d86865bd7e787903884331068e71321714ffd44f145785affc7cb0",
+    "archive": "temurin-17.0.20.1.zip",
+    "extractTo": ".",
+    "home": "jdk-17.0.20.1+1",
+    "executable": "jdk-17.0.20.1+1/bin/java.exe"
+  },
+  "gradle": {
+    "version": "9.6.0",
+    "url": "https://services.gradle.org/distributions/gradle-9.6.0-bin.zip",
+    "sha256": "bbaeb2fef8710818cf0e261201dab964c572f92b942812df0c3620d62a529a01",
+    "archive": "gradle-9.6.0.zip",
+    "extractTo": ".",
+    "executable": "gradle-9.6.0/bin/gradle.bat"
+  },
+  "androidCli": {
+    "version": "15859902",
+    "url": "https://dl.google.com/android/repository/commandlinetools-win-15859902_latest.zip",
+    "sha256": "90ae805d20434428bffcb699c290860f19bb5f66a67e6b330067e3de801fb04a",
+    "archive": "android-cli-15859902.zip",
+    "extractTo": "sdk-extract-15859902",
+    "executable": "android-sdk/cmdline-tools/latest/bin/sdkmanager.bat"
+  }
+}

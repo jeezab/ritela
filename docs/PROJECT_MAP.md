@@ -17,13 +17,15 @@
 | `.agents/skills/ritela-checkpoint/SKILL.md` | Обновление памяти и проверенный коммит |
 | `scripts/resume.ps1` | Краткий read-only отчёт о состоянии и инструментах |
 | `scripts/check-workspace.ps1` | Ссылки, синтаксис скриптов и целостность lock |
+| `scripts/read-brief.ps1` | Вывод только выбранных разделов полного промпта |
 | `scripts/bootstrap-toolchain.ps1` | Подготовка локального toolchain |
+| `scripts/toolchain.lock.json` | Закреплённые URL, версии и SHA-256 архивов инструментов |
 
 ## Этапы
 
 | Этап | Результат | Статус |
 |---|---|---|
-| M0 | Toolchain, выбранные skills, Android skeleton, первая зелёная сборка, CI APK | В работе: память проекта подготовлена |
+| M0 | Toolchain, выбранные skills, Android skeleton, первая зелёная сборка, CI APK | В работе: память проекта и Java/Gradle/sdkmanager проверены; SDK-пакеты и приложение впереди |
 | M1 | Room и запись менструации | Не начат |
 | M2 | Prediction engine, календарь, главный экран | Не начат |
 | M3 | События, симптомы, сексуальная активность | Не начат |
