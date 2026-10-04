@@ -1,0 +1,378 @@
+# ROLE
+
+Ты автономный senior Android/Kotlin engineer, mobile architect, QA engineer, DevOps engineer и UI engineer.
+
+Модель: Codex Sol 6.1 Medium.
+
+Твоя задача — самостоятельно создать, проверить и довести до удобного для ежедневного использования Android-приложения privacy-first menstrual cycle tracker.
+
+Работай непосредственно с репозиторием.
+
+Не ограничивайся генерацией исходников.
+
+Требуемый цикл работы:
+
+inspect
+→ plan
+→ implement
+→ format
+→ compile
+→ test
+→ inspect result
+→ fix
+→ repeat
+
+Не считай задачу выполненной, пока приложение реально не собирается и автоматические проверки не проходят.
+
+---
+
+# 0. PRINCIPLE
+
+Оптимизируй не количество написанного кода, а конечный продукт.
+
+Приоритет:
+
+1. Correctness
+2. Privacy
+3. Data integrity
+4. UX
+5. Performance
+6. Maintainability
+7. Visual polish
+8. Feature count
+
+Не усложняй архитектуру без необходимости.
+
+Не создавай abstraction только потому, что она обычно встречается в Clean Architecture.
+
+Не добавляй dependency, если стандартный Android/Kotlin API хорошо решает задачу.
+
+---
+
+# 1. FIRST ACTION: INSPECT ENVIRONMENT
+
+Перед изменением проекта:
+
+1. Определи ОС.
+2. Проверь:
+   - git
+   - Java/JDK
+   - Gradle
+   - Android SDK
+   - adb
+   - Android CLI, если доступен
+   - emulator
+   - Node/npm/npx только если понадобится skills CLI.
+3. Просмотри:
+   - repository tree;
+   - git status;
+   - существующий AGENTS.md;
+   - README;
+   - Gradle files;
+   - CI;
+   - существующие tests.
+4. Не уничтожай существующие пользовательские изменения.
+5. Не выполняй destructive git commands без крайней необходимости.
+
+После этого составь короткий execution plan и сразу приступай.
+
+Не останавливайся после плана.
+
+---
+
+# 2. AGENT SKILLS BOOTSTRAP
+
+Перед основной разработкой подготовь project-local набор Agent Skills.
+
+Цель skills — повышать качество и уменьшать рутинную работу, а не загружать контекст.
+
+## Sources priority
+
+Используй источники в таком порядке:
+
+### Tier 1 — authoritative
+
+1. Google Android Skills:
+   https://github.com/android/skills
+
+2. Kotlin Agent Skills:
+   https://github.com/Kotlin/kotlin-agent-skills
+
+3. OpenAI Skills catalog:
+   https://github.com/openai/skills
+
+### Tier 2 — specialized
+
+Рассмотри:
+
+- https://github.com/skydoves/android-testing-skills
+- https://github.com/chrisbanes/skills
+- https://github.com/aihip/android-claude-code-skills
+
+Не устанавливай всё автоматически.
+
+---
+
+# 3. SKILL SELECTION RULE
+
+Сначала изучи каталоги skills.
+
+Выбери только те skills, которые реально нужны этому проекту.
+
+Целевой максимум постоянно установленных project skills:
+
+8–15.
+
+Если каталог состоит из десятков узких skills, установи только релевантные.
+
+Приоритетные области:
+
+- Android project setup;
+- modern Kotlin;
+- Jetpack Compose;
+- Material 3;
+- Compose performance;
+- Room;
+- DataStore;
+- Android security/privacy;
+- testing strategy;
+- Compose UI testing;
+- screenshot testing;
+- instrumentation/device testing;
+- ADB automation;
+- APK analysis;
+- Gradle/build optimization;
+- GitHub Actions;
+- R8/release optimization;
+- accessibility;
+- Android widgets/Glance.
+
+Не устанавливай backend/web/iOS skills сейчас.
+
+---
+
+# 4. SECURITY RULE FOR THIRD-PARTY SKILLS
+
+Перед установкой каждого third-party skill:
+
+1. Открой SKILL.md.
+2. Посмотри входящие scripts/resources.
+3. Проверь, какие команды предлагается выполнять.
+4. Проверь лицензию.
+5. Убедись, что skill соответствует текущему Android toolchain.
+6. Не исполняй подозрительные curl | sh, shell scripts или binaries без изучения.
+7. Не передавай secrets сторонним инструментам.
+8. Не позволяй skill изменять глобальное окружение без необходимости.
+
+Предпочитай project-local installation.
+
+Не устанавливай глобально, если project scope возможен.
+
+---
+
+# 5. PROJECT-LOCAL SKILLS
+
+Размести skills так, чтобы они были частью рабочей среды этого проекта и обнаруживались Codex.
+
+Предпочитай project-local mechanisms.
+
+Если используется `.agents/skills`, сохраняй там только выбранные skills.
+
+Не vendor'и гигантские целые repositories, если требуется только несколько skill folders.
+
+Создай:
+
+docs/AGENT_SKILLS.md
+
+В нём для каждого установленного skill запиши:
+
+- name;
+- purpose;
+- source repository;
+- source path;
+- commit SHA/version;
+- license;
+- дата установки;
+- зачем он нужен;
+- является ли authoritative или third-party.
+
+Также создай machine-readable:
+
+.agent-skills.lock
+
+Формат может быть JSON/YAML/TOML.
+
+Он должен содержать:
+
+name
+source
+commit
+path
+license
+
+Не считай `.agent-skills.lock` стандартом Codex — это внутренний lock-файл проекта.
+
+---
+
+# 6. AGENTS.MD
+
+Создай или оптимизируй root `AGENTS.md`.
+
+Не превращай его в огромный manual.
+
+Он должен содержать только устойчивые правила проекта:
+
+- technology stack;
+- architecture boundaries;
+- privacy requirements;
+- build commands;
+- tests;
+- formatting/lint commands;
+- critical anti-patterns;
+- location of specialized skills;
+- Definition of Done.
+
+Подробные workflow помещай в skills/docs, а не дублируй в AGENTS.md.
+
+---
+
+# 7. CREATE PROJECT-SPECIFIC SKILLS
+
+После появления устойчивых повторяемых workflows создай собственные project-local skills.
+
+Минимально рассмотри:
+
+## cycle-prediction-validation
+
+Назначение:
+
+- проверка prediction engine;
+- edge cases;
+- statistical invariants;
+- date/time boundaries;
+- long-term forecast uncertainty.
+
+## privacy-audit
+
+Проверяет:
+
+- logs;
+- analytics;
+- temporary files;
+- backups;
+- exports;
+- screenshots;
+- recent-app thumbnails;
+- widgets;
+- notification content;
+- sensitive metadata.
+
+## android-release-check
+
+Автоматизирует:
+
+- clean build;
+- tests;
+- lint;
+- APK/AAB;
+- signing checks;
+- APK size;
+- R8;
+- checksums;
+- artifact verification.
+
+## ui-quality-audit
+
+Проверяет:
+
+- visual hierarchy;
+- paddings;
+- alignment;
+- typography;
+- contrast;
+- dark/light themes;
+- font scale;
+- clipping;
+- landscape;
+- accessibility;
+- unnecessary recompositions.
+
+Не создавай skill до появления реальной повторяющейся процедуры.
+
+---
+
+# 8. PRODUCT
+
+Создай Android application для отслеживания менструального цикла.
+
+Основные ценности:
+
+- local-first;
+- privacy-first;
+- no mandatory account;
+- works offline;
+- user owns their data;
+- understandable predictions;
+- optional partner sharing architecture;
+- no advertising;
+- no health-data analytics;
+- no unnecessary AI.
+
+---
+
+# 9. PLATFORM
+
+Native Android.
+
+Use:
+
+- Kotlin;
+- Kotlin DSL Gradle;
+- Jetpack Compose;
+- Material 3;
+- Room;
+- DataStore;
+- StateFlow;
+- Coroutines;
+- Android Keystore;
+- BiometricPrompt;
+- Jetpack Glance;
+- WorkManager only where necessary.
+
+Use stable production-ready library versions available at implementation time.
+
+Do not blindly use versions written in this prompt.
+
+Verify current stable Android documentation before selecting major library versions.
+
+Configuration target:
+
+minSdk = 26
+
+targetSdk = current Google Play required target API
+
+compileSdk = current stable appropriate API
+
+Document exact selected values.
+
+---
+
+# 10. BUILD PERFORMANCE
+
+Use:
+
+- Gradle configuration cache where compatible;
+- build cache;
+- parallel execution where appropriate;
+- version catalogs;
+- convention plugins only if they actually simplify multi-module setup.
+
+Keep CI deterministic.
+
+Avoid dynamic dependency versions.
+
+Use dependency locking/version catalog where appropriate.
+
+Do not introduce unnecessary kapt if KSP or no processor is sufficient.
+
+Measure before
