@@ -6,10 +6,11 @@
 |---|---|---|---|---|---|---|
 | ritela-resume | Продолжить с checkpoint, не исследуя проект заново | Этот репозиторий / `.agents/skills/ritela-resume/SKILL.md` | 1.0.0 / null (локальная разработка) | Не объявлена | 2026-10-04 | project-local |
 | ritela-checkpoint | Обновить документы, проверить шаг и сделать коммит | Этот репозиторий / `.agents/skills/ritela-checkpoint/SKILL.md` | 1.0.0 / null (локальная разработка) | Не объявлена | 2026-10-04 | project-local |
+| ritela-android-check | Повторяемый цикл format/build/test/lint/render/APK checks | Этот репозиторий / `.agents/skills/ritela-android-check/SKILL.md` | 1.0.0 / null (локальная разработка) | Не объявлена | 2026-10-05 | project-local |
 
 SHA-256 содержимого находятся в lock. При изменении скилла обнови его версию/hash и проверь реестр через `scripts/check-workspace.ps1`.
 
-## Источники для следующего шага M0
+## Проверка внешних источников
 
 Просмотрены каталоги [Google Android Skills](https://github.com/android/skills), [Kotlin Agent Skills](https://github.com/Kotlin/kotlin-agent-skills) и [OpenAI Skills](https://github.com/openai/skills). Пока ничего из них не установлено: сначала выбрать применимые к фактическому toolchain инструкции, прочитать SKILL.md и все вызываемые scripts/resources, проверить лицензию и закрепить upstream SHA. Кандидат для M0 — Android testing setup; навыки Compose подбираются по конкретным задачам.
 

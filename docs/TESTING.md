@@ -23,7 +23,9 @@ Linux/macOS: подготовь JDK 17 и Android SDK, установи `platfor
 ./gradlew checkKotlin assembleDebug testDebugUnitTest lintDebug --console=plain
 ```
 
-`HomeScreenTest` запускает Activity/Compose в Robolectric на API 35, проверяет пустой экран, описание приватности, FLAG_SECURE, отсутствие backup и INTERNET. Отдельный тест рендерит светлую и тёмную темы в PNG: `app/build/reports/screenshots/home-light.png`, `home-dark.png`. Эти изображения предназначены для просмотра; pixel regression baseline ещё не создан.
+Тесты запускают Activity/Compose/SQLite в Robolectric на API 35. `HomeScreenTest` проверяет пустой экран, FLAG_SECURE, отсутствие backup/INTERNET и сценарий add → Activity recreation → finish. `PeriodRulesTest` покрывает будущие/обратные даты, один день и 29 февраля. Repository tests проверяют календарные даты на DST-границе, транзакционную защиту от конкурентных дубликатов и восстановление после повторного открытия базы. ViewModel tests проверяют состояния сохранения/ошибки и повторное нажатие.
+
+PNG в `app/build/reports/screenshots/`: `home-light.png`, `home-dark.png`, `home-recorded.png`, `period-entry.png`, `period-finish.png`. Это изображения для просмотра с синтетическими данными; pixel regression baseline ещё не создан. Room schema v1 сохраняется в `app/schemas/`; миграций пока нет, при их добавлении нужны отдельные migration tests.
 
 Отчёты: `app/build/reports/tests/testDebugUnitTest/index.html` и `app/build/reports/lint-results-debug.html`. APK: `app/build/outputs/apk/debug/app-debug.apk`.
 

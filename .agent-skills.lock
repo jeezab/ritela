@@ -22,6 +22,17 @@
                        "sha256":  "67ed76edd44c3ff58b5b76682746d98218864ea7469ddd014cc09ac9b82337cc",
                        "installedAt":  "2026-10-04",
                        "classification":  "project-local"
+                   },
+                   {
+                       "name":  "ritela-android-check",
+                       "source":  "https://github.com/jeezab/ritela",
+                       "commit":  null,
+                       "path":  ".agents/skills/ritela-android-check/SKILL.md",
+                       "license":  "NOASSERTION",
+                       "version":  "1.0.0",
+                       "sha256":  "95b6f9ae712a024ac91d9d51fef25cf53e7c5579dfdb7540674209d86f9191c0",
+                       "installedAt":  "2026-10-05",
+                       "classification":  "project-local"
                    }
                ]
 }

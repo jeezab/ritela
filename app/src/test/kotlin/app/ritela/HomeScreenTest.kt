@@ -8,8 +8,10 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import app.ritela.ui.HomeScreen
 import app.ritela.ui.RitelaTheme
 import java.io.File
@@ -22,6 +24,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowDialog
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "ru-rRU-w411dp-h891dp")
@@ -32,6 +35,9 @@ class HomeScreenTest {
 
     @Test
     fun emptyHomeExplainsLocalPrivacy() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Пока нет записей").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithText("Пока нет записей").assertIsDisplayed()
         compose.onNodeWithText(
             "Без аккаунта, рекламы и передачи данных на сервер."
@@ -50,6 +56,29 @@ class HomeScreenTest {
     }
 
     @Test
+    fun periodCanBeSavedAndFinishedAfterActivityRecreation() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Пока нет записей").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Добавить запись").performClick()
+        saveRendering("period-entry", dialog = true)
+        compose.onNodeWithText("Сохранить").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithText("Продолжается").assertIsDisplayed()
+        compose.onNodeWithText("Завершить").performClick()
+        saveRendering("period-finish", dialog = true)
+        compose.onNodeWithText("Готово").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Добавить запись").assertIsDisplayed()
+        saveRendering("home-recorded")
+    }
+
+    @Test
     fun renderLightAndDarkHome() {
         for (dark in listOf(false, true)) {
             compose.activity.runOnUiThread {
@@ -60,13 +89,30 @@ class HomeScreenTest {
                 }
             }
             compose.waitForIdle()
-            val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
-            val directory = File(requireNotNull(System.getProperty("ritela.screenshotDir"))).apply {
-                mkdirs()
+            saveRendering("home-${if (dark) "dark" else "light"}")
+        }
+    }
+
+    private fun saveRendering(name: String, dialog: Boolean = false) {
+        compose.waitForIdle()
+        val bitmap = if (dialog) {
+            // Robolectric PixelCopy can sample the Activity behind a separate dialog window.
+            val decor = requireNotNull(ShadowDialog.getLatestDialog().window).decorView
+            android.graphics.Bitmap.createBitmap(
+                decor.width,
+                decor.height,
+                android.graphics.Bitmap.Config.ARGB_8888
+            ).also {
+                decor.draw(android.graphics.Canvas(it))
             }
-            File(directory, "home-${if (dark) "dark" else "light"}.png").outputStream().use {
-                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
-            }
+        } else {
+            compose.onRoot().captureToImage().asAndroidBitmap()
+        }
+        val directory = File(requireNotNull(System.getProperty("ritela.screenshotDir"))).apply {
+            mkdirs()
+        }
+        File(directory, "$name.png").outputStream().use {
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
         }
     }
 }

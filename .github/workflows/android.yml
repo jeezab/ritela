@@ -35,6 +35,13 @@ jobs:
         run: bash ./gradlew checkKotlin assembleDebug testDebugUnitTest lintDebug --console=plain
       - name: Checksum APK
         run: sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/app-debug.apk.sha256
+      - name: Verify APK signature and permissions
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump permissions app/build/outputs/apk/debug/app-debug.apk > app/build/apk-permissions.txt
+          if rg 'android\.permission\.(INTERNET|ACCESS_NETWORK_STATE)' app/build/apk-permissions.txt; then
+            exit 1
+          fi
       - name: Upload debug APK
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
