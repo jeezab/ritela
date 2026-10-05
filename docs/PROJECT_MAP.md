@@ -20,6 +20,15 @@
 | `scripts/read-brief.ps1` | Вывод только выбранных разделов полного промпта |
 | `scripts/bootstrap-toolchain.ps1` | Подготовка локального toolchain |
 | `scripts/toolchain.lock.json` | Закреплённые URL, версии и SHA-256 архивов инструментов |
+| `scripts/setup-sdk.ps1` | Установка SDK-пакетов и проверка adb |
+| `scripts/gradle.ps1` | Сборка с локальными Java/SDK и восстановлением environment |
+| `scripts/verify-apk.ps1` | Проверка APK, сетевых разрешений и checksum |
+| `gradle/libs.versions.toml` | Закреплённые версии зависимостей и plugins |
+| `app/src/main/kotlin/app/ritela/` | Activity и Compose UI |
+| `app/src/test/kotlin/app/ritela/` | JVM/Compose тесты и render checks |
+| `.github/workflows/android.yml` | Проверки, debug APK, checksum и отчёты |
+| `docs/TESTING.md` | Доступные команды и ограничения проверок |
+| `ARCHITECTURE.md`, `PRIVACY.md` | Фактическая архитектура и меры приватности |
 
 ## Этапы
 
