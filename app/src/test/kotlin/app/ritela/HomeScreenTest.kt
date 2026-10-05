@@ -23,6 +23,8 @@ import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -148,6 +150,44 @@ class HomeScreenTest {
             compose.waitForIdle()
             saveRendering("home-${if (dark) "dark" else "light"}")
         }
+    }
+
+    @Test
+    fun editingKeepsTheRecordAndDeletionRequiresConfirmation() {
+        val repository = (compose.activity.application as RitelaApplication).periods
+        val today = LocalDate.now()
+        val original = runBlocking {
+            repository.add(today.minusDays(6), today.minusDays(2))
+            repository.periods.first().single()
+        }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Изменить").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Изменить").performClick()
+        compose.activityRule.scenario.recreate()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Изменить даты").fetchSemanticsNodes().isNotEmpty()
+        }
+        saveRendering("period-edit", dialog = true)
+        compose.onNodeWithText("Ещё идут").performClick()
+        compose.onNodeWithText("Сохранить").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isNotEmpty()
+        }
+        val changed = runBlocking { repository.periods.first().single() }
+        assertEquals(original.id, changed.id)
+        assertEquals(original.createdAt, changed.createdAt)
+        assertEquals(null, changed.end)
+        compose.onNodeWithText("Удалить").performClick()
+        saveRendering("period-delete", dialog = true)
+        compose.onNodeWithText("Отмена").performClick()
+        assertEquals(changed, runBlocking { repository.periods.first().single() })
+        compose.onNodeWithText("Удалить").performClick()
+        compose.onNodeWithText("Удалить запись").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertTrue(runBlocking { repository.periods.first().isEmpty() })
     }
 
     private fun saveRendering(name: String, dialog: Boolean = false) {

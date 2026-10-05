@@ -51,6 +51,14 @@ class PeriodViewModel(private val repository: PeriodRepository) : ViewModel() {
         persist { repository.finish(id, end) }
     }
 
+    fun edit(id: UUID, start: LocalDate, end: LocalDate?) {
+        persist { repository.edit(id, start, end) }
+    }
+
+    fun delete(id: UUID) {
+        persist { repository.delete(id) }
+    }
+
     private fun persist(operation: suspend () -> PeriodProblem?) {
         if (state.value.saving) return
         state.update { it.copy(saving = true, problem = null, saved = false) }

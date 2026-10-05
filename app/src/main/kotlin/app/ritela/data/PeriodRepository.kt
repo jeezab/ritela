@@ -40,4 +40,17 @@ class PeriodRepository(
             PeriodProblem.STORAGE
         }
     }
+
+    suspend fun edit(id: UUID, start: LocalDate, end: LocalDate?): PeriodProblem? {
+        validatePeriod(start, end, LocalDate.now(clock))?.let { return it }
+        return dao.editIfSeparate(
+            id.toString(),
+            start.toEpochDay(),
+            end?.toEpochDay(),
+            clock.millis()
+        )
+    }
+
+    suspend fun delete(id: UUID): PeriodProblem? =
+        if (dao.delete(id.toString()) == 1) null else PeriodProblem.STORAGE
 }
