@@ -4,6 +4,8 @@ Android-трекер менструального цикла с работой �
 
 Для продолжения работы открой [состояние проекта](docs/STATUS.md) и [карту](docs/PROJECT_MAP.md). Полные требования сохранены в [PROJECT_BRIEF](docs/PROJECT_BRIEF.md), роль и правила работы — в [AGENTS.md](AGENTS.md).
 
+Интерфейс на русском и английском. Выбранный по макету стиль, цветовые tokens и поведение локализации: [STYLE_GUIDE.md](docs/STYLE_GUIDE.md).
+
 Из корня репозитория в Windows PowerShell:
 
 ```powershell

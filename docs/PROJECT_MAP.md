@@ -28,6 +28,10 @@
 | `scripts/verify-apk.ps1` | Проверка APK, сетевых разрешений и checksum |
 | `scripts/preview-ui.ps1` | Обновление Compose-снимков и локальная HTML-галерея без телефона |
 | `docs/UI_DESIGN.md` | Исследование трекеров, принципы текста и план интерфейса |
+| `docs/STYLE_GUIDE.md` | Выбранный по макету стиль, tokens, адаптация механик и EN/RU |
+| `.agents/skills/ui-quality-audit/SKILL.md` | Сохранение стиля, двуязычные формы, темы и размеры |
+| `app/src/main/res/values-ru/strings.xml` | Полный русский интерфейс; английский fallback в values |
+| `app/src/main/kotlin/app/ritela/ui/CycleOrbit.kt` | Адаптивный Canvas-декор карточки цикла |
 | `gradle/libs.versions.toml` | Закреплённые версии зависимостей и plugins |
 | `app/src/main/kotlin/app/ritela/` | Activity и Compose UI |
 | `app/src/main/kotlin/app/ritela/domain/` | Чистые модели, проверка дат, расчёт цикла и сетка календаря |

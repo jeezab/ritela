@@ -307,6 +307,119 @@ class HomeScreenTest {
         }
     }
 
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w411dp-h891dp")
+    fun englishPeriodCanBeSavedEditedAndDeleted() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Start with a date").fetchSemanticsNodes().isNotEmpty()
+        }
+        saveRendering("home-english")
+        compose.onNodeWithText("Log period").performClick()
+        saveRendering("period-entry-english", dialog = true)
+        compose.onNodeWithText("End date").performClick()
+        compose.onNodeWithText("Done").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Save").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Last period").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Edit").performScrollTo().performClick()
+        compose.onNodeWithText("Edit dates").assertIsDisplayed()
+        compose.onNodeWithText("Still ongoing").performClick()
+        compose.onNodeWithText("Save").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Ongoing").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Delete").performScrollTo().performClick()
+        compose.onNodeWithText("Delete this period?").assertIsDisplayed()
+        compose.onNodeWithText("Delete period").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Start with a date").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("nav-calendar").performClick()
+        compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
+        saveRendering("calendar-english")
+    }
+
+    @Test
+    fun renderReferenceStyleWithRealForecastInBothThemes() {
+        renderForecastHome()
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w411dp-h891dp")
+    fun englishForecastKeepsDatesAndHistoryLocalized() {
+        renderForecastHome()
+        compose.onNodeWithText("Oct 19").assertIsDisplayed()
+        compose.onNodeWithText("Based on 6 completed cycles").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    fun englishForecastAtLargeFontKeepsLoggingAccessible() {
+        val today = LocalDate.of(2026, 10, 14)
+        val records = (0..6).map {
+            val start = today.minusDays(23 + 28L * it)
+            Period(UUID(0, it.toLong()), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH)
+        }
+        val state =
+            PeriodUiState(
+                periods = records,
+                loading = false,
+                today = today,
+                analysis = analyzeCycles(records, today)
+            )
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                val density = LocalDensity.current.density
+                CompositionLocalProvider(LocalDensity provides Density(density, 2f)) {
+                    RitelaTheme {
+                        Scaffold(bottomBar = {
+                            AppNavigation(0) {}
+                        }) { HomeScreen(it, state, today = today) }
+                    }
+                }
+            }
+        }
+        saveRendering("home-forecast-narrow-english")
+        compose.onNodeWithText("Log period").performScrollTo().assertIsDisplayed()
+        saveRendering("home-forecast-narrow-action-english")
+    }
+
+    private fun renderForecastHome() {
+        val today = LocalDate.of(2026, 10, 14)
+        val records = (0..6).map {
+            val start = today.minusDays(23 + 28L * (6 - it))
+            Period(UUID(0, it.toLong()), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH)
+        }
+        val state =
+            PeriodUiState(
+                periods = records.asReversed(),
+                loading = false,
+                today = today,
+                analysis = analyzeCycles(records, today)
+            )
+        for (dark in listOf(false, true)) {
+            compose.activity.runOnUiThread {
+                compose.activity.setContent {
+                    RitelaTheme(darkTheme = dark) {
+                        Scaffold(bottomBar = { AppNavigation(0) {} }) {
+                            HomeScreen(it, state, today = today)
+                        }
+                    }
+                }
+            }
+            val english = compose.activity.resources.configuration.locales[0].language == "en"
+            compose.onNodeWithText(
+                if (english) "Cycle day 24" else "День цикла: 24"
+            ).assertIsDisplayed()
+            compose.onNodeWithText(
+                if (english) "Log period" else "Отметить месячные"
+            ).assertIsDisplayed()
+            val name = if (dark) "home-forecast-dark" else "home-forecast"
+            saveRendering(if (english) "$name-english" else name)
+        }
+    }
+
     private fun saveRendering(name: String, dialog: Boolean = false) {
         compose.waitForIdle()
         val bitmap = if (dialog) {

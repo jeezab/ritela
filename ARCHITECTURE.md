@@ -10,4 +10,6 @@
 
 `domain/CyclePrediction.kt` вычисляет день цикла, медиану/MAD, качество истории и 12 расширяющихся диапазонов. ViewModel пересчитывает анализ при каждом Room Flow emission и обновляет текущий день при ON_RESUME. Производные прогнозы не сохраняются. [Формулы и ограничения](docs/PREDICTION.md). `CalendarScreen` показывает месяц, выбранный день и связанные действия; `ForecastCard` используется на главной и в календаре. Нижняя навигация переключает два работающих раздела. События и симптомы ещё не реализованы.
 
-Сборка использует version catalog, Gradle wrapper с SHA-256, configuration cache и build cache. Производственные зависимости сейчас ограничены Compose/Material 3 и AndroidX Activity; Robolectric и ktlint используются только для проверок.
+Тема и тексты соответствуют [STYLE_GUIDE.md](docs/STYLE_GUIDE.md): общие цветовые/типографические tokens, serif для заголовков и дат, адаптивный Canvas-декор без bitmap assets. Системные dynamic colors по умолчанию выключены. Английский fallback в values, полный русский в values-ru. AGP generateLocaleConfig + localeFilters en/ru предоставляют системный выбор языка на Android 13+; более старые ОС используют язык устройства.
+
+Сборка использует version catalog, Gradle wrapper с SHA-256, configuration cache и build cache. Производственные зависимости — Compose/Material 3, AndroidX Activity/Lifecycle и Room; Robolectric и ktlint используются только для проверок.
