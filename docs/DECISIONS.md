@@ -42,6 +42,8 @@ Lint остаётся строгим для ошибок и предупрежд
 
 ## 2026-10-05: обозначение JDK в GitHub Actions
 
+Во втором CI setup-java прошёл, но команда sdkmanager отсутствовала в PATH. Prepare SDK теперь вызывает `$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager` и явно передаёт SDK root; новый action не добавлен. Этот путь соответствует [установке SDK в официальном образе Ubuntu](https://github.com/actions/runner-images/blob/main/images/ubuntu/scripts/build/install-android-sdk.sh) и [документации sdkmanager](https://developer.android.com/tools/sdkmanager). Проверка executable и Bash errexit сохраняют ошибки установки. CI использует предустановленные tools/licences GitHub runner, а версии platform/build-tools остаются явно указаны.
+
 Первый удалённый запуск остановился в setup-java: имя релиза `17.0.20.1+1` не проходит SemVer validation. CI использует `17.0.20+101` из Adoptium API для того же Linux x64 JDK; локальный bootstrap продолжает использовать закреплённый архив `jdk-17.0.20.1+1`. Это изменение обозначения, а не обновление Java или переход на диапазон версий.
 
 Закреплённый [setup-java проверяет input через semver.validRange](https://github.com/actions/setup-java/blob/b6effb05e454b25005698d916606bdc6ffcbf961/src/distributions/base-installer.ts), [Temurin installer читает version_data.semver](https://github.com/actions/setup-java/blob/b6effb05e454b25005698d916606bdc6ffcbf961/src/distributions/temurin/installer.ts), а [сопоставление полного input учитывает build через compareBuild](https://github.com/actions/setup-java/blob/b6effb05e454b25005698d916606bdc6ffcbf961/src/util.ts). При обновлении JDK сверять официальный SemVer и наличие пакета для платформы runner, затем проверять полный CI.
