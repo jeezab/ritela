@@ -32,8 +32,8 @@
 | `.agents/skills/ui-quality-audit/SKILL.md` | Сохранение стиля, двуязычные формы, темы и размеры |
 | `app/src/main/res/values-ru/strings.xml` | Полный русский интерфейс; английский fallback в values |
 | `app/src/main/kotlin/app/ritela/ui/CycleOrbit.kt` | Адаптивный Canvas-декор карточки цикла |
-| `app/src/main/kotlin/app/ritela/ui/SettingsScreen.kt` | Исходные 28/5, сохранение и переход к системному языку |
-| `app/src/main/kotlin/app/ritela/data/SettingsRepository.kt` | Приватные preferences и Flow исходных значений |
+| `app/src/main/kotlin/app/ritela/ui/SettingsScreen.kt` | Язык и сохранение системной/светлой/тёмной темы |
+| `app/src/main/kotlin/app/ritela/data/SettingsRepository.kt` | Приватные preferences и Flow исходных значений/темы |
 | `gradle/libs.versions.toml` | Закреплённые версии зависимостей и plugins |
 | `app/src/main/kotlin/app/ritela/` | Activity и Compose UI |
 | `app/src/main/kotlin/app/ritela/domain/` | Чистые модели, проверка дат, расчёт цикла и сетка календаря |
@@ -55,7 +55,7 @@
 | M1 | Room и запись менструации | Add/finish/history/edit/delete реализованы и проверены; схема v1 сохранена |
 | M2 | Prediction engine, календарь, главный экран | Первая версия реализована: день цикла, медиана/MAD, диапазоны до 12 циклов, календарь и выбранный день; проверка на устройстве впереди |
 | M3 | События, симптомы, сексуальная активность | Не начат |
-| M4 | Insights и настройки | Настройки исходного прогноза/языка реализованы; insights и остальные настройки впереди |
+| M4 | Insights и настройки | Настройки языка/темы реализованы; insights и остальные настройки впереди |
 | M5 | Экспорт/импорт, приватность, защита | Не начат |
 | M6 | Виджеты и уведомления | Не начат |
 | M7 | Визуальная проверка и производительность | Визуальные проверки ведутся уже в M1; добавлена галерея, итоговый аудит впереди |

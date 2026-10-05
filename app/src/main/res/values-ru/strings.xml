@@ -63,12 +63,7 @@
         <item quantity="other">По %d завершённым циклам</item>
     </plurals>
     <string name="settings_title">Настройки</string>
-    <string name="default_cycle_length">Длина цикла · дни</string>
-    <string name="default_period_duration">Длительность месячных · дни</string>
-    <string name="defaults_description">Сначала используем цикл 28 дней и месячные 5 дней. После записи окончания берём эту длительность для следующих прогнозов. Длину цикла уточняем, когда накопится история.</string>
-    <string name="reset_defaults">Вернуть 28 и 5 дней</string>
     <string name="language_title">Язык</string>
-    <string name="language_description">Русский и английский. Язык приложения можно выбрать в системных настройках; на старых версиях Android он совпадает с языком устройства.</string>
     <string name="choose_language">Настройки языка</string>
     <string name="default_forecast_basis">Стартовый ориентир · цикл %d дней</string>
     <string name="calendar_estimated_period">Предполагаемый день месячных</string>
@@ -88,4 +83,8 @@
         <item quantity="many">Отметить %d дней</item>
         <item quantity="other">Отметить %d дней</item>
     </plurals>
+    <string name="theme_title">Тема</string>
+    <string name="theme_system">Системная</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
 </resources>

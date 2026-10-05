@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.ritela.RitelaApplication
 import app.ritela.data.PeriodRepository
 import app.ritela.data.SettingsRepository
+import app.ritela.data.ThemeMode
 import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.Period
 import app.ritela.domain.PeriodProblem
@@ -31,37 +32,44 @@ data class PeriodUiState(
     val problem: PeriodProblem? = null,
     val today: LocalDate = LocalDate.now(),
     val analysis: CycleAnalysis = CycleAnalysis(),
-    val defaults: PredictionDefaults = PredictionDefaults()
+    val defaults: PredictionDefaults = PredictionDefaults(),
+    val themeMode: ThemeMode = ThemeMode.SYSTEM
 )
 
 class PeriodViewModel(
     private val repository: PeriodRepository,
     private val settings: SettingsRepository? = null
 ) : ViewModel() {
-    private val state = MutableStateFlow(PeriodUiState(today = repository.today))
+    private val state = MutableStateFlow(
+        PeriodUiState(
+            today = repository.today,
+            themeMode =
+                settings?.theme?.value ?: ThemeMode.SYSTEM
+        )
+    )
     val uiState = state.asStateFlow()
 
     init {
         viewModelScope.launch {
             try {
-                combine(repository.periods, settings?.values ?: flowOf(PredictionDefaults())) {
-                        periods,
-                        defaults
-                    ->
-                    periods to
-                        defaults
-                }.collect { (periods, defaults) ->
-                    val today = repository.today
-                    state.update {
-                        it.copy(
-                            periods = periods,
-                            loading = false,
-                            today = today,
-                            analysis = analyzeCycles(periods, today, defaults),
-                            defaults = defaults
-                        )
+                combine(
+                    repository.periods,
+                    settings?.values ?: flowOf(PredictionDefaults()),
+                    settings?.theme ?: flowOf(ThemeMode.SYSTEM)
+                ) { periods, defaults, theme -> Triple(periods, defaults, theme) }
+                    .collect { (periods, defaults, theme) ->
+                        val today = repository.today
+                        state.update {
+                            it.copy(
+                                periods = periods,
+                                loading = false,
+                                today = today,
+                                analysis = analyzeCycles(periods, today, defaults),
+                                defaults = defaults,
+                                themeMode = theme
+                            )
+                        }
                     }
-                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -109,6 +117,13 @@ class PeriodViewModel(
         val today = repository.today
         state.update {
             it.copy(today = today, analysis = analyzeCycles(it.periods, today, it.defaults))
+        }
+    }
+
+    fun setTheme(value: ThemeMode) {
+        persist {
+            settings?.saveTheme(value)
+            null
         }
     }
 

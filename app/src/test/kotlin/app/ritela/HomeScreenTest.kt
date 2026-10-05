@@ -9,6 +9,7 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -401,16 +402,36 @@ class HomeScreenTest {
         compose.onNodeWithTag("nav-settings").performClick()
         compose.onNodeWithTag("settings-heading").assertIsDisplayed()
         saveRendering("settings")
-        compose.onNodeWithTag("cycle-plus").performClick().performClick()
-        compose.onNodeWithTag("duration-plus").performClick()
-        compose.onNodeWithText("Сохранить").performClick()
+        compose.onNodeWithTag("cycle-plus").assertDoesNotExist()
+        compose.onNodeWithTag("duration-plus").assertDoesNotExist()
+        compose.onNodeWithTag("theme-dark").performClick()
         compose.waitUntil(10_000) {
-            (compose.activity.application as RitelaApplication).settings.values.value.cycleLength ==
-                30
+            (compose.activity.application as RitelaApplication).settings.theme.value ==
+                app.ritela.data.ThemeMode.DARK
         }
+        compose.waitForIdle()
+        assertEquals(
+            0xFF1E191F.toInt(),
+            compose.onRoot().captureToImage().asAndroidBitmap().getPixel(0, 0)
+        )
+        saveRendering("settings-dark")
         compose.activityRule.scenario.recreate()
-        compose.onNodeWithTag("cycle-value").assertTextEquals("30")
-        compose.onNodeWithTag("duration-value").assertTextEquals("6")
+        compose.onNodeWithTag("theme-dark").assertIsSelected()
+        compose.onNodeWithTag("theme-light").performClick()
+        compose.waitUntil(10_000) {
+            (compose.activity.application as RitelaApplication).settings.theme.value ==
+                app.ritela.data.ThemeMode.LIGHT
+        }
+        compose.waitForIdle()
+        assertEquals(
+            0xFFF8F4EF.toInt(),
+            compose.onRoot().captureToImage().asAndroidBitmap().getPixel(0, 0)
+        )
+        compose.onNodeWithTag("theme-system").performClick()
+        compose.waitUntil(10_000) {
+            (compose.activity.application as RitelaApplication).settings.theme.value ==
+                app.ritela.data.ThemeMode.SYSTEM
+        }
         compose.onNodeWithTag("nav-calendar").performClick()
         compose.onNodeWithTag("month-selector").performClick()
         saveRendering("calendar-month-picker", dialog = true)
@@ -457,6 +478,13 @@ class HomeScreenTest {
         compose.onNodeWithTag("settings-heading").assertIsDisplayed()
         compose.onNodeWithText("Language").assertIsDisplayed()
         saveRendering("settings-english")
+        compose.onNodeWithText("Theme").assertIsDisplayed()
+        compose.onNodeWithTag("theme-dark").performClick()
+        compose.waitUntil(10_000) {
+            (compose.activity.application as RitelaApplication).settings.theme.value ==
+                app.ritela.data.ThemeMode.DARK
+        }
+        saveRendering("settings-dark-english")
     }
 
     private fun renderForecastHome() {

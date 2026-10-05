@@ -61,12 +61,7 @@
         <item quantity="other">Based on %d completed cycles</item>
     </plurals>
     <string name="settings_title">Settings</string>
-    <string name="default_cycle_length">Cycle length · days</string>
-    <string name="default_period_duration">Period duration · days</string>
-    <string name="defaults_description">Start with 28 days per cycle and a 5-day period. After you log an end date, its duration is used for future estimates. Cycle length adapts once there is enough history.</string>
-    <string name="reset_defaults">Reset to 28 and 5 days</string>
     <string name="language_title">Language</string>
-    <string name="language_description">English and Russian. Choose the app language in system settings; on older Android versions, it follows the device language.</string>
     <string name="choose_language">Language settings</string>
     <string name="default_forecast_basis">Starting estimate · %d-day cycle</string>
     <string name="calendar_estimated_period">Estimated period day</string>
@@ -82,4 +77,8 @@
         <item quantity="one">Mark %d day</item>
         <item quantity="other">Mark %d days</item>
     </plurals>
+    <string name="theme_title">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
 </resources>

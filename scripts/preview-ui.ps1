@@ -35,8 +35,10 @@ $labels = [ordered]@{
     'home-forecast-dark-english' = 'Cycle estimate · English · dark'
     'home-forecast-narrow-english' = 'Cycle estimate · English · narrow · 200%'
     'home-forecast-narrow-action-english' = 'Log action · English · narrow · 200%'
-    'settings' = 'Настройки · исходные значения'
+    'settings' = 'Настройки · светлая тема'
     'settings-english' = 'Settings · English'
+    'settings-dark' = 'Настройки · тёмная тема'
+    'settings-dark-english' = 'Settings · Dark · English'
     'calendar-month-picker' = 'Выбор месяца и года'
     'period-range' = 'Выбор диапазона · граница месяца'
 }
