@@ -63,14 +63,24 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
             PeriodEntry(state, onDismiss = {
                 adding = false
                 model.clearResult()
-            }, onSave = model::save)
+            }, onSave = model::save, onChange = model::clearResult)
         }
         finishingId?.let { id ->
-            PickDate(LocalDate.now(), onDismiss = { finishingId = null }, onChoose = {
-                model.finish(UUID.fromString(id), it)
-                finishingId =
-                    null
-            })
+            PickDate(
+                LocalDate.now(),
+                minimum = state.periods.firstOrNull {
+                    it.id.toString() == id
+                }?.start,
+                onDismiss = {
+                    finishingId =
+                        null
+                },
+                onChoose = {
+                    model.finish(UUID.fromString(id), it)
+                    finishingId =
+                        null
+                }
+            )
         }
     }
 }
@@ -138,7 +148,7 @@ fun HomeScreen(
                     )
                     if (!state.loading) {
                         Text(
-                            latest?.let { formattedDate(it.start) }
+                            latest?.let { periodDates(it) }
                                 ?: stringResource(R.string.empty_description),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -188,13 +198,14 @@ fun HomeScreen(
             }
             for (period in state.periods) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                    Text(formattedDate(period.start), style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        period.end?.let { stringResource(R.string.end_date, formattedDate(it)) }
-                            ?: stringResource(R.string.ongoing),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(periodDates(period), style = MaterialTheme.typography.titleMedium)
+                    if (period.end == null) {
+                        Text(
+                            stringResource(R.string.ongoing),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
@@ -206,6 +217,11 @@ fun HomeScreen(
         )
     }
 }
+
+@Composable
+fun periodDates(period: Period): String = period.end?.let {
+    stringResource(R.string.period_range, formattedDate(period.start), formattedDate(it))
+} ?: formattedDate(period.start)
 
 @Preview(
     name = "Empty · light",

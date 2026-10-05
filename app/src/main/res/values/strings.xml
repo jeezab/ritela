@@ -10,6 +10,9 @@
     <string name="privacy_description">Записи хранятся на этом устройстве</string>
     <string name="add_period">Отметить месячные</string>
     <string name="new_period">Месячные</string>
+    <string name="edit_period">Изменить даты</string>
+    <string name="clear_end">Ещё идут</string>
+    <string name="period_range">%1$s — %2$s</string>
     <string name="start_date">Начало: %1$s</string>
     <string name="end_date">Окончание: %1$s</string>
     <string name="choose_end">Дата окончания</string>
