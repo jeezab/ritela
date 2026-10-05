@@ -39,4 +39,6 @@ PNG в `app/build/reports/screenshots/`: `home-light.png`, `home-dark.png`, `hom
 & ./.toolchain/android-sdk/platform-tools/adb.exe shell am start -n app.ritela/.MainActivity
 ```
 
-Instrumentation-набор и emulator пока не настроены; device testing нельзя считать пройденным по JVM-тесту. CI повторяет локальные build/unit/lint/format checks, сохраняет debug APK, SHA-256 и отчёты. До push фактический удалённый запуск CI не проверен.
+Instrumentation-набор и emulator пока не настроены; device testing нельзя считать пройденным по JVM-тесту. CI повторяет локальные build/unit/lint/format checks, сохраняет debug APK, SHA-256 и отчёты. Первый удалённый запуск упал в setup-java до сборки. Формат версии исправлен; успешный повторный запуск пока не подтверждён.
+
+Для setup-java указывай Adoptium `version_data.semver`, а не имя релиза или каталога JDK: `17.0.20+101` соответствует `jdk-17.0.20.1+1`. Локальный bootstrap сохраняет исходное обозначение релиза и закреплённый архив. При обновлении CI JDK проверяй SemVer и наличие Linux x64 JDK в Adoptium API; затем подтверждай полный удалённый запуск, включая APK artifacts.

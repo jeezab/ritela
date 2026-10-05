@@ -4,7 +4,7 @@
 
 ## Реализовано
 
-- M0: Android skeleton и CI workflow; коммит `8d727f6`. CI подготовлен, удалённого запуска/push не было.
+- M0: Android skeleton и CI workflow; коммит `8d727f6`. Первый удалённый запуск после `932ddf7` упал в setup-java до сборки: `17.0.20.1+1` не является SemVer. Исправлено на Adoptium SemVer `17.0.20+101` для того же релиза; повторный удалённый запуск ожидается.
 - Добавление периода с началом и необязательным окончанием; продолжающийся период можно завершить позже. История показывает последние 30 записей.
 - Room 2.8.5, KSP 2.3.12, Lifecycle 2.11.0; схема v1 в `app/schemas/`. UUID, calendar epoch days, createdAt/updatedAt. Нет destructive fallback.
 - Будущие/обратные даты отклоняются. Проверка пересечения и вставка выполняются в транзакции; конкурентные дубликаты не создают второй записи.
@@ -14,6 +14,7 @@
 
 ## Проверки
 
+- Исправление CI: workflow YAML — PASS; SemVer 7.8.4 из lock закреплённого setup-java отклоняет старый input и принимает `17.0.20+101`. Adoptium API подтвердил точное соответствие релизу `jdk-17.0.20.1+1`, Linux x64 JDK. Integrity npm-архива проверена по upstream lock. `scripts/check-workspace.ps1` и `git diff --check` — PASS. Код приложения не менялся; следующие проверки приложения относятся к предыдущему шагу M1.
 - `scripts/gradle.ps1 formatKotlin`: PASS.
 - `scripts/gradle.ps1 checkKotlin assembleDebug testDebugUnitTest lintDebug`: BUILD SUCCESSFUL, configuration cache reused.
 - 11 тестов, 0 failures/errors: 3 UI, 3 domain, 3 Room/repository, 2 ViewModel. Покрыты DST/leap-day, ошибочные даты, overlap/concurrent insertion, закрытие/открытие базы и add → Activity recreation → finish.
@@ -24,8 +25,10 @@
 
 ## Следующее действие
 
+После отправки исправления проверить новый запуск GitHub Actions: setup-java, SDK, build/tests/lint и APK artifacts. Первый запуск не проверил эти шаги, поскольку установка Java завершилась ошибкой.
+
 Продолжить M1: редактирование и удаление периодов с проверкой пересечений, сохранением UUID/createdAt и подтверждением удаления. Добавить regression/UI tests для коррекции и удаления. Затем M2: pure Kotlin prediction engine, календарь и главная сводка. Читай релевантные разделы brief через `scripts/read-brief.ps1`, а не полный промпт.
 
 ## Ограничения
 
-Нет прогноза, календаря, коррекции/удаления, интенсивности/дневных событий, экспорта/импорта, app lock и зашифрованного backup. История на главном экране ограничена 30 записями. Миграций пока нет (начальная schema v1); дальнейшие изменения требуют migration tests. Устройств/emulator нет, device smoke test не выполнялся. CI не проверен удалённо. Debug APK не является release/MVP.
+Нет прогноза, календаря, коррекции/удаления, интенсивности/дневных событий, экспорта/импорта, app lock и зашифрованного backup. История на главном экране ограничена 30 записями. Миграций пока нет (начальная schema v1); дальнейшие изменения требуют migration tests. Устройств/emulator нет, device smoke test не выполнялся. Успешного удалённого CI пока нет; первый запуск упал до сборки. Debug APK не является release/MVP.

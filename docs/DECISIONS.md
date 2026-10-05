@@ -40,6 +40,12 @@ Robolectric 4.17 с native graphics выбран для поведения Compo
 
 Lint остаётся строгим для ошибок и предупреждений кода. Только AndroidGradlePluginVersion/NewerVersionAvailable имеют severity informational: они сообщают об обновлениях закреплённого toolchain, не о дефектах приложения. Gradle оставлен на официальной совместимой версии 9.6.0, Compose Compiler совпадает со встроенным Kotlin, вместо автоматического перехода на новую связку по совету lint. AGP обновлён до доступного stable patch 9.4.1; OldTargetApi исправлен переходом на target 37.
 
+## 2026-10-05: обозначение JDK в GitHub Actions
+
+Первый удалённый запуск остановился в setup-java: имя релиза `17.0.20.1+1` не проходит SemVer validation. CI использует `17.0.20+101` из Adoptium API для того же Linux x64 JDK; локальный bootstrap продолжает использовать закреплённый архив `jdk-17.0.20.1+1`. Это изменение обозначения, а не обновление Java или переход на диапазон версий.
+
+Закреплённый [setup-java проверяет input через semver.validRange](https://github.com/actions/setup-java/blob/b6effb05e454b25005698d916606bdc6ffcbf961/src/distributions/base-installer.ts), [Temurin installer читает version_data.semver](https://github.com/actions/setup-java/blob/b6effb05e454b25005698d916606bdc6ffcbf961/src/distributions/temurin/installer.ts), а [сопоставление полного input учитывает build через compareBuild](https://github.com/actions/setup-java/blob/b6effb05e454b25005698d916606bdc6ffcbf961/src/util.ts). При обновлении JDK сверять официальный SemVer и наличие пакета для платформы runner, затем проверять полный CI.
+
 ## 2026-10-05: первая запись периода
 
 Добавлены [Room 2.8.5](https://developer.android.com/jetpack/androidx/releases/room), KSP 2.3.12, Lifecycle 2.11.0. Минимальная модель — период с началом и необязательным окончанием; события/интенсивность кровотечения добавляются позже отдельными типизированными сущностями, а не набором boolean-полей периода.
