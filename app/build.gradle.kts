@@ -26,6 +26,11 @@ android {
         compose = true
     }
 
+    androidResources {
+        generateLocaleConfig = true
+        localeFilters += listOf("en", "ru")
+    }
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {

@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -207,86 +208,89 @@ fun HomeScreen(
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
             Text(
                 stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = 42.sp),
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 stringResource(R.string.home_title),
-                style = MaterialTheme.typography.headlineLarge
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 today.format(
-                    DateTimeFormatter.ofPattern(
-                        "d MMMM, EEEE",
-                        LocalConfiguration.current.locales[0]
-                    )
+                    DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.FULL)
+                        .withLocale(LocalConfiguration.current.locales[0])
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.headlineSmall
             )
         }
         val active = state.periods.firstOrNull { it.end == null }
         val latest = active ?: state.periods.firstOrNull()
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(Spacing.large),
-                verticalArrangement = Arrangement.spacedBy(Spacing.large)
+        val hasForecast = !state.loading && active == null && state.analysis.forecasts.isNotEmpty()
+        if (hasForecast) ForecastCard(state.analysis)
+        if (!hasForecast) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                    state.analysis.cycleDay?.let {
-                        Text(
-                            stringResource(R.string.cycle_day, it),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Text(
-                        stringResource(
-                            when {
-                                state.loading -> R.string.loading
-                                active != null -> R.string.active_title
-                                latest != null -> R.string.latest_title
-                                else -> R.string.empty_title
-                            }
-                        ),
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                    if (!state.loading) {
-                        Text(
-                            latest?.let { periodDates(it) }
-                                ?: stringResource(R.string.empty_description),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Button(
-                    onClick = { if (active != null) onFinish(active) else onAdd() },
-                    enabled = !state.loading && !state.saving,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight)
+                Column(
+                    modifier = Modifier.padding(Spacing.large),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.large)
                 ) {
-                    Text(
-                        stringResource(
-                            if (active !=
-                                null
-                            ) {
-                                R.string.finish_period
-                            } else {
-                                R.string.add_period
-                            }
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
+                        state.analysis.cycleDay?.let {
+                            Text(
+                                stringResource(R.string.cycle_day, it),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            stringResource(
+                                when {
+                                    state.loading -> R.string.loading
+                                    active != null -> R.string.active_title
+                                    latest != null -> R.string.latest_title
+                                    else -> R.string.empty_title
+                                }
+                            ),
+                            style = MaterialTheme.typography.headlineMedium
                         )
-                    )
+                        if (!state.loading) {
+                            Text(
+                                latest?.let { periodDates(it) }
+                                    ?: stringResource(R.string.empty_description),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         }
+        Button(
+            onClick = { if (active != null) onFinish(active) else onAdd() },
+            enabled = !state.loading && !state.saving,
+            modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight)
+        ) {
+            Text(
+                stringResource(
+                    if (active !=
+                        null
+                    ) {
+                        R.string.finish_period
+                    } else {
+                        R.string.add_period
+                    }
+                )
+            )
+        }
         state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
         if (!state.loading && state.periods.isNotEmpty() &&
-            active == null
+            active == null && !hasForecast
         ) {
             ForecastCard(state.analysis)
         }
@@ -351,7 +355,7 @@ fun HomeScreen(
 
 @Composable
 fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
-    NavigationBar {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         for (index in 0..1) {
             NavigationBarItem(
                 selected = page == index,

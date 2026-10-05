@@ -26,6 +26,15 @@ $labels = [ordered]@{
     'calendar-dark' = 'Календарь · тёмная тема'
     'calendar-narrow-medium-text' = 'Календарь · узкий экран · шрифт 130%'
     'calendar-narrow-large-text' = 'Календарь · узкий экран · шрифт 200%'
+    'home-english' = 'Home · English'
+    'period-entry-english' = 'Log period · English'
+    'calendar-english' = 'Calendar · English'
+    'home-forecast' = 'Главная · новый стиль · прогноз'
+    'home-forecast-dark' = 'Главная · новый стиль · тёмная тема'
+    'home-forecast-english' = 'Cycle estimate · English'
+    'home-forecast-dark-english' = 'Cycle estimate · English · dark'
+    'home-forecast-narrow-english' = 'Cycle estimate · English · narrow · 200%'
+    'home-forecast-narrow-action-english' = 'Log action · English · narrow · 200%'
 }
 $cards = foreach ($name in $labels.Keys) {
     $path = Join-Path $directory "$name.png"
