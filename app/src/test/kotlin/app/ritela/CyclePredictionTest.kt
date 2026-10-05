@@ -17,6 +17,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CyclePredictionTest {
+    @Test fun periodDurationUsesRecentMedianRatherThanOneLongRecord() {
+        val records = history(listOf(28, 28, 28))
+        val changed =
+            records.dropLast(1) + records.last().copy(end = records.last().start.plusDays(9))
+        val result = analyzeCycles(changed, changed.last().end!!)
+        assertEquals(4, result.periodDuration)
+    }
+
+    @Test fun yearWindowExcludesOlderCyclesWithoutInventingMissingRecords() {
+        val records = history(listOf(300, 28, 28, 28))
+        val result = analyzeCycles(records, records.last().end!!)
+        assertEquals(3, result.forecasts.first().cyclesUsed)
+        assertEquals(28, result.forecasts.first().cycleMedian)
+    }
+
     private fun history(
         lengths: List<Int>,
         first: LocalDate = LocalDate.of(2024, 1, 1)
@@ -163,7 +178,7 @@ class CyclePredictionTest {
         val records = history(listOf(28, 28, 800, 28, 28))
         val today = records.last().end!!
         val result = analyzeCycles(records, today)
-        assertEquals(4, result.forecasts.first().cyclesUsed)
+        assertEquals(2, result.forecasts.first().cyclesUsed)
         assertEquals(HistoryConfidence.LOW, result.forecasts.first().confidence)
         assertEquals(
             ForecastUnavailable.PAST_DUE,

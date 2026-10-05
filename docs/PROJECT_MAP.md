@@ -62,3 +62,16 @@
 | M8 | Release pipeline и проверенный APK | Не начат |
 
 Архитектурную карту модулей, форматы данных и команды Android добавлять после появления соответствующего кода. Полные критерии этапов находятся в PROJECT_BRIEF, разделы 58, 60–63.
+
+## Backend дневных отметок и копий
+
+Backend M3/M5 подготовлен; новая UI-часть находится в работе и будет сохранена следующим коммитом.
+
+- `app/src/main/kotlin/app/ritela/domain/DayLog.kt`: nullable боль/выделения/настроение/энергия, несколько sex-тегов и заметка.
+- `app/src/main/kotlin/app/ritela/data/DayLogEntity.kt`, `DayLogDao.kt`, `DayLogRepository.kt`: Room/Flow/Upsert отметок дня.
+- `data/RitelaDatabase.kt`: v2 и явная MIGRATION_1_2, periods не меняются; схемы в app/schemas.
+- `data/BackupRepository.kt`: AES-GCM, preview и атомарный merge без перезаписи конфликтов.
+- `domain/CyclePrediction.kt`: медиана последних 12 наблюдений в годовом окне для интервалов и длительности.
+- `DayLogBackupTest.kt`, `CyclePredictionTest.kt`: целостность копии, migration и расчёт.
+
+Остальные пути остаются в исходной карте из предыдущего коммита; полная обновлённая карта будет сохранена с UI-частью этого шага.

@@ -1,6 +1,6 @@
 # Локальное хранение
 
-Room database v1: `ritela.db`, схема [1.json](../app/schemas/app.ritela.data.RitelaDatabase/1.json). Таблица `periods`:
+Room database v2 (migration 1→2 сохраняет periods): `ritela.db`, схема [2.json](../app/schemas/app.ritela.data.RitelaDatabase/2.json). Таблица `periods`:
 
 | Поле | Формат |
 |---|---|
@@ -20,4 +20,6 @@ DAO/Repository читают все записи: это нужно календ�
 
 Исходные настройки хранятся отдельно в приватных SharedPreferences `settings`: `cycleLength` INT (default 28, 1..365) и `periodDuration` INT (default 5, 1..60). Они не переписывают даты Room. SettingsRepository использует синхронный commit в IO dispatcher, затем публикует StateFlow; combine с Room вызывает пересчёт. Backup остаётся запрещён. Предполагаемые дни будущих периодов не вставляются в таблицу periods.
 
-Тема в тех же preferences: themeMode STRING = SYSTEM / LIGHT / DARK, по умолчанию SYSTEM. Сохранение в IO с последующей публикацией отдельного StateFlow. Ранее сохранённые cycleLength/periodDuration остаются совместимыми; их выбор убран из интерфейса. Схема Room не менялась.
+Тема в тех же preferences: themeMode STRING = SYSTEM / LIGHT / DARK, по умолчанию SYSTEM. Сохранение в IO с последующей публикацией отдельного StateFlow. Ранее сохранённые cycleLength/periodDuration остаются совместимыми; их выбор убран из интерфейса. Preferences сохраняются отдельно от Room.
+
+Backend добавляет таблицу day_logs: epoch day primary key, nullable TEXT для enum-боли/выделений/настроения/энергии, sex TEXT и note TEXT. NULL отличается от NONE; пустой log удаляется. Новая [схема v2](../app/schemas/app.ritela.data.RitelaDatabase/2.json). BackupRepository умеет создавать/читать парольную AES-GCM копию и атомарно объединять записи, не перезаписывая конфликты. Подключение к UI — следующий коммит текущей задачи.

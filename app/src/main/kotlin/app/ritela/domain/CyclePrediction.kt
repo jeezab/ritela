@@ -48,13 +48,23 @@ fun analyzeCycles(
     val latest = ordered.last()
     val day = ChronoUnit.DAYS.between(latest.start, today) + 1
     // A missing period can produce a gap, not evidence of a very long measured cycle.
-    val recent = ordered.zipWithNext().takeLast(12).map { (a, b) ->
+    val recent = ordered.zipWithNext().filter { (a, _) ->
+        a.start >= today.minusYears(1)
+    }.takeLast(12).map { (a, b) ->
         ChronoUnit.DAYS.between(a.start, b.start)
     }
     val usable = recent.filter { it in 1..365 }.map { it.toDouble() }
-    val duration = ordered.lastOrNull { it.end != null }?.let {
-        (ChronoUnit.DAYS.between(it.start, it.end) + 1).coerceIn(1, 365).toInt()
-    } ?: defaults.periodDuration
+    val durations = ordered.filter { it.end != null && it.start >= today.minusYears(1) }
+        .takeLast(12).map {
+            (ChronoUnit.DAYS.between(it.start, it.end) + 1).coerceIn(1, 365).toDouble()
+        }
+    val duration = if (durations.isEmpty()) {
+        defaults.periodDuration
+    } else {
+        median(
+            durations
+        ).roundToInt()
+    }
     val fallback = usable.size < 3
     val center = if (fallback) defaults.cycleLength.toDouble() else median(usable)
     val deviations = usable.map { abs(it - center) }
