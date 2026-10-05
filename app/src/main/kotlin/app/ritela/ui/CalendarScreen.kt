@@ -60,7 +60,8 @@ fun CalendarScreen(
     state: PeriodUiState,
     onAdd: (LocalDate) -> Unit,
     onEdit: (Period) -> Unit,
-    onDelete: (Period) -> Unit
+    onDelete: (Period) -> Unit,
+    onLogDay: (LocalDate) -> Unit = {}
 ) {
     val base = remember { YearMonth.from(state.today) }
     val pager = rememberPagerState(initialPage = 1200) { 2401 }
@@ -134,6 +135,7 @@ fun CalendarScreen(
                     "adjacent-day"
                 },
                 info = { calendarDay(state.periods, state.analysis, it, state.today) },
+                hasLog = { day -> state.dayLogs.any { it.date == day } },
                 onDay = {
                     selectedDay =
                         it.toEpochDay()
@@ -153,14 +155,6 @@ fun CalendarScreen(
             Text(dayKindText(selection.kind))
             selection.period?.let { period ->
                 Text(periodDates(period))
-                Row {
-                    TextButton(onClick = {
-                        onEdit(period)
-                    }, enabled = !state.saving) { Text(stringResource(R.string.edit)) }
-                    TextButton(onClick = {
-                        onDelete(period)
-                    }, enabled = !state.saving) { Text(stringResource(R.string.delete)) }
-                }
             } ?: run {
                 selection.forecast?.let { forecast ->
                     Text(
@@ -198,6 +192,38 @@ fun CalendarScreen(
                         stringResource(R.string.future_calendar_note),
                         style = MaterialTheme.typography.bodySmall
                     )
+                }
+            }
+            if (date <= state.today) {
+                DaySummary(
+                    state.dayLogs.firstOrNull { it.date == date },
+                    { onLogDay(date) },
+                    !state.loading && !state.saving
+                )
+                HelpCards(state.dayLogs.firstOrNull { it.date == date }, state.analysis, date)
+            }
+            Text(
+                stringResource(R.string.calendar_history),
+                style = MaterialTheme.typography.titleLarge
+            )
+            state.periods.forEach { period ->
+                Text(periodDates(period), style = MaterialTheme.typography.titleMedium)
+                if (period.end == null) Text(stringResource(R.string.ongoing))
+                Row {
+                    TextButton(
+                        onClick = { onEdit(period) },
+                        enabled = !state.saving,
+                        modifier = Modifier.testTag("edit-period-${period.id}")
+                    ) {
+                        Text(stringResource(R.string.edit))
+                    }
+                    TextButton(
+                        onClick = { onDelete(period) },
+                        enabled = !state.saving,
+                        modifier = Modifier.testTag("delete-period-${period.id}")
+                    ) {
+                        Text(stringResource(R.string.delete))
+                    }
                 }
             }
             if (state.loading) {
@@ -279,6 +305,7 @@ fun MonthGrid(
     rangeEnd: LocalDate? = null,
     futureEnabled: Boolean = true,
     info: (LocalDate) -> CalendarDayInfo = { CalendarDayInfo(CalendarDayKind.NONE) },
+    hasLog: (LocalDate) -> Boolean = { false },
     onDay: (LocalDate) -> Unit
 ) {
     val locale = LocalConfiguration.current.locales[0]
@@ -309,7 +336,8 @@ fun MonthGrid(
                             rangeStart != null && day >= rangeStart &&
                                 day <= (rangeEnd ?: rangeStart)
                         val selected = day == chosen || inRange
-                        val description = formattedDate(day) + ", " + dayKindText(detail.kind)
+                        val description = formattedDate(day) + ", " + dayKindText(detail.kind) +
+                            if (hasLog(day)) ", " + stringResource(R.string.day_has_log) else ""
                         Surface(
                             onClick = {
                                 onDay(day)
@@ -382,6 +410,8 @@ fun MonthGrid(
 
                                         detail.kind ==
                                             CalendarDayKind.ESTIMATED_PERIOD -> "○"
+
+                                        hasLog(day) -> "?"
 
                                         else -> " "
                                     },

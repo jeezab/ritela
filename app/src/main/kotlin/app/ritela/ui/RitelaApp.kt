@@ -15,7 +15,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -42,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.ritela.R
 import app.ritela.data.ThemeMode
+import app.ritela.domain.DayLog
 import app.ritela.domain.Period
 import java.time.Instant
 import java.time.LocalDate
@@ -55,11 +55,13 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     var finishingId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var loggingDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var page by rememberSaveable { mutableStateOf(0) }
     var addingDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.refreshToday() }
     LaunchedEffect(state.saved) {
         if (state.saved) {
+            loggingDay = null
             adding = false
             finishingId = null
             editingId = null
@@ -92,25 +94,45 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                     onDelete = {
                         deletingId = it.id.toString()
                         model.clearResult()
+                    },
+                    onLogDay = {
+                        model.clearResult()
+                        loggingDay = it.toEpochDay()
                     }
                 )
             } else {
-                HomeScreen(contentPadding, state, onAdd = {
-                    model.clearResult()
-                    addingDay = state.today.toEpochDay()
-                    adding = true
-                }, onFinish = {
-                    model.clearResult()
-                    finishingId =
-                        it.id.toString()
-                }, onEdit = {
-                    model.clearResult()
-                    editingId = it.id.toString()
-                }, onDelete = {
-                    model.clearResult()
-                    deletingId = it.id.toString()
-                }, today = state.today)
+                HomeScreen(
+                    contentPadding,
+                    state,
+                    onAdd = {
+                        model.clearResult()
+                        addingDay = state.today.toEpochDay()
+                        adding = true
+                    },
+                    onFinish = {
+                        model.clearResult()
+                        finishingId =
+                            it.id.toString()
+                    },
+                    onLogDay = {
+                        model.clearResult()
+                        loggingDay = state.today.toEpochDay()
+                    },
+                    today = state.today
+                )
             }
+        }
+        loggingDay?.let { epoch ->
+            val date = LocalDate.ofEpochDay(epoch)
+            DayLogEntry(
+                state.dayLogs.firstOrNull { it.date == date } ?: DayLog(date),
+                state,
+                onDismiss = {
+                    loggingDay = null
+                    model.clearResult()
+                },
+                onSave = model::saveDay
+            )
         }
         state.periods.firstOrNull { it.id.toString() == editingId }?.let { period ->
             PeriodEntry(
@@ -202,8 +224,7 @@ fun HomeScreen(
     state: PeriodUiState = PeriodUiState(loading = false),
     onAdd: () -> Unit = {},
     onFinish: (Period) -> Unit = {},
-    onEdit: (Period) -> Unit = {},
-    onDelete: (Period) -> Unit = {},
+    onLogDay: () -> Unit = {},
     today: LocalDate = LocalDate.now()
 ) {
     Column(
@@ -217,7 +238,7 @@ fun HomeScreen(
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
             Text(
                 stringResource(R.string.app_name),
-                style = MaterialTheme.typography.displayLarge.copy(fontSize = 42.sp),
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = 32.sp),
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
@@ -251,11 +272,7 @@ fun HomeScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
                         state.analysis.cycleDay?.let {
-                            Text(
-                                stringResource(R.string.cycle_day, it),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            CycleDayBadge(it)
                         }
                         Text(
                             stringResource(
@@ -269,6 +286,7 @@ fun HomeScreen(
                             style = MaterialTheme.typography.headlineMedium
                         )
                         if (!state.loading) {
+                            if (active != null) Text(stringResource(R.string.ongoing))
                             Text(
                                 latest?.let { periodDates(it) }
                                     ?: stringResource(R.string.empty_description),
@@ -303,57 +321,13 @@ fun HomeScreen(
         ) {
             ForecastCard(state.analysis)
         }
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.medium)) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(Spacing.small)
-            ) {
-                Text(
-                    stringResource(R.string.cycle_title),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                if (active != null) {
-                    TextButton(onClick = onAdd, enabled = !state.saving) {
-                        Text(stringResource(R.string.add_period))
-                    }
-                }
-            }
-            if (!state.loading && state.periods.isEmpty()) {
-                Text(
-                    stringResource(R.string.empty_history),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            for (period in state.periods.take(30)) {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                    Text(periodDates(period), style = MaterialTheme.typography.titleMedium)
-                    if (period.end == null) {
-                        Text(
-                            stringResource(R.string.ongoing),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Row {
-                    TextButton(
-                        onClick = { onEdit(period) },
-                        enabled = !state.saving,
-                        modifier = Modifier.testTag("edit-period-${period.id}")
-                    ) {
-                        Text(stringResource(R.string.edit))
-                    }
-                    TextButton(
-                        onClick = { onDelete(period) },
-                        enabled = !state.saving,
-                        modifier = Modifier.testTag("delete-period-${period.id}")
-                    ) {
-                        Text(stringResource(R.string.delete))
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-        }
+        DaySummary(
+            state.dayLogs.firstOrNull { it.date == today },
+            onLogDay,
+            !state.loading && !state.saving
+        )
+        CycleInsights(state.periods, today, state.dayLogs)
+        HelpCards(state.dayLogs.firstOrNull { it.date == today }, state.analysis, today)
         Text(
             stringResource(R.string.privacy_description),
             style = MaterialTheme.typography.bodySmall,

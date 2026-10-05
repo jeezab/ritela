@@ -37,12 +37,7 @@ fun ForecastCard(analysis: CycleAnalysis) {
             modifier = Modifier.padding(Spacing.large),
             verticalArrangement = Arrangement.spacedBy(Spacing.small)
         ) {
-            analysis.cycleDay?.let {
-                Text(
-                    stringResource(R.string.cycle_day, it),
-                    style = MaterialTheme.typography.headlineSmall
-                )
-            }
+            analysis.cycleDay?.let { CycleDayBadge(it) }
             Text(
                 stringResource(R.string.forecast_title),
                 style = MaterialTheme.typography.titleMedium
@@ -135,11 +130,6 @@ fun ForecastCard(analysis: CycleAnalysis) {
                         analysis.periodDuration
                     ),
                     style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    stringResource(R.string.forecast_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

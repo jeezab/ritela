@@ -12,6 +12,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
@@ -67,7 +69,7 @@ class HomeScreenTest {
         compose.onNodeWithText("Начнём с даты").assertIsDisplayed()
         compose.onNodeWithText(
             "Записи хранятся на этом устройстве"
-        ).assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
         assertTrue(
             compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0
         )
@@ -176,6 +178,7 @@ class HomeScreenTest {
             repository.add(today.minusDays(6), today.minusDays(2))
             repository.periods.first().single()
         }
+        compose.onNodeWithTag("nav-calendar").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Изменить").fetchSemanticsNodes().isNotEmpty()
         }
@@ -200,6 +203,7 @@ class HomeScreenTest {
         assertEquals(changed, runBlocking { repository.periods.first().single() })
         compose.onNodeWithText("Удалить").performScrollTo().performClick()
         compose.onNodeWithText("Удалить запись").performClick()
+        compose.onNodeWithTag("nav-today").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
         }
@@ -331,6 +335,7 @@ class HomeScreenTest {
         compose.onNodeWithText("End date").performClick()
         compose.onNodeWithText("Done").assertIsDisplayed().performClick()
         compose.onNodeWithText("Save").performClick()
+        compose.onNodeWithTag("nav-calendar").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Edit").fetchSemanticsNodes().isNotEmpty()
         }
@@ -344,6 +349,7 @@ class HomeScreenTest {
         compose.onNodeWithText("Delete").performScrollTo().performClick()
         compose.onNodeWithText("Delete this period?").assertIsDisplayed()
         compose.onNodeWithText("Delete period").performClick()
+        compose.onNodeWithTag("nav-today").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Start with a date").fetchSemanticsNodes().isNotEmpty()
         }
@@ -361,6 +367,7 @@ class HomeScreenTest {
     @Config(sdk = [35], qualifiers = "en-rUS-w411dp-h891dp")
     fun englishForecastKeepsDatesAndHistoryLocalized() {
         renderForecastHome()
+        compose.onNodeWithText("Ritela").performScrollTo()
         compose.onNodeWithText("Oct 19").assertIsDisplayed()
         compose.onNodeWithText("Based on 6 completed cycles").assertIsDisplayed()
     }
@@ -461,7 +468,10 @@ class HomeScreenTest {
         saveRendering("period-range", dialog = true)
         compose.onNodeWithText("Сохранить").performClick()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Изменить").fetchSemanticsNodes().isNotEmpty()
+            runBlocking {
+                (compose.activity.application as RitelaApplication)
+                    .periods.periods.first().isNotEmpty()
+            }
         }
         val record =
             runBlocking {
@@ -487,6 +497,100 @@ class HomeScreenTest {
         saveRendering("settings-dark-english")
     }
 
+    @Test
+    fun dayCanBeLoggedOnHomeAndEditedInCalendarAfterRecreation() {
+        compose.onNodeWithTag("log-day").performScrollTo().performClick()
+        compose.onNodeWithTag("headache-NONE").performClick()
+        compose.onNodeWithTag("cramps-MODERATE").performClick()
+        saveRendering("day-entry", dialog = true)
+        compose.onNodeWithTag("sex-CONDOM").performScrollTo().performClick()
+        compose.onNodeWithTag("sex-ORAL").performScrollTo().performClick()
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("headache-NONE").assertIsSelected()
+        compose.onNodeWithTag("save-day").performClick()
+        compose.waitUntil(10_000) {
+            runBlocking {
+                (compose.activity.application as RitelaApplication).days.logs.first().size == 1
+            }
+        }
+        val saved = runBlocking {
+            (compose.activity.application as RitelaApplication).days.logs.first().single()
+        }
+        assertEquals(app.ritela.domain.Pain.NONE, saved.headache)
+        assertEquals(app.ritela.domain.Pain.MODERATE, saved.cramps)
+        assertEquals(
+            setOf(app.ritela.domain.Sex.CONDOM, app.ritela.domain.Sex.ORAL),
+            saved.sex
+        )
+        compose.onNodeWithTag("log-day").performScrollTo()
+        saveRendering("home-day-log")
+        compose.onNodeWithTag("nav-calendar").performClick()
+        compose.onNodeWithTag("log-day").performScrollTo().performClick()
+        compose.onNodeWithTag("cramps-NONE").performClick()
+        compose.onNodeWithTag("save-day").performClick()
+        compose.waitUntil(10_000) {
+            runBlocking {
+                (compose.activity.application as RitelaApplication)
+                    .days.logs.first().single().cramps ==
+                    app.ritela.domain.Pain.NONE
+            }
+        }
+    }
+
+    @Test
+    fun medicationArticleShowsCautionsBeforeAdultDose() {
+        compose.onNodeWithTag("help-all").performScrollTo().performClick()
+        compose.onNodeWithTag("help-library").performScrollToNode(hasTestTag("help-ibuprofen"))
+        compose.onNodeWithTag("help-ibuprofen").performClick()
+        compose.onNodeWithTag("medicine-dose").assertDoesNotExist()
+        compose.onNodeWithTag("medicine-ack").performScrollTo().performClick()
+        compose.onNodeWithTag("medicine-dose").performScrollTo().assertIsDisplayed()
+        saveRendering("help-medication", dialog = true)
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w411dp-h891dp")
+    fun englishDayFormAndBackupPasswordAreLocalized() {
+        compose.onNodeWithTag("log-day").performScrollTo().performClick()
+        compose.onNodeWithText("How was your day?").assertIsDisplayed()
+        compose.onNodeWithTag("headache-MILD").performClick()
+        saveRendering("day-entry-english", dialog = true)
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithTag("nav-settings").performClick()
+        compose.onNodeWithTag("backup-export").performScrollTo().performClick()
+        compose.onNodeWithText(
+            "At least 12 characters. Keep this password: it cannot be recovered."
+        )
+            .assertIsDisplayed()
+        saveRendering("backup-password-english", dialog = true)
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp", fontScale = 2f)
+    fun dayFormKeepsSaveVisibleAtLargeFont() {
+        var saved: app.ritela.domain.DayLog? = null
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                val density = LocalDensity.current.density
+                CompositionLocalProvider(LocalDensity provides Density(density, fontScale = 2f)) {
+                    RitelaTheme(darkTheme = true) {
+                        app.ritela.ui.DayLogEntry(
+                            app.ritela.domain.DayLog(LocalDate.of(2026, 10, 5)),
+                            PeriodUiState(loading = false),
+                            {},
+                            { saved = it }
+                        )
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("save-day").assertIsDisplayed()
+        compose.onNodeWithTag("cramps-MODERATE").performScrollTo().performClick()
+        saveRendering("day-entry-narrow-dark-english", dialog = true)
+        compose.onNodeWithTag("save-day").performClick()
+        assertEquals(app.ritela.domain.Pain.MODERATE, saved?.cramps)
+    }
+
     private fun renderForecastHome() {
         val today = LocalDate.of(2026, 10, 14)
         val records = (0..6).map {
@@ -510,15 +614,22 @@ class HomeScreenTest {
                     }
                 }
             }
+            compose.onNodeWithText("Ritela").performScrollTo()
             val english = compose.activity.resources.configuration.locales[0].language == "en"
             compose.onNodeWithText(
-                if (english) "Cycle day 24" else "День цикла: 24"
+                if (english) "Cycle day" else "День цикла"
             ).assertIsDisplayed()
             compose.onNodeWithText(
                 if (english) "Log period" else "Отметить месячные"
             ).assertIsDisplayed()
             val name = if (dark) "home-forecast-dark" else "home-forecast"
             saveRendering(if (english) "$name-english" else name)
+            compose.onNodeWithTag("cycle-insights").performScrollTo()
+            val insights = if (dark) "home-insights-dark" else "home-insights"
+            saveRendering(if (english) "$insights-english" else insights)
+            compose.onNodeWithTag("help-cards").performScrollTo()
+            val help = if (dark) "home-help-dark" else "home-help"
+            saveRendering(if (english) "$help-english" else help)
         }
     }
 

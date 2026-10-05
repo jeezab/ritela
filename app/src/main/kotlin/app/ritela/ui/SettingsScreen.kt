@@ -91,5 +91,6 @@ fun SettingsScreen(
             }
         }
         state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
+        BackupActions()
     }
 }
