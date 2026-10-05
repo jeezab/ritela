@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.ritela.RitelaApplication
+import app.ritela.data.DayLogRepository
 import app.ritela.data.PeriodRepository
 import app.ritela.data.SettingsRepository
 import app.ritela.data.ThemeMode
 import app.ritela.domain.CycleAnalysis
+import app.ritela.domain.DayLog
 import app.ritela.domain.Period
 import app.ritela.domain.PeriodProblem
 import app.ritela.domain.PredictionDefaults
@@ -33,12 +35,14 @@ data class PeriodUiState(
     val today: LocalDate = LocalDate.now(),
     val analysis: CycleAnalysis = CycleAnalysis(),
     val defaults: PredictionDefaults = PredictionDefaults(),
-    val themeMode: ThemeMode = ThemeMode.SYSTEM
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val dayLogs: List<DayLog> = emptyList()
 )
 
 class PeriodViewModel(
     private val repository: PeriodRepository,
-    private val settings: SettingsRepository? = null
+    private val settings: SettingsRepository? = null,
+    private val days: DayLogRepository? = null
 ) : ViewModel() {
     private val state = MutableStateFlow(
         PeriodUiState(
@@ -55,21 +59,31 @@ class PeriodViewModel(
                 combine(
                     repository.periods,
                     settings?.values ?: flowOf(PredictionDefaults()),
-                    settings?.theme ?: flowOf(ThemeMode.SYSTEM)
-                ) { periods, defaults, theme -> Triple(periods, defaults, theme) }
-                    .collect { (periods, defaults, theme) ->
-                        val today = repository.today
-                        state.update {
-                            it.copy(
-                                periods = periods,
-                                loading = false,
-                                today = today,
-                                analysis = analyzeCycles(periods, today, defaults),
-                                defaults = defaults,
-                                themeMode = theme
-                            )
-                        }
+                    settings?.theme ?: flowOf(ThemeMode.SYSTEM),
+                    days?.logs ?: flowOf(emptyList())
+                ) { periods, defaults, theme, logs ->
+                    PeriodUiState(
+                        periods = periods,
+                        defaults = defaults,
+                        themeMode = theme,
+                        dayLogs = logs
+                    )
+                }.collect { source ->
+                    val periods = source.periods
+                    val defaults = source.defaults
+                    val today = repository.today
+                    state.update {
+                        it.copy(
+                            periods = periods,
+                            loading = false,
+                            today = today,
+                            analysis = analyzeCycles(periods, today, defaults),
+                            defaults = defaults,
+                            themeMode = source.themeMode,
+                            dayLogs = source.dayLogs
+                        )
                     }
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -127,6 +141,10 @@ class PeriodViewModel(
         }
     }
 
+    fun saveDay(log: DayLog) {
+        persist { days?.save(log) ?: if (days == null) PeriodProblem.STORAGE else null }
+    }
+
     fun updateDefaults(value: PredictionDefaults) {
         persist {
             settings?.save(value)
@@ -138,7 +156,7 @@ class PeriodViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as RitelaApplication
-                PeriodViewModel(app.periods, app.settings)
+                PeriodViewModel(app.periods, app.settings, app.days)
             }
         }
     }

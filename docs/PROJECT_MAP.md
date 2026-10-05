@@ -32,15 +32,15 @@
 | `.agents/skills/ui-quality-audit/SKILL.md` | Сохранение стиля, двуязычные формы, темы и размеры |
 | `app/src/main/res/values-ru/strings.xml` | Полный русский интерфейс; английский fallback в values |
 | `app/src/main/kotlin/app/ritela/ui/CycleOrbit.kt` | Адаптивный Canvas-декор карточки цикла |
-| `app/src/main/kotlin/app/ritela/ui/SettingsScreen.kt` | Язык и сохранение системной/светлой/тёмной темы |
+| `app/src/main/kotlin/app/ritela/ui/SettingsScreen.kt` | Язык, системная/светлая/тёмная тема и backup |
 | `app/src/main/kotlin/app/ritela/data/SettingsRepository.kt` | Приватные preferences и Flow исходных значений/темы |
 | `gradle/libs.versions.toml` | Закреплённые версии зависимостей и plugins |
 | `app/src/main/kotlin/app/ritela/` | Activity и Compose UI |
 | `app/src/main/kotlin/app/ritela/domain/` | Чистые модели, проверка дат, расчёт цикла и сетка календаря |
 | `app/src/main/kotlin/app/ritela/ui/CalendarScreen.kt` | Месяц, выбор дня, просмотр и запись дат |
-| `app/src/main/kotlin/app/ritela/ui/ForecastCard.kt` | Ориентир, диапазон и качество истории |
+| `app/src/main/kotlin/app/ritela/ui/ForecastCard.kt` | Дата прогноза, диапазон и качество истории |
 | `app/src/main/kotlin/app/ritela/data/` | Room database, DAO, storage entity, repository |
-| `app/schemas/` | Экспортированная схема Room v1 |
+| `app/schemas/` | Экспортированные схемы Room v1/v2 |
 | `docs/DATA_FORMAT.md` | Фактический формат базы и инварианты дат |
 | `app/src/test/kotlin/app/ritela/` | JVM/Compose тесты и render checks |
 | `.github/workflows/android.yml` | Проверки, debug APK, checksum и отчёты |
@@ -54,24 +54,13 @@
 | M0 | Toolchain, выбранные skills, Android skeleton, первая зелёная сборка, CI APK | Завершён: локальные проверки, успешный CI и скачанный APK подтверждены пользователем |
 | M1 | Room и запись менструации | Add/finish/history/edit/delete реализованы и проверены; схема v1 сохранена |
 | M2 | Prediction engine, календарь, главный экран | Первая версия реализована: день цикла, медиана/MAD, диапазоны до 12 циклов, календарь и выбранный день; проверка на устройстве впереди |
-| M3 | События, симптомы, сексуальная активность | Не начат |
-| M4 | Insights и настройки | Настройки языка/темы реализованы; insights и остальные настройки впереди |
-| M5 | Экспорт/импорт, приватность, защита | Не начат |
+| M3 | События, симптомы, сексуальная активность | Первая версия: дневные отметки и офлайн-карточки помощи |
+| M4 | Insights и настройки | Графики цикла/длительности/боли, язык/тема и backup реализованы; дальнейшие insights впереди |
+| M5 | Экспорт/импорт, приватность, защита | Шифрованный backup и транзакционный merge реализованы; app lock впереди |
 | M6 | Виджеты и уведомления | Не начат |
 | M7 | Визуальная проверка и производительность | Визуальные проверки ведутся уже в M1; добавлена галерея, итоговый аудит впереди |
 | M8 | Release pipeline и проверенный APK | Не начат |
 
 Архитектурную карту модулей, форматы данных и команды Android добавлять после появления соответствующего кода. Полные критерии этапов находятся в PROJECT_BRIEF, разделы 58, 60–63.
 
-## Backend дневных отметок и копий
-
-Backend M3/M5 подготовлен; новая UI-часть находится в работе и будет сохранена следующим коммитом.
-
-- `app/src/main/kotlin/app/ritela/domain/DayLog.kt`: nullable боль/выделения/настроение/энергия, несколько sex-тегов и заметка.
-- `app/src/main/kotlin/app/ritela/data/DayLogEntity.kt`, `DayLogDao.kt`, `DayLogRepository.kt`: Room/Flow/Upsert отметок дня.
-- `data/RitelaDatabase.kt`: v2 и явная MIGRATION_1_2, periods не меняются; схемы в app/schemas.
-- `data/BackupRepository.kt`: AES-GCM, preview и атомарный merge без перезаписи конфликтов.
-- `domain/CyclePrediction.kt`: медиана последних 12 наблюдений в годовом окне для интервалов и длительности.
-- `DayLogBackupTest.kt`, `CyclePredictionTest.kt`: целостность копии, migration и расчёт.
-
-Остальные пути остаются в исходной карте из предыдущего коммита; полная обновлённая карта будет сохранена с UI-частью этого шага.
+Новые файлы: domain/DayLog.kt — типы и валидация отметок; data/DayLogEntity/Dao/Repository — Room/Flow; data/BackupRepository — шифрование, preview и atomic merge; ui/DayLogEntry — общая форма; ui/Insights — реальные графики; ui/HelpCards — каталог/подбор/детали; ui/BackupActions — SAF/пароль/подтверждение. Документы [HEALTH_CONTENT.md](HEALTH_CONTENT.md), [BACKUP.md](BACKUP.md); скрипт scripts/check-health-content.ps1 и skill health-content-check. DayLogBackupTest проверяет миграцию и целостность копии.

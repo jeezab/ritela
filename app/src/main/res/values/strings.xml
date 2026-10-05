@@ -1,10 +1,8 @@
 <resources>
     <string name="app_name">Ritela</string>
     <string name="home_title">Today</string>
-    <string name="cycle_title">History</string>
     <string name="empty_title">Start with a date</string>
     <string name="empty_description">When did your last period start?</string>
-    <string name="empty_history">Past periods will appear here</string>
     <string name="active_title">Period in progress</string>
     <string name="latest_title">Last period</string>
     <string name="privacy_description">Your records stay on this device</string>
@@ -37,10 +35,9 @@
     <string name="previous_month">Previous month</string>
     <string name="next_month">Next month</string>
     <string name="back_to_today">Back to today</string>
-    <string name="cycle_day">Cycle day %1$d</string>
-    <string name="forecast_title">Next period · estimate</string>
+    <string name="forecast_title">Next period</string>
     <string name="forecast_range">Possible start: %1$s — %2$s</string>
-    <string name="forecast_note">Based on past dates. Timing can change.</string>
+    <string name="forecast_note">Based on recorded dates.</string>
     <string name="long_forecast_note">A distant estimate. The possible range grows with time.</string>
     <string name="forecast_need_more">Log your first period start to see an estimate.</string>
     <string name="forecast_invalid">Check your recorded dates before we can show an estimate.</string>
@@ -48,7 +45,7 @@
     <string name="forecast_past_due">The estimated range has passed. If your period started, log the new dates.</string>
     <string name="history_stable">Consistent history</string>
     <string name="history_variable">Timing varies</string>
-    <string name="history_limited">Less certain: limited data or variable timing</string>
+    <string name="history_limited">Limited data</string>
     <string name="calendar_legend">● Recorded   ◇ Estimated start\n· Possible start   ○ Estimated period   ≈ Distant estimate\nToday is underlined</string>
     <string name="calendar_observed">Period recorded</string>
     <string name="calendar_predicted">Estimated period start</string>
@@ -63,7 +60,7 @@
     <string name="settings_title">Settings</string>
     <string name="language_title">Language</string>
     <string name="choose_language">Language settings</string>
-    <string name="default_forecast_basis">Starting estimate · %d-day cycle</string>
+    <string name="default_forecast_basis">%d-day cycle · until there is enough history</string>
     <string name="calendar_estimated_period">Estimated period day</string>
     <string name="vertical_calendar_hint">Swipe up or down to change months</string>
     <string name="choose_month">Month and year</string>

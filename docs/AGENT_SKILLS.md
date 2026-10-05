@@ -7,8 +7,9 @@
 | ritela-resume | Продолжить с checkpoint, не исследуя проект заново | Этот репозиторий / `.agents/skills/ritela-resume/SKILL.md` | 1.0.0 / null (локальная разработка) | Не объявлена | 2026-10-04 | project-local |
 | ritela-checkpoint | Обновить документы, проверить шаг и сделать коммит | Этот репозиторий / `.agents/skills/ritela-checkpoint/SKILL.md` | 1.0.0 / null (локальная разработка) | Не объявлена | 2026-10-04 | project-local |
 | ritela-android-check | Повторяемый цикл format/build/test/lint/render/APK checks | Этот репозиторий / `.agents/skills/ritela-android-check/SKILL.md` | 1.0.0 / null (локальная разработка) | Не объявлена | 2026-10-05 | project-local |
-| cycle-prediction-validation | Проверить расчёт и неопределённость, календарь и реакцию на правки | Этот репозиторий / `.agents/skills/cycle-prediction-validation/SKILL.md` | 1.1.0 / null (локальная разработка) | Не объявлена | 2026-10-05 | project-local |
-| ui-quality-audit | Сохранить выбранный стиль, проверить EN/RU, темы и адаптивность | Этот репозиторий / `.agents/skills/ui-quality-audit/SKILL.md` | 1.2.0 / null (локальная разработка) | Не объявлена | 2026-10-05 | project-local |
+| cycle-prediction-validation | Проверить расчёт и неопределённость, календарь и реакцию на правки | Этот репозиторий / `.agents/skills/cycle-prediction-validation/SKILL.md` | 1.2.0 / null (локальная разработка) | Не объявлена | 2026-10-05 | project-local |
+| ui-quality-audit | Сохранить выбранный стиль, проверить EN/RU, темы и адаптивность | Этот репозиторий / `.agents/skills/ui-quality-audit/SKILL.md` | 1.3.0 / null (локальная разработка) | Не объявлена | 2026-10-05 | project-local |
+| health-content-check | Проверить медицинские источники, EN/RU, ограничения и карточки | Этот репозиторий / `.agents/skills/health-content-check/SKILL.md` | 1.0.0 / null (локальная разработка) | Не объявлена | 2026-10-05 | project-local |
 
 SHA-256 содержимого находятся в lock. При изменении скилла обнови его версию/hash и проверь реестр через `scripts/check-workspace.ps1`.
 

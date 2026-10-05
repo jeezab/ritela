@@ -35,7 +35,9 @@ jobs:
           "$sdkmanager" --sdk_root="$ANDROID_HOME" 'platforms;android-37.0' 'build-tools;36.0.0'
       - name: Validate workspace
         shell: pwsh
-        run: ./scripts/check-workspace.ps1
+        run: |
+          ./scripts/check-workspace.ps1
+          ./scripts/check-health-content.ps1
       - name: Build, unit tests and lint
         run: bash ./gradlew checkKotlin assembleDebug testDebugUnitTest lintDebug --console=plain
       - name: Create UI gallery
