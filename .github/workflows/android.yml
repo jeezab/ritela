@@ -27,8 +27,12 @@ jobs:
           java-version: '17.0.20+101'
           cache: gradle
       - name: Prepare SDK
+        shell: bash
         run: |
-          sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+          # Ubuntu runners install command-line tools without adding them to PATH.
+          sdkmanager="${ANDROID_HOME:?ANDROID_HOME must point to the runner SDK}/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" 'platforms;android-37.0' 'build-tools;36.0.0'
       - name: Validate workspace
         shell: pwsh
         run: ./scripts/check-workspace.ps1
