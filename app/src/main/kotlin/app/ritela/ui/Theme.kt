@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 object Spacing {
     val small = 8.dp
@@ -35,17 +34,21 @@ private val AppShapes = Shapes(
 
 private val AppTypography = Typography().let {
     it.copy(
-        displayLarge = it.displayLarge.copy(fontFamily = FontFamily.Serif, letterSpacing = (-1).sp),
-        headlineLarge = it.headlineLarge.copy(
-            fontFamily = FontFamily.Serif,
-            letterSpacing = (-0.5).sp
-        ),
-        headlineMedium = it.headlineMedium.copy(
-            fontFamily = FontFamily.Serif,
-            letterSpacing = (-0.5).sp
-        ),
-        headlineSmall = it.headlineSmall.copy(fontFamily = FontFamily.Serif),
-        titleLarge = it.titleLarge.copy(fontFamily = FontFamily.Serif)
+        displayLarge = it.displayLarge.copy(fontFamily = FontFamily.SansSerif),
+        displayMedium = it.displayMedium.copy(fontFamily = FontFamily.SansSerif),
+        displaySmall = it.displaySmall.copy(fontFamily = FontFamily.SansSerif),
+        headlineLarge = it.headlineLarge.copy(fontFamily = FontFamily.SansSerif),
+        headlineMedium = it.headlineMedium.copy(fontFamily = FontFamily.SansSerif),
+        headlineSmall = it.headlineSmall.copy(fontFamily = FontFamily.SansSerif),
+        titleLarge = it.titleLarge.copy(fontFamily = FontFamily.SansSerif),
+        titleMedium = it.titleMedium.copy(fontFamily = FontFamily.SansSerif),
+        titleSmall = it.titleSmall.copy(fontFamily = FontFamily.SansSerif),
+        bodyLarge = it.bodyLarge.copy(fontFamily = FontFamily.SansSerif),
+        bodyMedium = it.bodyMedium.copy(fontFamily = FontFamily.SansSerif),
+        bodySmall = it.bodySmall.copy(fontFamily = FontFamily.SansSerif),
+        labelLarge = it.labelLarge.copy(fontFamily = FontFamily.SansSerif),
+        labelMedium = it.labelMedium.copy(fontFamily = FontFamily.SansSerif),
+        labelSmall = it.labelSmall.copy(fontFamily = FontFamily.SansSerif)
     )
 }
 

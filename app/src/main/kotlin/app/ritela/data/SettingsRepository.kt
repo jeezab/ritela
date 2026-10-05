@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 class SettingsRepository(private val preferences: SharedPreferences) {
     private val state = MutableStateFlow(
         PredictionDefaults(
@@ -16,6 +18,17 @@ class SettingsRepository(private val preferences: SharedPreferences) {
         )
     )
     val values = state.asStateFlow()
+    private val appearance = MutableStateFlow(
+        ThemeMode.entries.firstOrNull {
+            it.name == preferences.getString("themeMode", null)
+        } ?: ThemeMode.SYSTEM
+    )
+    val theme = appearance.asStateFlow()
+
+    suspend fun saveTheme(value: ThemeMode) = withContext(Dispatchers.IO) {
+        preferences.edit(commit = true) { putString("themeMode", value.name) }
+        appearance.value = value
+    }
 
     suspend fun save(value: PredictionDefaults) = withContext(Dispatchers.IO) {
         require(value.cycleLength in 1..365 && value.periodDuration in 1..60)

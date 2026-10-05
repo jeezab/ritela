@@ -1,5 +1,6 @@
 package app.ritela.ui
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -40,6 +41,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.ritela.R
+import app.ritela.data.ThemeMode
 import app.ritela.domain.Period
 import java.time.Instant
 import java.time.LocalDate
@@ -65,10 +67,15 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
             model.clearResult()
         }
     }
-    RitelaTheme {
+    val darkTheme = when (state.themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+    RitelaTheme(darkTheme = darkTheme) {
         Scaffold(bottomBar = { AppNavigation(page) { page = it } }) { contentPadding ->
             if (page == 2) {
-                SettingsScreen(contentPadding, state, model::updateDefaults)
+                SettingsScreen(contentPadding, state, model::setTheme)
             } else if (page == 1) {
                 CalendarScreen(
                     contentPadding,

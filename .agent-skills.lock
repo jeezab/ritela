@@ -51,8 +51,8 @@
                        "commit":  null,
                        "path":  ".agents/skills/ui-quality-audit/SKILL.md",
                        "license":  "NOASSERTION",
-                       "version":  "1.1.0",
-                       "sha256":  "1b399a9b8e2635a0aabbe14572d70eb68252c3bc0da6184b9100e86942683797",
+                       "version":  "1.2.0",
+                       "sha256":  "8200d547850aabbb7769872f38d6f7312830f16e2f03e0660806e04386c268d7",
                        "installedAt":  "2026-10-05",
                        "classification":  "project-local"
                    }
