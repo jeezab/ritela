@@ -4,6 +4,7 @@ import app.ritela.domain.CalendarDayKind
 import app.ritela.domain.ForecastUnavailable
 import app.ritela.domain.HistoryConfidence
 import app.ritela.domain.Period
+import app.ritela.domain.PredictionDefaults
 import app.ritela.domain.analyzeCycles
 import app.ritela.domain.calendarDay
 import app.ritela.domain.monthDays
@@ -44,19 +45,38 @@ class CyclePredictionTest {
         assertTrue(widths.zipWithNext().all { (a, b) -> b > a })
     }
 
-    @Test fun insufficientOrOpenHistoryDoesNotInventForecasts() {
+    @Test fun sparseOrOpenHistoryUsesExplicitDefaultsAfterFirstStart() {
         for (lengths in listOf(emptyList(), listOf(28), listOf(28, 28))) {
             val records = history(lengths)
-            assertEquals(
-                ForecastUnavailable.NEED_MORE,
-                analyzeCycles(records, records.last().end!!).unavailable
-            )
+            val result = analyzeCycles(records, records.last().end!!)
+            assertTrue(result.usesDefaults)
+            assertEquals(28, result.forecasts.first().cycleMedian)
+            assertEquals(4, result.periodDuration)
         }
         val records = history(List(6) { 28 })
         val open = records.dropLast(1) + records.last().copy(end = null)
+        assertTrue(analyzeCycles(open, records.last().start.plusDays(2)).forecasts.isNotEmpty())
+    }
+
+    @Test fun firstPeriodUsesItsDurationAndDefaultsWithoutSavingEstimatedDays() {
+        val today = LocalDate.of(2024, 2, 29)
+        assertTrue(analyzeCycles(emptyList(), today).forecasts.isEmpty())
+        val first = Period(UUID(0, 1), today.minusDays(5), today, Instant.EPOCH, Instant.EPOCH)
+        val result = analyzeCycles(listOf(first), today)
+        assertTrue(result.usesDefaults)
+        assertEquals(6, result.periodDuration)
+        assertEquals(first.start.plusDays(28), result.forecasts.first().predictedStartDate)
         assertEquals(
-            ForecastUnavailable.ONGOING,
-            analyzeCycles(open, records.last().start.plusDays(2)).unavailable
+            CalendarDayKind.ESTIMATED_PERIOD,
+            calendarDay(listOf(first), result, first.start.plusDays(33), today).kind
+        )
+        val open = first.copy(end = null)
+        val modified = analyzeCycles(listOf(open), today, PredictionDefaults(30, 7))
+        assertEquals(7, modified.periodDuration)
+        assertEquals(open.start.plusDays(30), modified.forecasts.first().predictedStartDate)
+        assertEquals(
+            6,
+            analyzeCycles(listOf(first), today, PredictionDefaults(30, 7)).periodDuration
         )
     }
 

@@ -23,7 +23,7 @@ Linux/macOS: подготовь JDK 17 и Android SDK, установи `platfor
 ./gradlew checkKotlin assembleDebug testDebugUnitTest lintDebug --console=plain
 ```
 
-Тесты запускают Activity/Compose/SQLite в Robolectric на API 35. `HomeScreenTest` проверяет FLAG_SECURE/backup/INTERNET, add → Activity recreation → finish, редактирование с восстановлением формы и удаление с отменой/подтверждением. Календарные сценарии: выбранный прошлый день, открытие существующей записи, будущий день без кнопки записи, диапазон прогноза, свайп месяца и узкий экран со шрифтом 130%/200%. На узком экране сетка прокручивается горизонтально, месяц переключается стрелками.
+Тесты запускают Activity/Compose/SQLite в Robolectric на API 35. `HomeScreenTest` проверяет FLAG_SECURE/backup/INTERNET, add → Activity recreation → finish, редактирование с восстановлением формы и удаление с отменой/подтверждением. Календарные сценарии: выбранный прошлый день, открытие существующей записи, будущий день без кнопки записи, диапазон прогноза, свайп месяца и узкий экран со шрифтом 130%/200%. Все семь столбцов помещаются по ширине; месяцы переключаются вертикальными свайпами/стрелками и через заголовок с выбором года и месяца. Проверяются bounds первого/последнего столбцов.
 
 `PeriodRulesTest` покрывает будущие/обратные даты, один день и 29 февраля. Repository tests проверяют DST, конкурентные вставки/правки, сохранность UUID/createdAt, отсутствие изменений при ошибке, reopen/delete и восстановление базы; история из 31 записи не усекается. ViewModel tests проверяют сохранение/ошибки, повторное нажатие и пересчёт прогноза из Room после правки/удаления. `CyclePredictionTest` проверяет расчёт и ограничения из [PREDICTION.md](PREDICTION.md), включая растущие диапазоны и отсутствие выдуманных прошедших циклов.
 
@@ -37,9 +37,11 @@ PNG в `app/build/reports/screenshots/`: пустой главный экран,
 & ./scripts/preview-ui.ps1 -SkipRender -Open
 ```
 
-Без `-SkipRender` скрипт принудительно запускает HomeScreenTest и формирует `app/build/reports/screenshots/index.html`. Требуются настроенные локальные Java/SDK. Без `-Open` браузер не запускается. Галерея содержит 25 снимков настоящего Compose render; отображает время генерации каждого PNG, изображения открываются в полном размере. Это статический просмотр. CI создаёт ту же галерею после тестов; скачай `verification-reports`, распакуй ZIP и открой `screenshots/index.html` вместе с соседними PNG. PNG и HTML не коммитятся.
+Без `-SkipRender` скрипт принудительно запускает HomeScreenTest и формирует `app/build/reports/screenshots/index.html`. Требуются настроенные локальные Java/SDK. Без `-Open` браузер не запускается. Галерея содержит 29 снимков настоящего Compose render; отображает время генерации каждого PNG, изображения открываются в полном размере. Это статический просмотр. CI создаёт ту же галерею после тестов; скачай `verification-reports`, распакуй ZIP и открой `screenshots/index.html` вместе с соседними PNG. PNG и HTML не коммитятся.
 
 Для нажатий на компьютере: открой репозиторий в Android Studio, подготовь SDK/JDK по требованиям проекта, создай виртуальный телефон в Device Manager, выбери его и нажми Run. Обновления устанавливаются через Run/Apply Changes, без скачивания artifacts на телефон. [Официальная инструкция эмулятора](https://developer.android.com/studio/run/emulator). Эмулятор в текущем workspace не установлен и не проверен. Для отдельных состояний открой `RitelaApp.kt` в режиме Design/Split: добавлены previews пустого экрана, крупного текста и заполненной тёмной темы. Превью не открывает Room или реальные данные.
+
+Новые сценарии: Настройки → изменение 28/5 → Save → Activity recreation; выбор года/месяца без клавиатуры; swipe up/down; запись диапазона двумя тапами через 29 февраля/границу месяца. Domain tests проверяют стартовую оценку после первого начала, measured duration и предполагаемые дни. ViewModel/settings tests проверяют повторное открытие preferences и пересчёт без изменения записей. Snapshot helper выбирает активный Dialog, чтобы не захватить уже закрытое окно выбора месяца.
 
 Отчёты: `app/build/reports/tests/testDebugUnitTest/index.html` и `app/build/reports/lint-results-debug.html`. APK: `app/build/outputs/apk/debug/app-debug.apk`.
 

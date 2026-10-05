@@ -2,8 +2,11 @@ package app.ritela.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -25,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import app.ritela.R
 import app.ritela.domain.PeriodProblem
 import java.time.LocalDate
@@ -61,87 +65,174 @@ fun PeriodEntry(
     var startDay by rememberSaveable { mutableStateOf(initialStart.toEpochDay()) }
     var endDay by rememberSaveable { mutableStateOf(initialEnd?.toEpochDay()) }
     var choosingEnd by rememberSaveable { mutableStateOf<Boolean?>(null) }
-    AlertDialog(
-        onDismissRequest = { if (!state.saving) onDismiss() },
-        title = {
-            Text(stringResource(if (editing) R.string.edit_period else R.string.new_period))
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(Spacing.medium)
-            ) {
-                OutlinedButton(
-                    onClick = { choosingEnd = false },
-                    enabled = !state.saving,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight)
+    var monthDay by rememberSaveable {
+        mutableStateOf(java.time.YearMonth.from(initialStart).atDay(1).toEpochDay())
+    }
+    var choosingMonth by rememberSaveable { mutableStateOf(false) }
+    var awaitingEnd by rememberSaveable { mutableStateOf(false) }
+    val month = java.time.YearMonth.from(LocalDate.ofEpochDay(monthDay))
+    val start = LocalDate.ofEpochDay(startDay)
+    val end = endDay?.let(LocalDate::ofEpochDay)
+    val cellHeight =
+        maxOf(48.dp, (36 * androidx.compose.ui.platform.LocalDensity.current.fontScale).dp)
+    androidx.compose.ui.window.Dialog(onDismissRequest = {
+        if (!state.saving) onDismiss()
+    }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface {
+            Column(Modifier.fillMaxSize().padding(Spacing.medium)) {
+                Text(
+                    stringResource(if (editing) R.string.edit_period else R.string.new_period),
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Column(
+                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.small)
                 ) {
                     Text(
-                        stringResource(
-                            R.string.start_date,
-                            formattedDate(LocalDate.ofEpochDay(startDay))
-                        )
+                        stringResource(R.string.range_entry_hint),
+                        style = MaterialTheme.typography.bodySmall
                     )
-                }
-                OutlinedButton(
-                    onClick = { choosingEnd = true },
-                    enabled = !state.saving,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight)
-                ) {
-                    Text(
-                        endDay?.let {
-                            stringResource(
-                                R.string.end_date,
-                                formattedDate(LocalDate.ofEpochDay(it))
+                    Row {
+                        OutlinedButton(
+                            onClick = {
+                                choosingEnd = false
+                            },
+                            enabled = !state.saving,
+                            modifier = Modifier.weight(
+                                1f
+                            ).heightIn(min = Spacing.actionHeight)
+                        ) {
+                            Text(stringResource(R.string.start_date, formattedDate(start)))
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                choosingEnd = true
+                            },
+                            enabled = !state.saving,
+                            modifier = Modifier.weight(
+                                1f
+                            ).heightIn(min = Spacing.actionHeight)
+                        ) {
+                            Text(
+                                end?.let { stringResource(R.string.end_date, formattedDate(it)) }
+                                    ?: stringResource(R.string.choose_end)
                             )
                         }
-                            ?: stringResource(R.string.choose_end)
+                    }
+                    Row {
+                        TextButton(onClick = {
+                            endDay = null
+                            awaitingEnd = false
+                            onChange()
+                        }, enabled = !state.saving) { Text(stringResource(R.string.clear_end)) }
+                        TextButton(
+                            onClick = {
+                                endDay =
+                                    start.plusDays(state.analysis.periodDuration - 1L).toEpochDay()
+                                awaitingEnd =
+                                    false
+                                onChange()
+                            },
+                            enabled =
+                                !state.saving &&
+                                    start.plusDays(state.analysis.periodDuration - 1L) <=
+                                    state.today
+                        ) {
+                            Text(
+                                androidx.compose.ui.res.pluralStringResource(
+                                    R.plurals.quick_duration,
+                                    state.analysis.periodDuration,
+                                    state.analysis.periodDuration
+                                )
+                            )
+                        }
+                    }
+                    Text(
+                        stringResource(R.string.end_optional),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-                if (endDay != null) {
-                    TextButton(onClick = {
-                        endDay = null
-                        onChange()
-                    }, enabled = !state.saving) {
-                        Text(stringResource(R.string.clear_end))
+                    MonthHeader(month, { monthDay = month.minusMonths(1).atDay(1).toEpochDay() }, {
+                        monthDay =
+                            month.plusMonths(1).atDay(1).toEpochDay()
+                    }, { choosingMonth = true })
+                    MonthGrid(
+                        month, state.today, start,
+                        cellHeight = cellHeight,
+                        tagPrefix = "entry-day",
+                        rangeStart = start, rangeEnd = end,
+                        futureEnabled = false, onDay = { day ->
+                            if (!state.saving) {
+                                if (awaitingEnd &&
+                                    day >= start
+                                ) {
+                                    endDay = day.toEpochDay()
+                                    awaitingEnd = false
+                                } else {
+                                    startDay = day.toEpochDay()
+                                    endDay = null
+                                    awaitingEnd = true
+                                }
+                                onChange()
+                            }
+                        }
+                    )
+                    state.problem?.let {
+                        Text(problemText(it), color = MaterialTheme.colorScheme.error)
                     }
                 }
-                Text(
-                    stringResource(R.string.end_optional),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                state.problem?.let {
-                    Text(problemText(it), color = MaterialTheme.colorScheme.error)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
+                ) {
+                    TextButton(onClick = onDismiss, enabled = !state.saving) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = {
+                            onSave(start, end)
+                        },
+                        enabled = !state.saving,
+                        modifier = Modifier.weight(
+                            1f
+                        ).heightIn(min = Spacing.actionHeight)
+                    ) {
+                        Text(stringResource(if (state.saving) R.string.saving else R.string.save))
+                    }
                 }
             }
-        },
-        confirmButton = {
-            Button(onClick = {
-                onSave(LocalDate.ofEpochDay(startDay), endDay?.let(LocalDate::ofEpochDay))
-            }, enabled = !state.saving) {
-                Text(stringResource(if (state.saving) R.string.saving else R.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !state.saving) {
-                Text(stringResource(R.string.cancel))
-            }
         }
-    )
+    }
+    if (choosingMonth) {
+        MonthYearPicker(month, 1900..(state.today.year + 1), { choosingMonth = false }) {
+            monthDay =
+                it.atDay(1).toEpochDay()
+            choosingMonth = false
+        }
+    }
     choosingEnd?.let { isEnd ->
         PickDate(
-            initial = LocalDate.ofEpochDay(if (isEnd) endDay ?: startDay else startDay),
-            minimum = if (isEnd) LocalDate.ofEpochDay(startDay) else null,
-            onDismiss = { choosingEnd = null },
+            initial = if (isEnd) end ?: start else start,
+            minimum = if (isEnd) start else null,
+            onDismiss = {
+                choosingEnd =
+                    null
+            },
             onChoose = { date ->
                 if (isEnd) {
                     endDay = date.toEpochDay()
                 } else {
-                    startDay =
-                        date.toEpochDay()
+                    startDay = date.toEpochDay()
+                    if (end !=
+                        null &&
+                        end < date
+                    ) {
+                        endDay = null
+                    }
                 }
+                monthDay = java.time.YearMonth.from(date).atDay(1).toEpochDay()
                 choosingEnd = null
+                awaitingEnd = false
                 onChange()
             }
         )

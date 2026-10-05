@@ -113,9 +113,28 @@ fun ForecastCard(analysis: CycleAnalysis) {
                     )
                 }
                 Text(
-                    pluralStringResource(R.plurals.cycles_used, next.cyclesUsed, next.cyclesUsed),
+                    if (analysis.usesDefaults) {
+                        stringResource(
+                            R.string.default_forecast_basis,
+                            next.cycleMedian
+                        )
+                    } else {
+                        pluralStringResource(
+                            R.plurals.cycles_used,
+                            next.cyclesUsed,
+                            next.cyclesUsed
+                        )
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    pluralStringResource(
+                        R.plurals.period_duration_days,
+                        analysis.periodDuration,
+                        analysis.periodDuration
+                    ),
+                    style = MaterialTheme.typography.bodySmall
                 )
                 Text(
                     stringResource(R.string.forecast_note),

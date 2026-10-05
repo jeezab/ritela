@@ -7,15 +7,19 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.ritela.RitelaApplication
 import app.ritela.data.PeriodRepository
+import app.ritela.data.SettingsRepository
 import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.Period
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.PredictionDefaults
 import app.ritela.domain.analyzeCycles
 import java.time.LocalDate
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -26,24 +30,35 @@ data class PeriodUiState(
     val saved: Boolean = false,
     val problem: PeriodProblem? = null,
     val today: LocalDate = LocalDate.now(),
-    val analysis: CycleAnalysis = CycleAnalysis()
+    val analysis: CycleAnalysis = CycleAnalysis(),
+    val defaults: PredictionDefaults = PredictionDefaults()
 )
 
-class PeriodViewModel(private val repository: PeriodRepository) : ViewModel() {
+class PeriodViewModel(
+    private val repository: PeriodRepository,
+    private val settings: SettingsRepository? = null
+) : ViewModel() {
     private val state = MutableStateFlow(PeriodUiState(today = repository.today))
     val uiState = state.asStateFlow()
 
     init {
         viewModelScope.launch {
             try {
-                repository.periods.collect { periods ->
+                combine(repository.periods, settings?.values ?: flowOf(PredictionDefaults())) {
+                        periods,
+                        defaults
+                    ->
+                    periods to
+                        defaults
+                }.collect { (periods, defaults) ->
                     val today = repository.today
                     state.update {
                         it.copy(
                             periods = periods,
                             loading = false,
                             today = today,
-                            analysis = analyzeCycles(periods, today)
+                            analysis = analyzeCycles(periods, today, defaults),
+                            defaults = defaults
                         )
                     }
                 }
@@ -92,12 +107,24 @@ class PeriodViewModel(private val repository: PeriodRepository) : ViewModel() {
 
     fun refreshToday() {
         val today = repository.today
-        state.update { it.copy(today = today, analysis = analyzeCycles(it.periods, today)) }
+        state.update {
+            it.copy(today = today, analysis = analyzeCycles(it.periods, today, it.defaults))
+        }
+    }
+
+    fun updateDefaults(value: PredictionDefaults) {
+        persist {
+            settings?.save(value)
+            null
+        }
     }
 
     companion object {
         val Factory = viewModelFactory {
-            initializer { PeriodViewModel((this[APPLICATION_KEY] as RitelaApplication).periods) }
+            initializer {
+                val app = this[APPLICATION_KEY] as RitelaApplication
+                PeriodViewModel(app.periods, app.settings)
+            }
         }
     }
 }

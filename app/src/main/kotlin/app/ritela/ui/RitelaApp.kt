@@ -67,7 +67,9 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     }
     RitelaTheme {
         Scaffold(bottomBar = { AppNavigation(page) { page = it } }) { contentPadding ->
-            if (page == 1) {
+            if (page == 2) {
+                SettingsScreen(contentPadding, state, model::updateDefaults)
+            } else if (page == 1) {
                 CalendarScreen(
                     contentPadding,
                     state,
@@ -356,20 +358,24 @@ fun HomeScreen(
 @Composable
 fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
-        for (index in 0..1) {
+        for (index in 0..2) {
             NavigationBarItem(
                 selected = page == index,
                 onClick = { onPage(index) },
-                modifier = Modifier.testTag(if (index == 0) "nav-today" else "nav-calendar"),
+                modifier = Modifier.testTag(
+                    when (index) {
+                        0 -> "nav-today"
+                        1 -> "nav-calendar"
+                        else -> "nav-settings"
+                    }
+                ),
                 icon = {
                     Icon(
                         painterResource(
-                            if (index ==
-                                0
-                            ) {
-                                R.drawable.ic_today
-                            } else {
-                                R.drawable.ic_calendar
+                            when (index) {
+                                0 -> R.drawable.ic_today
+                                1 -> R.drawable.ic_calendar
+                                else -> R.drawable.ic_settings
                             }
                         ),
                         contentDescription = null
@@ -378,12 +384,10 @@ fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
                 label = {
                     Text(
                         stringResource(
-                            if (index ==
-                                0
-                            ) {
-                                R.string.home_title
-                            } else {
-                                R.string.calendar_title
+                            when (index) {
+                                0 -> R.string.home_title
+                                1 -> R.string.calendar_title
+                                else -> R.string.settings_title
                             }
                         )
                     )

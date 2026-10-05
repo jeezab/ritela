@@ -1,4 +1,4 @@
-﻿<resources>
+<resources>
     <string name="app_name">Ritela</string>
     <string name="home_title">Today</string>
     <string name="cycle_title">History</string>
@@ -42,29 +42,44 @@
     <string name="forecast_range">Possible start: %1$s — %2$s</string>
     <string name="forecast_note">Based on past dates. Timing can change.</string>
     <string name="long_forecast_note">A distant estimate. The possible range grows with time.</string>
-    <string name="forecast_need_more">Log at least four period start dates for a first estimate.</string>
+    <string name="forecast_need_more">Log your first period start to see an estimate.</string>
     <string name="forecast_invalid">Check your recorded dates before we can show an estimate.</string>
     <string name="forecast_ongoing">Log the end of this period to see the next estimate.</string>
     <string name="forecast_past_due">The estimated range has passed. If your period started, log the new dates.</string>
     <string name="history_stable">Consistent history</string>
     <string name="history_variable">Timing varies</string>
     <string name="history_limited">Less certain: limited data or variable timing</string>
-    <string name="calendar_legend">● Recorded   ◇ Estimated start\n· Possible dates   ≈ Distant estimate\nToday is underlined</string>
+    <string name="calendar_legend">● Recorded   ◇ Estimated start\n· Possible start   ○ Estimated period   ≈ Distant estimate\nToday is underlined</string>
     <string name="calendar_observed">Period recorded</string>
     <string name="calendar_predicted">Estimated period start</string>
     <string name="calendar_uncertain">Possible start date</string>
     <string name="calendar_approximate">Distant start estimate</string>
     <string name="calendar_empty">No record</string>
     <string name="future_calendar_note">Future dates are for viewing. You can log a period for today or a past day.</string>
-    <string name="mon">Mon</string>
-    <string name="tue">Tue</string>
-    <string name="wed">Wed</string>
-    <string name="thu">Thu</string>
-    <string name="fri">Fri</string>
-    <string name="sat">Sat</string>
-    <string name="sun">Sun</string>
     <plurals name="cycles_used">
         <item quantity="one">Based on %d completed cycle</item>
         <item quantity="other">Based on %d completed cycles</item>
+    </plurals>
+    <string name="settings_title">Settings</string>
+    <string name="default_cycle_length">Cycle length · days</string>
+    <string name="default_period_duration">Period duration · days</string>
+    <string name="defaults_description">Start with 28 days per cycle and a 5-day period. After you log an end date, its duration is used for future estimates. Cycle length adapts once there is enough history.</string>
+    <string name="reset_defaults">Reset to 28 and 5 days</string>
+    <string name="language_title">Language</string>
+    <string name="language_description">English and Russian. Choose the app language in system settings; on older Android versions, it follows the device language.</string>
+    <string name="choose_language">Language settings</string>
+    <string name="default_forecast_basis">Starting estimate · %d-day cycle</string>
+    <string name="calendar_estimated_period">Estimated period day</string>
+    <string name="vertical_calendar_hint">Swipe up or down to change months</string>
+    <string name="choose_month">Month and year</string>
+    <string name="year">Year</string>
+    <string name="range_entry_hint">Tap the first day, then the last. The selected days are highlighted.</string>
+    <plurals name="period_duration_days">
+        <item quantity="one">Estimated duration: %d day</item>
+        <item quantity="other">Estimated duration: %d days</item>
+    </plurals>
+    <plurals name="quick_duration">
+        <item quantity="one">Mark %d day</item>
+        <item quantity="other">Mark %d days</item>
     </plurals>
 </resources>

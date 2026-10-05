@@ -35,6 +35,10 @@ $labels = [ordered]@{
     'home-forecast-dark-english' = 'Cycle estimate · English · dark'
     'home-forecast-narrow-english' = 'Cycle estimate · English · narrow · 200%'
     'home-forecast-narrow-action-english' = 'Log action · English · narrow · 200%'
+    'settings' = 'Настройки · исходные значения'
+    'settings-english' = 'Settings · English'
+    'calendar-month-picker' = 'Выбор месяца и года'
+    'period-range' = 'Выбор диапазона · граница месяца'
 }
 $cards = foreach ($name in $labels.Keys) {
     $path = Join-Path $directory "$name.png"
