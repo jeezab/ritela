@@ -12,7 +12,7 @@
 
 ## Стек и границы
 
-- Целевой стек: Kotlin, Gradle Kotlin DSL, Compose/Material 3, Room, DataStore, Coroutines/StateFlow. minSdk 26. Версии и остальные SDK выбираются после проверки официальных источников; сейчас Android-проект не создан.
+- Стек: Kotlin (built-in AGP), Gradle Kotlin DSL, Compose/Material 3. minSdk 26, compileSdk/targetSdk 37; версии в `gradle/libs.versions.toml`. Room/DataStore и Coroutines/StateFlow добавляются вместе с хранением и состоянием экранов.
 - Domain: чистый Kotlin, без Android, хранения и UI. Data: локальное хранение и явные операции импорта/экспорта. UI: состояние и пользовательские действия; расчёты не размещать в composable.
 - Без обязательного аккаунта, рекламы, аналитики медицинских данных и сетевой зависимости. Не логировать чувствительные данные. Не добавлять библиотеку или архитектурный слой без конкретной необходимости.
 - Не подавлять ошибки отключением lint/tests, не удалять миграции и не использовать destructive Git-команды для получения зелёной проверки.
@@ -21,6 +21,6 @@
 
 - Сейчас: `powershell -NoProfile -File scripts/resume.ps1`; `powershell -NoProfile -File scripts/check-workspace.ps1`; `git diff --check`.
 - Подготовка инструментов: `powershell -NoProfile -File scripts/bootstrap-toolchain.ps1`. Локальные инструменты находятся в `.toolchain/`, глобальное окружение не менять.
-- После создания Gradle wrapper: build/test/lint-команды внести в `docs/TESTING.md` и README по фактическим task names. До этого не сообщать о проходящей сборке.
+- Форматирование: `& ./scripts/gradle.ps1 formatKotlin`. Проверки приложения: `& ./scripts/gradle.ps1 checkKotlin assembleDebug testDebugUnitTest lintDebug`. Подробности и Linux/macOS: `docs/TESTING.md`.
 - Скиллы: `.agents/skills/`, реестр `docs/AGENT_SKILLS.md`, внутренний lock `.agent-skills.lock`. Использовать только нужный скилл; повторяемую механику выносить в небольшой проверенный скрипт.
 - Definition of Done: реализация, форматирование, релевантные тесты, сборка, lint без ухудшений, просмотр UI при его изменении, актуальные документы, отсутствие утечек чувствительных данных. Для документации/скриптов — их собственные проверки; это не завершение Android milestone.

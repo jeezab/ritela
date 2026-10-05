@@ -27,3 +27,15 @@ JDK-архив и checksum получены из официального [Adopt
 Фактическая загрузка всех трёх архивов и version checks прошли. При сетевой задержке curl докачивает сохранённый partial, делает не более трёх попыток и завершает шаг ошибкой при неуспехе. Унаследованный DEBUG включал подробное echo в upstream batch launcher; bootstrap временно снимает его только на время version checks и восстанавливает вместе с JAVA_HOME.
 
 SDK tools содержит Android CLI launcher, который отдельно скачал runtime 1.0.16500706 при проверке версии. Этот runtime пока не является закреплённой частью bootstrap. CLI сообщает о сборе метрик и поддержке `--no-metrics`; дальнейшие вызовы выполнять с этим флагом. Не вызывать рекомендуемый им `android init`, поскольку проект выбирает и проверяет скиллы по одному.
+
+## 2026-10-05: Android skeleton и проверка UI
+
+Один модуль app, без пустых feature-модулей и DI framework. AGP 9.4.1/Gradle 9.6.0/JDK 17; встроенный Kotlin 2.2.10 и совпадающая версия Compose Compiler plugin. Используется [built-in Kotlin](https://developer.android.com/build/migrate-to-built-in-kotlin), Compose BOM 2026.09.00 и Activity Compose 1.13.0; наличие стабильных артефактов проверено в официальных Maven metadata.
+
+Установлены SDK platform 37.0, build-tools 36.0.0, platform-tools 37.0.1. compileSdk/targetSdk 37, minSdk 26: приложение ориентируется на текущую платформу и выполняет Play минимум 36. Версии приложения закреплены в version catalog; platform-tools ставится по SDK package ID и его фактическая версия записана здесь.
+
+Robolectric 4.17 с native graphics выбран для поведения Compose и рендера без устройства. Это не замена device smoke test. FLAG_SECURE включён сразу, системный backup/transfer исключены, сетевые разрешения не добавлены. В UI нет фиктивных прогнозов и медицинских данных.
+
+Форматирование — ktlint 1.8.0 через две JavaExec задачи, без отдельного Gradle plugin. CI на Ubuntu 24.04 использует actions, закреплённые по upstream SHA; содержит сборку, проверки и debug APK artifact. Публикация и release signing пока не реализованы.
+
+Lint остаётся строгим для ошибок и предупреждений кода. Только AndroidGradlePluginVersion/NewerVersionAvailable имеют severity informational: они сообщают об обновлениях закреплённого toolchain, не о дефектах приложения. Gradle оставлен на официальной совместимой версии 9.6.0, Compose Compiler совпадает со встроенным Kotlin, вместо автоматического перехода на новую связку по совету lint. AGP обновлён до доступного stable patch 9.4.1; OldTargetApi исправлен переходом на target 37.

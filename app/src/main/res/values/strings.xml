@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Ritela</string>
+    <string name="home_title">Ваш ритм. Ваши данные.</string>
+    <string name="home_subtitle">Место для заботы о себе</string>
+    <string name="cycle_title">Ваш цикл</string>
+    <string name="empty_title">Пока нет записей</string>
+    <string name="empty_description">История цикла появится здесь после первой записи.</string>
+    <string name="privacy_title">Только на вашем устройстве</string>
+    <string name="privacy_description">Без аккаунта, рекламы и передачи данных на сервер.</string>
+    <string name="privacy_note">Вы решаете, чем делиться.</string>
+</resources>
