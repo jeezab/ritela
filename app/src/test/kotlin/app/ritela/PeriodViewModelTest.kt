@@ -5,8 +5,9 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.ritela.data.PeriodRepository
 import app.ritela.data.RitelaDatabase
-import app.ritela.domain.ForecastUnavailable
+import app.ritela.data.SettingsRepository
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.PredictionDefaults
 import app.ritela.ui.PeriodViewModel
 import java.time.Clock
 import java.time.Instant
@@ -95,8 +96,32 @@ class PeriodViewModelTest {
         model.clearResult()
         model.delete(edited.periods.last().id)
         val deleted = withTimeout(5_000) { model.uiState.first { it.periods.size == 3 } }
-        assertTrue(deleted.analysis.forecasts.isEmpty())
-        assertEquals(ForecastUnavailable.NEED_MORE, deleted.analysis.unavailable)
+        assertTrue(deleted.analysis.usesDefaults)
+        assertEquals(28, deleted.analysis.forecasts.first().cycleMedian)
+    }
+
+    @Test fun settingsSurviveReopeningAndRecalculateWithoutChangingPeriods() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val preferences = context.getSharedPreferences(
+            "test-settings",
+            android.content.Context.MODE_PRIVATE
+        )
+        preferences.edit().clear().commit()
+        val settings = SettingsRepository(preferences)
+        settings.save(PredictionDefaults(30, 7))
+        assertEquals(PredictionDefaults(30, 7), SettingsRepository(preferences).values.value)
+        model.viewModelScope.cancel()
+        model = PeriodViewModel(repository, settings)
+        repository.add(date, null)
+        val initial = withTimeout(5_000) { model.uiState.first { it.periods.size == 1 } }
+        val record = initial.periods.single()
+        assertEquals(date.plusDays(30), initial.analysis.forecasts.first().predictedStartDate)
+        model.updateDefaults(PredictionDefaults(28, 5))
+        val updated = withTimeout(5_000) { model.uiState.first { it.defaults.cycleLength == 28 } }
+        assertEquals(date.plusDays(28), updated.analysis.forecasts.first().predictedStartDate)
+        assertEquals(5, updated.analysis.periodDuration)
+        assertEquals(record, updated.periods.single())
+        assertEquals(PredictionDefaults(), SettingsRepository(preferences).values.value)
     }
 
     @Test fun invalidDateShowsAnErrorWithoutWriting() = runBlocking {

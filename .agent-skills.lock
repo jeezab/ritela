@@ -40,8 +40,8 @@
                        "commit":  null,
                        "path":  ".agents/skills/cycle-prediction-validation/SKILL.md",
                        "license":  "NOASSERTION",
-                       "version":  "1.0.0",
-                       "sha256":  "51f0210ada3f7ce8bd8d3c40a97c92dd0dee685535365f071f264b30964532a5",
+                       "version":  "1.1.0",
+                       "sha256":  "6f5adb6af5b454408402992d0b21d9d7f14434b760183aa46a56a19f89c82f13",
                        "installedAt":  "2026-10-05",
                        "classification":  "project-local"
                    },
@@ -51,8 +51,8 @@
                        "commit":  null,
                        "path":  ".agents/skills/ui-quality-audit/SKILL.md",
                        "license":  "NOASSERTION",
-                       "version":  "1.0.0",
-                       "sha256":  "b5e1cde6f09717c7b06e2b8cb7c62e08d0db914a235c246b6f6ee49848d49a5d",
+                       "version":  "1.1.0",
+                       "sha256":  "1b399a9b8e2635a0aabbe14572d70eb68252c3bc0da6184b9100e86942683797",
                        "installedAt":  "2026-10-05",
                        "classification":  "project-local"
                    }

@@ -9,6 +9,7 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -17,8 +18,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.Density
 import app.ritela.domain.Period
 import app.ritela.domain.analyzeCycles
@@ -262,7 +266,7 @@ class HomeScreenTest {
         compose.onNodeWithText("Ориентир начала менструации").performScrollTo().assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("Отметить месячные").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("calendar-heading").performScrollTo()
-        compose.onNodeWithTag("month-grid").performTouchInput { swipeLeft() }
+        compose.onNodeWithTag("month-grid").performTouchInput { swipeUp() }
         val nextMonth = YearMonth.from(
             today
         ).plusMonths(
@@ -300,8 +304,15 @@ class HomeScreenTest {
             saveRendering("calendar-narrow-${if (scale == 2f) "large" else "medium"}-text")
             compose.onNodeWithText("Отметить месячные").performScrollTo().assertIsDisplayed()
             compose.onNodeWithTag("calendar-heading").performScrollTo()
-            compose.onNodeWithTag("month-grid").performTouchInput { swipeLeft() }
             compose.onNodeWithTag("calendar-day-2026-10-04").assertIsDisplayed()
+            val first = compose.onNodeWithTag(
+                "calendar-day-2026-10-05"
+            ).fetchSemanticsNode().boundsInRoot
+            val last = compose.onNodeWithTag(
+                "calendar-day-2026-10-04"
+            ).fetchSemanticsNode().boundsInRoot
+            val viewport = compose.onRoot().fetchSemanticsNode().boundsInRoot
+            assertTrue(first.left >= viewport.left && last.right <= viewport.right)
             compose.onNodeWithTag("next-month").performClick()
             compose.onNodeWithText("ноябрь 2026").assertIsDisplayed()
         }
@@ -320,7 +331,7 @@ class HomeScreenTest {
         compose.onNodeWithText("Done").assertIsDisplayed().performClick()
         compose.onNodeWithText("Save").performClick()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Last period").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Edit").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithText("Edit dates").assertIsDisplayed()
@@ -385,6 +396,69 @@ class HomeScreenTest {
         saveRendering("home-forecast-narrow-action-english")
     }
 
+    @Test
+    fun settingsPersistAndCalendarHeaderSelectsYearAndMonth() {
+        compose.onNodeWithTag("nav-settings").performClick()
+        compose.onNodeWithTag("settings-heading").assertIsDisplayed()
+        saveRendering("settings")
+        compose.onNodeWithTag("cycle-plus").performClick().performClick()
+        compose.onNodeWithTag("duration-plus").performClick()
+        compose.onNodeWithText("Сохранить").performClick()
+        compose.waitUntil(10_000) {
+            (compose.activity.application as RitelaApplication).settings.values.value.cycleLength ==
+                30
+        }
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("cycle-value").assertTextEquals("30")
+        compose.onNodeWithTag("duration-value").assertTextEquals("6")
+        compose.onNodeWithTag("nav-calendar").performClick()
+        compose.onNodeWithTag("month-selector").performClick()
+        saveRendering("calendar-month-picker", dialog = true)
+        compose.onNodeWithTag("month-year").performClick()
+        compose.onNodeWithTag("select-year-2024").performClick()
+        compose.onNodeWithTag("select-month-2").performClick()
+        compose.onNodeWithText("февраль 2024").assertIsDisplayed()
+        compose.onNodeWithTag("month-grid").performTouchInput { swipeUp() }
+        compose.onNodeWithText("март 2024").assertIsDisplayed()
+        compose.onNodeWithTag("month-grid").performTouchInput { swipeDown() }
+        compose.onNodeWithText("февраль 2024").assertIsDisplayed()
+    }
+
+    @Test
+    fun periodRangeAcrossLeapDayCanBeSavedWithTwoCalendarTaps() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Отметить месячные").performClick()
+        compose.onNodeWithTag("month-selector").performClick()
+        compose.onNodeWithTag("month-year").performClick()
+        compose.onNodeWithTag("select-year-2024").performClick()
+        compose.onNodeWithTag("select-month-2").performClick()
+        compose.onNodeWithTag("entry-day-2024-02-27").performScrollTo().performClick()
+        compose.onNodeWithTag("next-month").performClick()
+        compose.onNodeWithTag("entry-day-2024-03-01").performClick()
+        saveRendering("period-range", dialog = true)
+        compose.onNodeWithText("Сохранить").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Изменить").fetchSemanticsNodes().isNotEmpty()
+        }
+        val record =
+            runBlocking {
+                (compose.activity.application as RitelaApplication).periods.periods.first().single()
+            }
+        assertEquals(LocalDate.of(2024, 2, 27), record.start)
+        assertEquals(LocalDate.of(2024, 3, 1), record.end)
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w411dp-h891dp")
+    fun englishSettingsAreReachableFromBottomNavigation() {
+        compose.onNodeWithTag("nav-settings").performClick()
+        compose.onNodeWithTag("settings-heading").assertIsDisplayed()
+        compose.onNodeWithText("Language").assertIsDisplayed()
+        saveRendering("settings-english")
+    }
+
     private fun renderForecastHome() {
         val today = LocalDate.of(2026, 10, 14)
         val records = (0..6).map {
@@ -424,7 +498,11 @@ class HomeScreenTest {
         compose.waitForIdle()
         val bitmap = if (dialog) {
             // Robolectric PixelCopy can sample the Activity behind a separate dialog window.
-            val decor = requireNotNull(ShadowDialog.getLatestDialog().window).decorView
+            val decor = requireNotNull(
+                ShadowDialog.getShownDialogs().last {
+                    it.isShowing
+                }.window
+            ).decorView
             android.graphics.Bitmap.createBitmap(
                 decor.width,
                 decor.height,
