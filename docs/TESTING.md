@@ -25,7 +25,19 @@ Linux/macOS: подготовь JDK 17 и Android SDK, установи `platfor
 
 Тесты запускают Activity/Compose/SQLite в Robolectric на API 35. `HomeScreenTest` проверяет пустой экран, FLAG_SECURE, отсутствие backup/INTERNET и сценарий add → Activity recreation → finish. `PeriodRulesTest` покрывает будущие/обратные даты, один день и 29 февраля. Repository tests проверяют календарные даты на DST-границе, транзакционную защиту от конкурентных дубликатов и восстановление после повторного открытия базы. ViewModel tests проверяют состояния сохранения/ошибки и повторное нажатие.
 
-PNG в `app/build/reports/screenshots/`: `home-light.png`, `home-dark.png`, `home-recorded.png`, `period-entry.png`, `period-finish.png`. Это изображения для просмотра с синтетическими данными; pixel regression baseline ещё не создан. Room schema v1 сохраняется в `app/schemas/`; миграций пока нет, при их добавлении нужны отдельные migration tests.
+PNG в `app/build/reports/screenshots/`: пустой главный экран, заполненная история и текущая менструация в светлой/тёмной теме, узкий экран со шрифтом 200%, форма записи и выбор окончания. Это изображения для просмотра с синтетическими данными; pixel regression baseline ещё не создан. Room schema v1 сохраняется в `app/schemas/`; миграций пока нет, при их добавлении нужны отдельные migration tests.
+
+Просмотр интерфейса без APK на телефоне:
+
+```powershell
+& ./scripts/preview-ui.ps1 -Open
+# Если тесты уже выполнены и PNG актуальны:
+& ./scripts/preview-ui.ps1 -SkipRender -Open
+```
+
+Без `-SkipRender` скрипт принудительно запускает HomeScreenTest и формирует `app/build/reports/screenshots/index.html`. Требуются настроенные локальные Java/SDK. Без `-Open` браузер не запускается. Галерея содержит 9 снимков настоящего Compose render; отображает время генерации каждого PNG, изображения открываются в полном размере. Это статический просмотр. CI создаёт ту же галерею после тестов; скачай `verification-reports`, распакуй ZIP и открой `screenshots/index.html` вместе с соседними PNG. PNG и HTML не коммитятся.
+
+Для нажатий на компьютере: открой репозиторий в Android Studio, подготовь SDK/JDK по требованиям проекта, создай виртуальный телефон в Device Manager, выбери его и нажми Run. Обновления устанавливаются через Run/Apply Changes, без скачивания artifacts на телефон. [Официальная инструкция эмулятора](https://developer.android.com/studio/run/emulator). Эмулятор в текущем workspace не установлен и не проверен. Для отдельных состояний открой `RitelaApp.kt` в режиме Design/Split: добавлены previews пустого экрана, крупного текста и заполненной тёмной темы. Превью не открывает Room или реальные данные.
 
 Отчёты: `app/build/reports/tests/testDebugUnitTest/index.html` и `app/build/reports/lint-results-debug.html`. APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
@@ -39,7 +51,7 @@ PNG в `app/build/reports/screenshots/`: `home-light.png`, `home-dark.png`, `hom
 & ./.toolchain/android-sdk/platform-tools/adb.exe shell am start -n app.ritela/.MainActivity
 ```
 
-Instrumentation-набор и emulator пока не настроены; device testing нельзя считать пройденным по JVM-тесту. CI повторяет локальные build/unit/lint/format checks, сохраняет debug APK, SHA-256 и отчёты. Первый запуск упал в setup-java; во втором Java установлена, Prepare SDK упал из-за отсутствия sdkmanager в PATH. Исправлен полный путь; успешный полный запуск пока не подтверждён.
+Instrumentation-набор и emulator пока не настроены; device testing нельзя считать пройденным по JVM-тесту. CI повторяет локальные build/unit/lint/format checks, сохраняет debug APK, SHA-256 и отчёты. Пользователь подтвердил успешный CI после исправлений setup-java и Prepare SDK и скачал первый APK. Это подтверждение предыдущего workflow; удалённый запуск текущего изменения UI/галереи ещё не подтверждён.
 
 Для setup-java указывай Adoptium `version_data.semver`, а не имя релиза или каталога JDK: `17.0.20+101` соответствует `jdk-17.0.20.1+1`. Локальный bootstrap сохраняет исходное обозначение релиза и закреплённый архив. При обновлении CI JDK проверяй SemVer и наличие Linux x64 JDK в Adoptium API; затем подтверждай полный удалённый запуск, включая APK artifacts.
 

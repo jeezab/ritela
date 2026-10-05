@@ -1,35 +1,33 @@
 # Точка продолжения
 
-Обновлено: 2026-10-05 (Europe/Moscow). Активный этап: M1. Реализован и проверен базовый сценарий записи менструального периода. MVP ещё не завершён.
+Обновлено: 2026-10-05 (Europe/Moscow). M0 завершён, активный этап M1. После первого APK пользователь поставил качество интерфейса и текста в приоритет. MVP ещё не завершён.
 
 ## Реализовано
 
-- M0: Android skeleton и CI workflow; коммит `8d727f6`. Первый CI упал в setup-java; формат версии исправлен на `17.0.20+101` коммитом `550784f`. Второй CI успешно установил Java, но упал в Prepare SDK: `sdkmanager: command not found`. Теперь sdkmanager вызывается по полному пути внутри ANDROID_HOME с явным SDK root и проверкой executable. Новый удалённый запуск ожидается.
-- Добавление периода с началом и необязательным окончанием; продолжающийся период можно завершить позже. История показывает последние 30 записей.
-- Room 2.8.5, KSP 2.3.12, Lifecycle 2.11.0; схема v1 в `app/schemas/`. UUID, calendar epoch days, createdAt/updatedAt. Нет destructive fallback.
-- Будущие/обратные даты отклоняются. Проверка пересечения и вставка выполняются в транзакции; конкурентные дубликаты не создают второй записи.
-- ViewModel/StateFlow, сохранение состояния формы, индикация загрузки/сохранения и понятные ошибки без логирования данных.
-- FLAG_SECURE, backup/transfer exclusions и отсутствие сетевых разрешений сохранены. База в приватной директории приложения, пока без шифрования.
-- Новый project-local skill `ritela-android-check` фиксирует проверенный цикл format → build/test/lint → UI review → APK checks. Реестр/lock обновлены; всего 3 локальных скилла.
+- Пользователь подтвердил успешный CI после cdd675b и скачал APK. История исправлений Java/SDK в DECISIONS. Удалённый запуск нового UI/галереи ещё не подтверждён.
+- Добавление начала/необязательного окончания менструации, завершение открытой записи, история последних 30 записей. Room 2.8.5, KSP 2.3.12, Lifecycle 2.11.0; schema v1, UUID/epoch days/createdAt/updatedAt. Нет destructive fallback.
+- Future/reverse/overlap validation; проверка пересечений и вставка в транзакции, защита от конкурентных дубликатов. ViewModel/StateFlow, сохранение формы, loading/saving/errors без медицинских логов.
+- Первый проход по дизайну: «Сегодня» и дата, выделенная текущая/последняя запись, основное действие, компактная история. Слоганы и повторяющийся privacy block удалены. Светлая/тёмная палитры, общие shapes/typography; системные dynamic colors сохранены.
+- Форма «Месячные», понятные подписи дат, пояснение необязательного окончания, короткие ошибки. Исследование Clue/Flo/drip по официальным материалам, дефекты прежнего текста и план: docs/UI_DESIGN.md. Установленные версии конкурентов не проверялись.
+- scripts/preview-ui.ps1: обновление Compose-снимков и HTML-галерея на компьютере без APK/телефона. 9 PNG, синтетические данные, timestamps, полноразмерные изображения. CI формирует ту же галерею внутри verification-reports. Добавлены IDE previews.
+- FLAG_SECURE, backup/transfer exclusions и отсутствие сетевых разрешений сохранены. Room в приватной директории, пока без шифрования. 3 project-local skills; routine preview реализован скриптом.
 
-## Проверки
+## Проверки текущего шага
 
-- Исправление Prepare SDK: YAML parsing и Bash syntax всех run-блоков — PASS. Выполнен фактический блок Prepare SDK в Git Bash с временным макетом SDK вне PATH: путь с пробелами, точные аргументы SDK root/platform/build-tools, остановка при отсутствии ANDROID_HOME/инструмента и сохранение exit code 42 установщика — PASS. Это проверка shell-вызова, не реальная установка Linux SDK. `scripts/check-workspace.ps1` и `git diff --check` — PASS. Код приложения не менялся.
-- Исправление CI: workflow YAML — PASS; SemVer 7.8.4 из lock закреплённого setup-java отклоняет старый input и принимает `17.0.20+101`. Adoptium API подтвердил точное соответствие релизу `jdk-17.0.20.1+1`, Linux x64 JDK. Integrity npm-архива проверена по upstream lock. `scripts/check-workspace.ps1` и `git diff --check` — PASS. Код приложения не менялся; следующие проверки приложения относятся к предыдущему шагу M1.
-- `scripts/gradle.ps1 formatKotlin`: PASS.
-- `scripts/gradle.ps1 checkKotlin assembleDebug testDebugUnitTest lintDebug`: BUILD SUCCESSFUL, configuration cache reused.
-- 11 тестов, 0 failures/errors: 3 UI, 3 domain, 3 Room/repository, 2 ViewModel. Покрыты DST/leap-day, ошибочные даты, overlap/concurrent insertion, закрытие/открытие базы и add → Activity recreation → finish.
-- `scripts/verify-apk.ps1`: подпись, package/min/target SDK и отсутствие сети — PASS. APK: `app/build/outputs/apk/debug/app-debug.apk`, 11 941 066 байт. SHA-256: `a7500e9676414622d965ad68a61d9fbf23fc47cd55d31abb677712c0d1b021d1`; файл рядом в `.sha256`.
-- UI PNG просмотрены: home-light/home-dark/home-recorded/period-entry/period-finish в `app/build/reports/screenshots/`. Для диалогов применяется захват decorView: Robolectric PixelCopy иначе снимал фон Activity.
-- `scripts/check-workspace.ps1`: PASS, 15 документов, 3 скилла/их hash. Новый skill прошёл skill-creator validator. Workflow YAML и `git diff --check`: PASS.
-- Production source audit: прямые Log/println вызовы отсутствуют. Синтетические тестовые записи не входят в APK или Git.
+- Применён ritela-android-check. scripts/gradle.ps1 formatKotlin: PASS.
+- scripts/gradle.ps1 checkKotlin assembleDebug testDebugUnitTest lintDebug: BUILD SUCCESSFUL, configuration cache reused.
+- 13 тестов, 0 failures/errors: 5 UI, 3 domain, 3 Room/repository, 2 ViewModel. UI: privacy flags, add → Activity recreation → finish, empty light/dark, recorded/ongoing dark, 320dp/fontScale 2.0 и видимость главного действия.
+- Просмотрены все 9 PNG в app/build/reports/screenshots/. На шрифте 200% экран прокручивается; вторичное действие под заголовком истории, чтобы не теснить его.
+- scripts/preview-ui.ps1 -SkipRender: PASS. HTML UTF-8, 9 существующих local image links. Скрипт с UTF-8 BOM для совместимости Windows PowerShell 5.1/pwsh. Обычный режим принудительного HomeScreenTest проверен отдельно.
+- scripts/verify-apk.ps1: PASS, signed app.ritela, API 26..37, no network permissions. APK: app/build/outputs/apk/debug/app-debug.apk, 12 425 930 байт, SHA-256 078dd8078847aeaa40c0574f31ecb7ec5b12bfe99aa6aceffe2cc9d49465c35f; рядом .sha256.
+- Workflow YAML/gallery step: PASS. scripts/check-workspace.ps1: PASS, 16 документов, 3 skills/hash. git diff --check: PASS.
 
 ## Следующее действие
 
-После отправки исправления проверить новый запуск GitHub Actions: SDK, build/tests/lint и APK artifacts. Во втором запуске Java установлена успешно, следующие шаги после Prepare SDK пока не выполнялись.
+Показать пользователю локальную галерею и получить замечания к первому проходу. Приоритетный план в UI_DESIGN: довести главный экран/форму, затем закрыть M1 редактированием/удалением с сохранением UUID/createdAt, overlap validation и подтверждением удаления. После этого M2: domain prediction engine, календарь и запись выбранного дня. Смотреть states/themes/sizes/fontScale и фиксировать результаты в доках/коммитах.
 
-Продолжить M1: редактирование и удаление периодов с проверкой пересечений, сохранением UUID/createdAt и подтверждением удаления. Добавить regression/UI tests для коррекции и удаления. Затем M2: pure Kotlin prediction engine, календарь и главная сводка. Читай релевантные разделы brief через `scripts/read-brief.ps1`, а не полный промпт.
+После push подтвердить CI нового UI и наличие screenshots/index.html в распакованном verification-reports. Старый успешный CI не доказывает проверку текущего workflow.
 
 ## Ограничения
 
-Нет прогноза, календаря, коррекции/удаления, интенсивности/дневных событий, экспорта/импорта, app lock и зашифрованного backup. История на главном экране ограничена 30 записями. Миграций пока нет (начальная schema v1); дальнейшие изменения требуют migration tests. Устройств/emulator нет, device smoke test не выполнялся. Успешного полного удалённого CI пока нет; второй запуск упал в Prepare SDK до сборки. Debug APK не является release/MVP.
+Это первый проход, не завершённый дизайн всего продукта. Нет прогноза, календаря, коррекции/удаления, дневной интенсивности/симптомов, экспорта/импорта, app lock и шифрованного backup. Главная показывает последние 30 записей. Миграций пока нет; изменение schema v1 требует migration/tests. Эмулятор/Android Studio не настроены в workspace; device smoke test, TalkBack и fontScale 1.3 пока не проверены. Галерея статическая; для нажатий нужен эмулятор или устройство. Debug APK не является release/MVP.

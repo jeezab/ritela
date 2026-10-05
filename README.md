@@ -20,4 +20,12 @@ powershell -NoProfile -File scripts/setup-sdk.ps1 -AcceptLicenses
 
 APK создаётся в `app/build/outputs/apk/debug/app-debug.apk`. Команды форматирования, Linux/macOS, установки и отчёты: [TESTING.md](docs/TESTING.md). Устройство можно проверить через `& ./.toolchain/android-sdk/platform-tools/adb.exe devices`.
 
+Посмотреть интерфейс на компьютере без установки APK:
+
+```powershell
+& ./scripts/preview-ui.ps1 -Open
+```
+
+Скрипт обновляет Compose-снимки и открывает их галерею в браузере. После уже выполненных тестов достаточно `& ./scripts/preview-ui.ps1 -SkipRender -Open`. Для интерактивного просмотра используй эмулятор Android Studio. План интерфейса и исследование трекеров: [UI_DESIGN.md](docs/UI_DESIGN.md).
+
 Архитектура: [ARCHITECTURE.md](ARCHITECTURE.md). Текущие меры защиты: [PRIVACY.md](PRIVACY.md). Правила коммитов: [CONTRIBUTING.md](CONTRIBUTING.md). Локальные скиллы: [AGENT_SKILLS.md](docs/AGENT_SKILLS.md).

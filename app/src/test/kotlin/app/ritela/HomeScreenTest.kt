@@ -4,7 +4,9 @@ import android.content.pm.PackageManager
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -12,9 +14,15 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.Density
+import app.ritela.domain.Period
 import app.ritela.ui.HomeScreen
+import app.ritela.ui.PeriodUiState
 import app.ritela.ui.RitelaTheme
 import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -36,11 +44,11 @@ class HomeScreenTest {
     @Test
     fun emptyHomeExplainsLocalPrivacy() {
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Пока нет записей").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Пока нет записей").assertIsDisplayed()
+        compose.onNodeWithText("Начнём с даты").assertIsDisplayed()
         compose.onNodeWithText(
-            "Без аккаунта, рекламы и передачи данных на сервер."
+            "Записи хранятся на этом устройстве"
         ).assertIsDisplayed()
         assertTrue(
             compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0
@@ -58,9 +66,9 @@ class HomeScreenTest {
     @Test
     fun periodCanBeSavedAndFinishedAfterActivityRecreation() {
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Пока нет записей").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Добавить запись").performClick()
+        compose.onNodeWithText("Отметить месячные").performClick()
         saveRendering("period-entry", dialog = true)
         compose.onNodeWithText("Сохранить").performClick()
         compose.waitUntil(10_000) {
@@ -68,14 +76,63 @@ class HomeScreenTest {
         }
         compose.activityRule.scenario.recreate()
         compose.onNodeWithText("Продолжается").assertIsDisplayed()
+        saveRendering("home-active")
         compose.onNodeWithText("Завершить").performClick()
         saveRendering("period-finish", dialog = true)
         compose.onNodeWithText("Готово").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isEmpty()
         }
-        compose.onNodeWithText("Добавить запись").assertIsDisplayed()
+        compose.onNodeWithText("Отметить месячные").assertIsDisplayed()
         saveRendering("home-recorded")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "ru-rRU-w320dp-h740dp")
+    fun narrowHomeKeepsPrimaryActionAtLargeFont() {
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                val density = LocalDensity.current.density
+                CompositionLocalProvider(LocalDensity provides Density(density, fontScale = 2f)) {
+                    RitelaTheme(dynamicColor = false) {
+                        Scaffold { HomeScreen(it, today = LocalDate.of(2026, 10, 5)) }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Отметить месячные").assertIsDisplayed()
+        saveRendering("home-narrow-large-text")
+    }
+
+    @Test
+    fun darkHomeShowsRecordedAndOngoingStates() {
+        val today = LocalDate.of(2026, 10, 5)
+        for (ongoing in listOf(false, true)) {
+            val period = Period(
+                UUID(0, 1),
+                today.minusDays(4),
+                if (ongoing) null else today,
+                Instant.EPOCH,
+                Instant.EPOCH
+            )
+            compose.activity.runOnUiThread {
+                compose.activity.setContent {
+                    RitelaTheme(darkTheme = true, dynamicColor = false) {
+                        Scaffold {
+                            HomeScreen(
+                                it,
+                                PeriodUiState(periods = listOf(period), loading = false),
+                                today = today
+                            )
+                        }
+                    }
+                }
+            }
+            compose.onNodeWithText(
+                if (ongoing) "Завершить" else "Отметить месячные"
+            ).assertIsDisplayed()
+            saveRendering(if (ongoing) "home-active-dark" else "home-recorded-dark")
+        }
     }
 
     @Test
