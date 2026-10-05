@@ -33,6 +33,17 @@
                        "sha256":  "95b6f9ae712a024ac91d9d51fef25cf53e7c5579dfdb7540674209d86f9191c0",
                        "installedAt":  "2026-10-05",
                        "classification":  "project-local"
+                   },
+                   {
+                       "name":  "cycle-prediction-validation",
+                       "source":  "https://github.com/jeezab/ritela",
+                       "commit":  null,
+                       "path":  ".agents/skills/cycle-prediction-validation/SKILL.md",
+                       "license":  "NOASSERTION",
+                       "version":  "1.0.0",
+                       "sha256":  "51f0210ada3f7ce8bd8d3c40a97c92dd0dee685535365f071f264b30964532a5",
+                       "installedAt":  "2026-10-05",
+                       "classification":  "project-local"
                    }
                ]
 }

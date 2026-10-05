@@ -16,6 +16,8 @@
 | `.agents/skills/ritela-resume/SKILL.md` | Восстановление контекста без повторного исследования |
 | `.agents/skills/ritela-checkpoint/SKILL.md` | Обновление памяти и проверенный коммит |
 | `.agents/skills/ritela-android-check/SKILL.md` | Format/build/test/lint/render/APK verification |
+| `.agents/skills/cycle-prediction-validation/SKILL.md` | Проверка расчёта, неопределённости и пересчёта после правок |
+| `docs/PREDICTION.md` | Формулы прогноза, достаточность данных, ограничения и проверки |
 | `scripts/resume.ps1` | Краткий read-only отчёт о состоянии и инструментах |
 | `scripts/check-workspace.ps1` | Ссылки, синтаксис скриптов и целостность lock |
 | `scripts/read-brief.ps1` | Вывод только выбранных разделов полного промпта |
@@ -28,7 +30,9 @@
 | `docs/UI_DESIGN.md` | Исследование трекеров, принципы текста и план интерфейса |
 | `gradle/libs.versions.toml` | Закреплённые версии зависимостей и plugins |
 | `app/src/main/kotlin/app/ritela/` | Activity и Compose UI |
-| `app/src/main/kotlin/app/ritela/domain/` | Чистая модель периода и проверка дат |
+| `app/src/main/kotlin/app/ritela/domain/` | Чистые модели, проверка дат, расчёт цикла и сетка календаря |
+| `app/src/main/kotlin/app/ritela/ui/CalendarScreen.kt` | Месяц, выбор дня, просмотр и запись дат |
+| `app/src/main/kotlin/app/ritela/ui/ForecastCard.kt` | Ориентир, диапазон и качество истории |
 | `app/src/main/kotlin/app/ritela/data/` | Room database, DAO, storage entity, repository |
 | `app/schemas/` | Экспортированная схема Room v1 |
 | `docs/DATA_FORMAT.md` | Фактический формат базы и инварианты дат |
@@ -43,7 +47,7 @@
 |---|---|---|
 | M0 | Toolchain, выбранные skills, Android skeleton, первая зелёная сборка, CI APK | Завершён: локальные проверки, успешный CI и скачанный APK подтверждены пользователем |
 | M1 | Room и запись менструации | Add/finish/history/edit/delete реализованы и проверены; схема v1 сохранена |
-| M2 | Prediction engine, календарь, главный экран | Не начат |
+| M2 | Prediction engine, календарь, главный экран | Первая версия реализована: день цикла, медиана/MAD, диапазоны до 12 циклов, календарь и выбранный день; проверка на устройстве впереди |
 | M3 | События, симптомы, сексуальная активность | Не начат |
 | M4 | Insights и настройки | Не начат |
 | M5 | Экспорт/импорт, приватность, защита | Не начат |
