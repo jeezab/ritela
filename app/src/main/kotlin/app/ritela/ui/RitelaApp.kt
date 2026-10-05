@@ -3,12 +3,14 @@ package app.ritela.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,10 +44,14 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     val state by model.uiState.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
     var finishingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var deletingId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(state.saved) {
         if (state.saved) {
             adding = false
             finishingId = null
+            editingId = null
+            deletingId = null
             model.clearResult()
         }
     }
@@ -57,7 +64,63 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                 model.clearResult()
                 finishingId =
                     it.id.toString()
+            }, onEdit = {
+                model.clearResult()
+                editingId = it.id.toString()
+            }, onDelete = {
+                model.clearResult()
+                deletingId = it.id.toString()
             })
+        }
+        state.periods.firstOrNull { it.id.toString() == editingId }?.let { period ->
+            PeriodEntry(
+                state,
+                onDismiss = {
+                    editingId = null
+                    model.clearResult()
+                },
+                onSave = { start, end -> model.edit(period.id, start, end) },
+                initialStart = period.start,
+                initialEnd = period.end,
+                editing = true,
+                onChange = model::clearResult
+            )
+        }
+        state.periods.firstOrNull { it.id.toString() == deletingId }?.let { period ->
+            AlertDialog(
+                onDismissRequest = {
+                    if (!state.saving) {
+                        deletingId = null
+                        model.clearResult()
+                    }
+                },
+                title = { Text(stringResource(R.string.delete_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.medium)) {
+                        Text(periodDates(period))
+                        Text(stringResource(R.string.delete_description))
+                        state.problem?.let {
+                            Text(problemText(it), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { model.delete(period.id) }, enabled = !state.saving) {
+                        Text(
+                            stringResource(R.string.confirm_delete),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        deletingId = null
+                        model.clearResult()
+                    }, enabled = !state.saving) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
         }
         if (adding) {
             PeriodEntry(state, onDismiss = {
@@ -91,6 +154,8 @@ fun HomeScreen(
     state: PeriodUiState = PeriodUiState(loading = false),
     onAdd: () -> Unit = {},
     onFinish: (Period) -> Unit = {},
+    onEdit: (Period) -> Unit = {},
+    onDelete: (Period) -> Unit = {},
     today: LocalDate = LocalDate.now()
 ) {
     Column(
@@ -205,6 +270,22 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+                Row {
+                    TextButton(
+                        onClick = { onEdit(period) },
+                        enabled = !state.saving,
+                        modifier = Modifier.testTag("edit-period-${period.id}")
+                    ) {
+                        Text(stringResource(R.string.edit))
+                    }
+                    TextButton(
+                        onClick = { onDelete(period) },
+                        enabled = !state.saving,
+                        modifier = Modifier.testTag("delete-period-${period.id}")
+                    ) {
+                        Text(stringResource(R.string.delete))
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

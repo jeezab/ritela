@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import app.ritela.domain.PeriodProblem
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -15,9 +16,44 @@ abstract class PeriodDao {
     abstract suspend fun find(id: String): PeriodEntity?
 
     @Query(
-        "UPDATE periods SET endDay = :endDay, updatedAt = :updatedAt WHERE id = :id AND endDay IS NULL"
+        "UPDATE periods SET endDay = :endDay, updatedAt = :updatedAt WHERE id = :id AND endDay IS NULL AND startDay <= :endDay"
     )
     abstract suspend fun finish(id: String, endDay: Long, updatedAt: Long): Int
+
+    @Query("DELETE FROM periods WHERE id = :id")
+    abstract suspend fun delete(id: String): Int
+
+    @Query(
+        "UPDATE periods SET startDay = :startDay, endDay = :endDay, updatedAt = :updatedAt WHERE id = :id"
+    )
+    protected abstract suspend fun updateDates(
+        id: String,
+        startDay: Long,
+        endDay: Long?,
+        updatedAt: Long
+    )
+
+    @Query(
+        "SELECT COUNT(*) FROM periods WHERE id != :id AND startDay <= :endDay AND (endDay IS NULL OR endDay >= :startDay)"
+    )
+    protected abstract suspend fun overlapsExcept(id: String, startDay: Long, endDay: Long): Int
+
+    @Transaction
+    open suspend fun editIfSeparate(
+        id: String,
+        startDay: Long,
+        endDay: Long?,
+        updatedAt: Long
+    ): PeriodProblem? {
+        if (find(id) == null) return PeriodProblem.STORAGE
+        if (overlapsExcept(id, startDay, endDay ?: Long.MAX_VALUE) !=
+            0
+        ) {
+            return PeriodProblem.OVERLAP
+        }
+        updateDates(id, startDay, endDay, updatedAt)
+        return null
+    }
 
     @Query(
         "SELECT COUNT(*) FROM periods WHERE startDay <= :endDay AND (endDay IS NULL OR endDay >= :startDay)"

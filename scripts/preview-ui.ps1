@@ -19,6 +19,8 @@ $labels = [ordered]@{
     'home-narrow-large-text' = 'Узкий экран · шрифт 200%'
     'period-entry' = 'Запись дат'
     'period-finish' = 'Выбор окончания'
+    'period-edit' = 'Изменение дат'
+    'period-delete' = 'Подтверждение удаления'
 }
 $cards = foreach ($name in $labels.Keys) {
     $path = Join-Path $directory "$name.png"
