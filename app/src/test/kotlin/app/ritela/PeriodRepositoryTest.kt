@@ -126,6 +126,17 @@ class PeriodRepositoryTest {
         assertTrue(repository.periods.first().isEmpty())
     }
 
+    @Test fun calendarHistoryIsNotTruncatedAtThirtyRecords() = runBlocking {
+        val start = LocalDate.of(2024, 1, 1)
+        repeat(31) { index ->
+            val day = start.plusDays(index * 2L)
+            assertNull(repository.add(day, day))
+        }
+        val records = repository.periods.first()
+        assertEquals(31, records.size)
+        assertEquals(start, records.last().start)
+    }
+
     @Test fun concurrentEditsCannotCreateOverlappingRecords() = runBlocking {
         val day = LocalDate.of(2024, 2, 1)
         assertNull(repository.add(day, day))

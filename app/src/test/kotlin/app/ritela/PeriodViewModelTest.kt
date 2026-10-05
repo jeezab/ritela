@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.ritela.data.PeriodRepository
 import app.ritela.data.RitelaDatabase
+import app.ritela.domain.ForecastUnavailable
 import app.ritela.domain.PeriodProblem
 import app.ritela.ui.PeriodViewModel
 import java.time.Clock
@@ -19,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -73,6 +75,28 @@ class PeriodViewModelTest {
         assertFalse(failed.saving)
         assertFalse(failed.saved)
         assertEquals(1, repository.periods.first().size)
+    }
+
+    @Test fun editingAndDeletingRecalculateForecastFromRoom() = runBlocking {
+        val latest = LocalDate.of(2024, 2, 20)
+        for (index in 0..3) {
+            val start = latest.minusDays(28L * index)
+            repository.add(start, start.plusDays(3))
+        }
+        val initial = withTimeout(5_000) { model.uiState.first { it.periods.size == 4 } }
+        assertEquals(latest.plusDays(28), initial.analysis.forecasts.first().predictedStartDate)
+        val record = initial.periods.first()
+        model.edit(record.id, latest.plusDays(2), latest.plusDays(5))
+        val edited = withTimeout(5_000) {
+            model.uiState.first { it.periods.first().start == latest.plusDays(2) }
+        }
+        assertEquals(record.id, edited.periods.first().id)
+        assertEquals(latest.plusDays(30), edited.analysis.forecasts.first().predictedStartDate)
+        model.clearResult()
+        model.delete(edited.periods.last().id)
+        val deleted = withTimeout(5_000) { model.uiState.first { it.periods.size == 3 } }
+        assertTrue(deleted.analysis.forecasts.isEmpty())
+        assertEquals(ForecastUnavailable.NEED_MORE, deleted.analysis.unavailable)
     }
 
     @Test fun invalidDateShowsAnErrorWithoutWriting() = runBlocking {

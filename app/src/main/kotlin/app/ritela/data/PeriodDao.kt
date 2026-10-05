@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class PeriodDao {
-    @Query("SELECT * FROM periods ORDER BY startDay DESC LIMIT 30")
-    abstract fun observeRecent(): Flow<List<PeriodEntity>>
+    @Query("SELECT * FROM periods ORDER BY startDay DESC")
+    abstract fun observeAll(): Flow<List<PeriodEntity>>
 
     @Query("SELECT * FROM periods WHERE id = :id")
     abstract suspend fun find(id: String): PeriodEntity?

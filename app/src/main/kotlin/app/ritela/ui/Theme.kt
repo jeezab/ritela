@@ -22,6 +22,9 @@ object Spacing {
     val large = 24.dp
     val section = 32.dp
     val actionHeight = 56.dp
+    val calendarMinimumWidth = 336.dp
+    val calendarCellHeight = 64.dp
+    val calendarBorder = 2.dp
 }
 
 private val AppShapes = Shapes(

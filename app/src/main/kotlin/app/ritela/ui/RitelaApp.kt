@@ -15,7 +15,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,8 +31,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.ritela.R
@@ -46,6 +52,9 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     var finishingId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var page by rememberSaveable { mutableStateOf(0) }
+    var addingDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.refreshToday() }
     LaunchedEffect(state.saved) {
         if (state.saved) {
             adding = false
@@ -56,21 +65,42 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
         }
     }
     RitelaTheme {
-        Scaffold { contentPadding ->
-            HomeScreen(contentPadding, state, onAdd = {
-                model.clearResult()
-                adding = true
-            }, onFinish = {
-                model.clearResult()
-                finishingId =
-                    it.id.toString()
-            }, onEdit = {
-                model.clearResult()
-                editingId = it.id.toString()
-            }, onDelete = {
-                model.clearResult()
-                deletingId = it.id.toString()
-            })
+        Scaffold(bottomBar = { AppNavigation(page) { page = it } }) { contentPadding ->
+            if (page == 1) {
+                CalendarScreen(
+                    contentPadding,
+                    state,
+                    onAdd = {
+                        addingDay = it.toEpochDay()
+                        model.clearResult()
+                        adding = true
+                    },
+                    onEdit = {
+                        editingId = it.id.toString()
+                        model.clearResult()
+                    },
+                    onDelete = {
+                        deletingId = it.id.toString()
+                        model.clearResult()
+                    }
+                )
+            } else {
+                HomeScreen(contentPadding, state, onAdd = {
+                    model.clearResult()
+                    addingDay = state.today.toEpochDay()
+                    adding = true
+                }, onFinish = {
+                    model.clearResult()
+                    finishingId =
+                        it.id.toString()
+                }, onEdit = {
+                    model.clearResult()
+                    editingId = it.id.toString()
+                }, onDelete = {
+                    model.clearResult()
+                    deletingId = it.id.toString()
+                }, today = state.today)
+            }
         }
         state.periods.firstOrNull { it.id.toString() == editingId }?.let { period ->
             PeriodEntry(
@@ -123,10 +153,18 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
             )
         }
         if (adding) {
-            PeriodEntry(state, onDismiss = {
-                adding = false
-                model.clearResult()
-            }, onSave = model::save, onChange = model::clearResult)
+            PeriodEntry(
+                state,
+                onDismiss = {
+                    adding = false
+                    model.clearResult()
+                },
+                onSave = model::save,
+                initialStart = LocalDate.ofEpochDay(
+                    addingDay
+                ),
+                onChange = model::clearResult
+            )
         }
         finishingId?.let { id ->
             PickDate(
@@ -200,6 +238,13 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(Spacing.large)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
+                    state.analysis.cycleDay?.let {
+                        Text(
+                            stringResource(R.string.cycle_day, it),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Text(
                         stringResource(
                             when {
@@ -240,6 +285,11 @@ fun HomeScreen(
             }
         }
         state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
+        if (!state.loading && state.periods.isNotEmpty() &&
+            active == null
+        ) {
+            ForecastCard(state.analysis)
+        }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.medium)) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -261,7 +311,7 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            for (period in state.periods) {
+            for (period in state.periods.take(30)) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
                     Text(periodDates(period), style = MaterialTheme.typography.titleMedium)
                     if (period.end == null) {
@@ -296,6 +346,46 @@ fun HomeScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
+    NavigationBar {
+        for (index in 0..1) {
+            NavigationBarItem(
+                selected = page == index,
+                onClick = { onPage(index) },
+                modifier = Modifier.testTag(if (index == 0) "nav-today" else "nav-calendar"),
+                icon = {
+                    Icon(
+                        painterResource(
+                            if (index ==
+                                0
+                            ) {
+                                R.drawable.ic_today
+                            } else {
+                                R.drawable.ic_calendar
+                            }
+                        ),
+                        contentDescription = null
+                    )
+                },
+                label = {
+                    Text(
+                        stringResource(
+                            if (index ==
+                                0
+                            ) {
+                                R.string.home_title
+                            } else {
+                                R.string.calendar_title
+                            }
+                        )
+                    )
+                }
+            )
+        }
     }
 }
 

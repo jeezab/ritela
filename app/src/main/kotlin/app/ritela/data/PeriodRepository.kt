@@ -11,7 +11,8 @@ class PeriodRepository(
     private val dao: PeriodDao,
     private val clock: Clock = Clock.systemDefaultZone()
 ) {
-    val periods = dao.observeRecent().map { rows -> rows.map(PeriodEntity::toPeriod) }
+    val periods = dao.observeAll().map { rows -> rows.map(PeriodEntity::toPeriod) }
+    val today: LocalDate get() = LocalDate.now(clock)
 
     suspend fun add(start: LocalDate, end: LocalDate?): PeriodProblem? {
         validatePeriod(start, end, LocalDate.now(clock))?.let { return it }

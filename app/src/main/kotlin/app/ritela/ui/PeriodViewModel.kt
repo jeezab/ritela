@@ -7,8 +7,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.ritela.RitelaApplication
 import app.ritela.data.PeriodRepository
+import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.Period
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.analyzeCycles
 import java.time.LocalDate
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -22,18 +24,28 @@ data class PeriodUiState(
     val loading: Boolean = true,
     val saving: Boolean = false,
     val saved: Boolean = false,
-    val problem: PeriodProblem? = null
+    val problem: PeriodProblem? = null,
+    val today: LocalDate = LocalDate.now(),
+    val analysis: CycleAnalysis = CycleAnalysis()
 )
 
 class PeriodViewModel(private val repository: PeriodRepository) : ViewModel() {
-    private val state = MutableStateFlow(PeriodUiState())
+    private val state = MutableStateFlow(PeriodUiState(today = repository.today))
     val uiState = state.asStateFlow()
 
     init {
         viewModelScope.launch {
             try {
                 repository.periods.collect { periods ->
-                    state.update { it.copy(periods = periods, loading = false) }
+                    val today = repository.today
+                    state.update {
+                        it.copy(
+                            periods = periods,
+                            loading = false,
+                            today = today,
+                            analysis = analyzeCycles(periods, today)
+                        )
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -76,6 +88,11 @@ class PeriodViewModel(private val repository: PeriodRepository) : ViewModel() {
 
     fun clearResult() {
         state.update { it.copy(saved = false, problem = null) }
+    }
+
+    fun refreshToday() {
+        val today = repository.today
+        state.update { it.copy(today = today, analysis = analyzeCycles(it.periods, today)) }
     }
 
     companion object {

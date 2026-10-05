@@ -21,6 +21,11 @@ $labels = [ordered]@{
     'period-finish' = 'Выбор окончания'
     'period-edit' = 'Изменение дат'
     'period-delete' = 'Подтверждение удаления'
+    'calendar-recorded' = 'Календарь · записанные даты'
+    'calendar-forecast' = 'Календарь · прогноз начала'
+    'calendar-dark' = 'Календарь · тёмная тема'
+    'calendar-narrow-medium-text' = 'Календарь · узкий экран · шрифт 130%'
+    'calendar-narrow-large-text' = 'Календарь · узкий экран · шрифт 200%'
 }
 $cards = foreach ($name in $labels.Keys) {
     $path = Join-Path $directory "$name.png"
