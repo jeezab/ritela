@@ -8,4 +8,20 @@
     <string name="privacy_title">Только на вашем устройстве</string>
     <string name="privacy_description">Без аккаунта, рекламы и передачи данных на сервер.</string>
     <string name="privacy_note">Вы решаете, чем делиться.</string>
+    <string name="add_period">Добавить запись</string>
+    <string name="new_period">Новая запись</string>
+    <string name="start_date">Начало: %1$s</string>
+    <string name="end_date">Окончание: %1$s</string>
+    <string name="choose_end">Указать окончание</string>
+    <string name="ongoing">Продолжается</string>
+    <string name="finish_period">Завершить</string>
+    <string name="save">Сохранить</string>
+    <string name="saving">Сохраняем…</string>
+    <string name="cancel">Отмена</string>
+    <string name="done">Готово</string>
+    <string name="loading">Загружаем записи…</string>
+    <string name="future_date_error">Дата не может быть в будущем.</string>
+    <string name="date_order_error">Окончание не может быть раньше начала.</string>
+    <string name="overlap_error">Эти даты пересекаются с существующей записью. Проверьте даты записи.</string>
+    <string name="storage_error">Не удалось загрузить или сохранить запись. Попробуйте снова.</string>
 </resources>

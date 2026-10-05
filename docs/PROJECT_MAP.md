@@ -15,6 +15,7 @@
 | `.agent-skills.lock` | Версии и SHA-256 локальных скиллов; внутренний формат |
 | `.agents/skills/ritela-resume/SKILL.md` | Восстановление контекста без повторного исследования |
 | `.agents/skills/ritela-checkpoint/SKILL.md` | Обновление памяти и проверенный коммит |
+| `.agents/skills/ritela-android-check/SKILL.md` | Format/build/test/lint/render/APK verification |
 | `scripts/resume.ps1` | Краткий read-only отчёт о состоянии и инструментах |
 | `scripts/check-workspace.ps1` | Ссылки, синтаксис скриптов и целостность lock |
 | `scripts/read-brief.ps1` | Вывод только выбранных разделов полного промпта |
@@ -25,6 +26,10 @@
 | `scripts/verify-apk.ps1` | Проверка APK, сетевых разрешений и checksum |
 | `gradle/libs.versions.toml` | Закреплённые версии зависимостей и plugins |
 | `app/src/main/kotlin/app/ritela/` | Activity и Compose UI |
+| `app/src/main/kotlin/app/ritela/domain/` | Чистая модель периода и проверка дат |
+| `app/src/main/kotlin/app/ritela/data/` | Room database, DAO, storage entity, repository |
+| `app/schemas/` | Экспортированная схема Room v1 |
+| `docs/DATA_FORMAT.md` | Фактический формат базы и инварианты дат |
 | `app/src/test/kotlin/app/ritela/` | JVM/Compose тесты и render checks |
 | `.github/workflows/android.yml` | Проверки, debug APK, checksum и отчёты |
 | `docs/TESTING.md` | Доступные команды и ограничения проверок |
@@ -34,8 +39,8 @@
 
 | Этап | Результат | Статус |
 |---|---|---|
-| M0 | Toolchain, выбранные skills, Android skeleton, первая зелёная сборка, CI APK | В работе: память проекта и Java/Gradle/sdkmanager проверены; SDK-пакеты и приложение впереди |
-| M1 | Room и запись менструации | Не начат |
+| M0 | Toolchain, выбранные skills, Android skeleton, первая зелёная сборка, CI APK | Локально проверен; CI подготовлен, удалённый запуск не выполнен |
+| M1 | Room и запись менструации | Базовый сценарий add/finish/history реализован; коррекция/удаление впереди |
 | M2 | Prediction engine, календарь, главный экран | Не начат |
 | M3 | События, симптомы, сексуальная активность | Не начат |
 | M4 | Insights и настройки | Не начат |

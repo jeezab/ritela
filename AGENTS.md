@@ -23,4 +23,5 @@
 - Подготовка инструментов: `powershell -NoProfile -File scripts/bootstrap-toolchain.ps1`. Локальные инструменты находятся в `.toolchain/`, глобальное окружение не менять.
 - Форматирование: `& ./scripts/gradle.ps1 formatKotlin`. Проверки приложения: `& ./scripts/gradle.ps1 checkKotlin assembleDebug testDebugUnitTest lintDebug`. Подробности и Linux/macOS: `docs/TESTING.md`.
 - Скиллы: `.agents/skills/`, реестр `docs/AGENT_SKILLS.md`, внутренний lock `.agent-skills.lock`. Использовать только нужный скилл; повторяемую механику выносить в небольшой проверенный скрипт.
+- Перед коммитом Android-кода применяй `ritela-android-check`; при изменении существующей схемы Room нужны явная migration и её тесты.
 - Definition of Done: реализация, форматирование, релевантные тесты, сборка, lint без ухудшений, просмотр UI при его изменении, актуальные документы, отсутствие утечек чувствительных данных. Для документации/скриптов — их собственные проверки; это не завершение Android milestone.
