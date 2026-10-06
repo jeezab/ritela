@@ -8,6 +8,7 @@ import app.ritela.data.RitelaDatabase
 import app.ritela.data.SettingsRepository
 import app.ritela.domain.PeriodProblem
 import app.ritela.domain.PredictionDefaults
+import app.ritela.ui.PeriodUiState
 import app.ritela.ui.PeriodViewModel
 import java.time.Clock
 import java.time.Instant
@@ -25,6 +26,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -88,16 +90,28 @@ class PeriodViewModelTest {
         assertEquals(latest.plusDays(28), initial.analysis.forecasts.first().predictedStartDate)
         val record = initial.periods.first()
         model.edit(record.id, latest.plusDays(2), latest.plusDays(5))
-        val edited = withTimeout(5_000) {
-            model.uiState.first { it.periods.first().start == latest.plusDays(2) }
+        val edited = awaitPersistedState {
+            it.periods.firstOrNull()?.start == latest.plusDays(2)
         }
         assertEquals(record.id, edited.periods.first().id)
         assertEquals(latest.plusDays(30), edited.analysis.forecasts.first().predictedStartDate)
         model.clearResult()
         model.delete(edited.periods.last().id)
-        val deleted = withTimeout(5_000) { model.uiState.first { it.periods.size == 3 } }
+        val deleted = awaitPersistedState { it.periods.size == 3 }
         assertTrue(deleted.analysis.usesDefaults)
         assertEquals(28, deleted.analysis.forecasts.first().cycleMedian)
+    }
+
+    private suspend fun awaitPersistedState(predicate: (PeriodUiState) -> Boolean): PeriodUiState {
+        // Room can emit new records before persist() clears saving. Match both signals
+        // so the next mutation is not rejected by the duplicate-operation guard.
+        val state = withTimeout(5_000) {
+            model.uiState.first {
+                it.problem != null || (!it.saving && it.saved && predicate(it))
+            }
+        }
+        assertNull("Persistence failed before the expected state was observed", state.problem)
+        return state
     }
 
     @Test fun settingsSurviveReopeningAndRecalculateWithoutChangingPeriods() = runBlocking {
