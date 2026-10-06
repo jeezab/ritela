@@ -1,8 +1,30 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+}
+
+val appVersion = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}.getProperty("versionName")
+require(appVersion.matches(Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)")))
+val versionParts = appVersion.split('.').map(String::toInt)
+require(versionParts[0] in 0..2000 && versionParts.drop(1).all { it in 0..999 })
+val appVersionCode = versionParts[0] * 1_000_000 + versionParts[1] * 1000 + versionParts[2]
+require(appVersionCode > 0)
+
+val signingVariables = listOf(
+    "ANDROID_KEYSTORE_PATH",
+    "ANDROID_KEYSTORE_PASSWORD",
+    "ANDROID_KEY_ALIAS",
+    "ANDROID_KEY_PASSWORD"
+)
+val signingValues = signingVariables.map { providers.environmentVariable(it).orNull }
+require(signingValues.all { it.isNullOrBlank() } || signingValues.all { !it.isNullOrBlank() }) {
+    "Release signing requires all four ANDROID_KEYSTORE_* / ANDROID_KEY_* variables"
 }
 
 android {
@@ -13,8 +35,22 @@ android {
         applicationId = "app.ritela"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersion
+    }
+
+    if (signingValues.all { !it.isNullOrBlank() }) {
+        signingConfigs {
+            create("distribution") {
+                storeFile = file(signingValues[0]!!)
+                storePassword = signingValues[1]
+                keyAlias = signingValues[2]
+                keyPassword = signingValues[3]
+            }
+        }
+        buildTypes.named("release") {
+            signingConfig = signingConfigs.getByName("distribution")
+        }
     }
 
     compileOptions {

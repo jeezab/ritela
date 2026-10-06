@@ -1,0 +1,100 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Validate version and previous releases
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh api --paginate --slurp "repos/$GH_REPO/releases" --jq 'add' > "$RUNNER_TEMP/releases.json"
+          python3 scripts/release.py check --tag "$RELEASE_TAG" --releases "$RUNNER_TEMP/releases.json"
+          python3 -m unittest discover -s scripts -p 'test_release.py'
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17.0.20+101'
+          cache: gradle
+      - name: Prepare SDK
+        run: |
+          sdkmanager="${ANDROID_HOME:?}/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" 'platforms;android-37.0' 'build-tools;36.0.0'
+      - name: Validate workspace
+        shell: pwsh
+        run: |
+          ./scripts/check-workspace.ps1
+          ./scripts/check-health-content.ps1
+      - name: Prepare persistent signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ] || [ -z "$CERT_SHA256" ]; then
+            echo '::error::Configure all five ANDROID signing secrets listed in docs/RELEASES.md before creating a release tag.'
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ritela-release.jks"
+      - name: Build signed release, unit tests and lint
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/ritela-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash ./gradlew checkKotlin assembleDebug testDebugUnitTest lintDebug assembleRelease lintRelease --console=plain
+      - name: Verify and package the release
+        env:
+          ANDROID_SIGNING_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 scripts/release.py prepare --tag "$RELEASE_TAG" --apk app/build/outputs/apk/release/app-release.apk --sdk "$ANDROID_HOME"
+          cd app/build/distribution
+          sha256sum --check ritela-*.apk.sha256
+      - name: Publish GitHub Release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          # Finish a draft left by an interrupted upload; never overwrite a public release.
+          if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > "$RUNNER_TEMP/release-is-draft"; then
+            test "$(cat "$RUNNER_TEMP/release-is-draft")" = true
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --title "Ritela ${RELEASE_TAG#v}" --generate-notes --draft
+          fi
+          gh release upload "$RELEASE_TAG" app/build/distribution/*.apk app/build/distribution/*.sha256 --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+      - name: Remove signing key
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/ritela-release.jks"
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-verification-reports
+          path: app/build/reports
+          if-no-files-found: ignore
