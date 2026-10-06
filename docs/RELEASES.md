@@ -2,7 +2,7 @@
 
 Источник: `https://github.com/jeezab/ritela`, package ID `app.ritela`. Ссылка в README передаёт ID, название, автора и URL через официальный HTTPS redirect. Токен в ссылке не хранится.
 
-Obtainium читает GitHub Releases, а не Actions artifacts. Каждый стабильный выпуск содержит один универсальный `ritela-<version>.apk` и checksum рядом. Не нужно выбирать архитектуру, включать отслеживание по дате или отключать распознавание версии. Тег `v0.2.0` соответствует Android versionName `0.2.0`; префикс `v` Obtainium распознаёт.
+Obtainium читает GitHub Releases, а не Actions artifacts. Каждый стабильный выпуск содержит один универсальный `ritela-<version>.apk` и checksum рядом. Не нужно выбирать архитектуру, включать отслеживание по дате или отключать распознавание версии. Тег `v0.2.1` соответствует Android versionName `0.2.1`; префикс `v` Obtainium распознаёт.
 
 ## Однократная настройка подписи
 
@@ -33,7 +33,7 @@ Obtainium читает GitHub Releases, а не Actions artifacts. Каждый 
 
 ## Повторяемый выпуск
 
-1. Измени `versionName` в `version.properties`. Только три числовых компонента без суффиксов и ведущих нулей. Текущий кандидат: `0.2.0`.
+1. Измени `versionName` в `version.properties`. Только три числовых компонента без суффиксов и ведущих нулей. Текущий кандидат: `0.2.1`.
 2. Выполни проверки и сохрани отдельный коммит по CONTRIBUTING:
 
    ```powershell
@@ -47,22 +47,22 @@ Obtainium читает GitHub Releases, а не Actions artifacts. Каждый 
 
    ```powershell
    git push origin master
-   git tag v0.2.0
-   git push origin v0.2.0
+   git tag v0.2.1
+   git push origin v0.2.1
    ```
 
 4. Workflow `Release APK` проверяет тег и предыдущие стабильные выпуски, собирает debug/release, запускает тесты и lint, проверяет сертификат и содержимое APK. После проверок создаёт черновик GitHub Release, загружает APK и SHA-256 и публикует только после успешной загрузки. Повторный запуск продолжает незавершённый черновик; опубликованный выпуск не перезаписывается. Ключ из runner temp удаляется и при ошибке. Обычный workflow Android продолжает выдавать debug artifact.
-5. В Obtainium проверь обновления и установи выпуск. Для следующего выпуска повтори с увеличенной версией, например `0.2.1`. Не перезаписывай APK опубликованной версии и не меняй подписывающий ключ.
+5. В Obtainium проверь обновления и установи выпуск. Для следующего выпуска повтори с увеличенной версией, например `0.2.2`. Не перезаписывай APK опубликованной версии и не меняй подписывающий ключ.
 
-Android versionCode: `major × 1000000 + minor × 1000 + patch`. Допустимы major 0–2000, minor/patch 0–999; нулевой итог запрещён. `0.2.0` имеет код 2000, выше прежнего debug-кода 1. Workflow отклоняет повторную или более старую версию относительно всех опубликованных стабильных Releases.
+Android versionCode: `major × 1000000 + minor × 1000 + patch`. Допустимы major 0–2000, minor/patch 0–999; нулевой итог запрещён. `0.2.1` имеет код 2001, выше прежнего debug-кода 1. Workflow отклоняет повторную или более старую версию относительно всех опубликованных стабильных Releases.
 
 Локальная проверка подписанного APK без публикации:
 
 ```powershell
-python scripts/release.py prepare --tag v0.2.0 --apk app/build/outputs/apk/release/app-release.apk --sdk .toolchain/android-sdk
+python scripts/release.py prepare --tag v0.2.1 --apk app/build/outputs/apk/release/app-release.apk --sdk .toolchain/android-sdk
 ```
 
-Нужен `ANDROID_SIGNING_CERT_SHA256`; результат — `app/build/distribution/ritela-0.2.0.apk` и `.sha256`. Скрипт отказывает при неверной версии/package, debug-флаге, сетевых разрешениях, неправильном сертификате или перезаписи результата. `python scripts/release.py link` восстанавливает точную ссылку README.
+Нужен `ANDROID_SIGNING_CERT_SHA256`; результат — `app/build/distribution/ritela-0.2.1.apk` и `.sha256`. Скрипт отказывает при неверной версии/package, debug-флаге, сетевых разрешениях, неправильном сертификате или перезаписи результата. `python scripts/release.py link` восстанавливает точную ссылку README.
 
 ## Доступ и переход с первого APK
 
@@ -73,3 +73,7 @@ Debug APK из предыдущих Actions подписывались врем�
 Готовность: наличие secrets, первый GitHub Release и установка через Obtainium подтверждаются отдельно. До публикации первого Release ссылка добавления не сможет получить APK.
 
 Источники: [deep links Obtainium](https://wiki.obtainium.imranr.dev/deep_links/), [определение версии](https://wiki.obtainium.imranr.dev/app_tracking/), [GitHub source](https://wiki.obtainium.imranr.dev/sources/), [подпись Android](https://developer.android.com/studio/publish/app-signing).
+
+Если выпуск упал до публикации и его тег уже отправлен, простое Re-run jobs повторяет workflow из старого коммита тега. Исправления в master не попадут в такой запуск. Выпусти следующую версию с новым тегом, не перезаписывая старый: после неудачного v0.2.0 текущий исправленный кандидат — v0.2.1.
+
+Список предыдущих выпусков получается через gh api --paginate --slurp без --jq: эти два флага вместе не поддерживаются GitHub CLI. Python проверяет и объединяет все страницы через --release-pages, включая пустой репозиторий. [Документация gh api](https://cli.github.com/manual/gh_api).

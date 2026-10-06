@@ -70,6 +70,11 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
+            // PNGs must be restored together with test reports on FROM-CACHE runs.
+            if (it.name == "testDebugUnitTest") {
+                it.outputs.dir(layout.buildDirectory.dir("reports/screenshots"))
+                    .withPropertyName("uiScreenshots")
+            }
             it.systemProperty(
                 "ritela.screenshotDir",
                 layout.buildDirectory.dir("reports/screenshots").get().asFile.absolutePath

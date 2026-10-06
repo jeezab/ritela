@@ -84,3 +84,7 @@ PeriodSelectionTest: диапазон через занятую запись, с
 ```
 
 `--rerun` относится к задаче testDebugUnitTest; обычный запуск без него может вернуть UP-TO-DATE/FROM-CACHE. Повторения нужны при проверке исправления гонки; они не заменяют полный обычный набор тестов и подтверждение нового CI run.
+
+## Снимки интерфейса и build cache
+
+PNG в app/build/reports/screenshots объявлены Gradle output задачи testDebugUnitTest (uiScreenshots). Они должны восстанавливаться вместе с XML/HTML test reports при FROM-CACHE. Без этого тесты могут успешно восстановиться из кэша, но preview-ui.ps1 -SkipRender упадёт на Missing render. Галерея продолжает требовать все снимки; пропуски не скрываются. Для проверки кэша после полного прогона временно перенеси каталог снимков в проверенный игнорируемый путь внутри workspace, повтори testDebugUnitTest и проверь FROM-CACHE, 51 PNG и preview-ui.ps1 -SkipRender.

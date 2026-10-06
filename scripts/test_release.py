@@ -10,6 +10,24 @@ import release
 
 
 class ReleaseChecks(unittest.TestCase):
+    def test_release_pages_include_every_page_and_empty_repository(self):
+        old = {"tag_name": "v0.1.0"}
+        newer = {"tag_name": "v0.3.0"}
+        self.assertEqual(release.flatten_release_pages([[old], [newer], []]), [old, newer])
+        self.assertEqual(release.flatten_release_pages([[]]), [])
+        self.assertEqual(release.flatten_release_pages([]), [])
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "version.properties").write_text("versionName=0.2.0\n")
+            (root / "README.md").write_text(release.obtainium_link())
+            with self.assertRaises(ValueError):
+                release.check(root, releases=release.flatten_release_pages([[old], [newer]]))
+
+    def test_malformed_release_pages_fail_closed(self):
+        for pages in [None, {}, [{"tag_name": "v0.1.0"}], [[None]], [[{}]]]:
+            with self.subTest(pages=pages), self.assertRaises(ValueError):
+                release.flatten_release_pages(pages)
+
     def test_version_order_across_component_rollovers(self):
         versions = ["0.0.1", "0.1.0", "0.999.999", "1.0.0", "2000.999.999"]
         codes = [release.version_code(v) for v in versions]
