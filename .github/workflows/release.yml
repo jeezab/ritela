@@ -29,8 +29,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh api --paginate --slurp "repos/$GH_REPO/releases" --jq 'add' > "$RUNNER_TEMP/releases.json"
-          python3 scripts/release.py check --tag "$RELEASE_TAG" --releases "$RUNNER_TEMP/releases.json"
+          gh api --paginate --slurp "repos/$GH_REPO/releases" > "$RUNNER_TEMP/release-pages.json"
+          python3 scripts/release.py check --tag "$RELEASE_TAG" --release-pages "$RUNNER_TEMP/release-pages.json"
           python3 -m unittest discover -s scripts -p 'test_release.py'
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:

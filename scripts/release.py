@@ -32,6 +32,15 @@ def obtainium_link():
     return "https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/" + payload
 
 
+def flatten_release_pages(pages):
+    if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
+        raise ValueError("Expected an array of GitHub release pages from gh api --paginate --slurp")
+    releases = [item for page in pages for item in page]
+    if any(not isinstance(item, dict) or not isinstance(item.get("tag_name"), str) for item in releases):
+        raise ValueError("Each GitHub release must have a tag_name")
+    return releases
+
+
 def check(root=ROOT, tag=None, releases=None):
     text = (root / "version.properties").read_text(encoding="utf-8-sig").strip()
     match = re.fullmatch(r"versionName=(\S+)", text)
@@ -91,7 +100,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["check", "link", "prepare"])
     parser.add_argument("--tag")
-    parser.add_argument("--releases", type=Path)
+    sources = parser.add_mutually_exclusive_group()
+    sources.add_argument("--releases", type=Path)
+    sources.add_argument("--release-pages", type=Path)
     parser.add_argument("--apk", type=Path)
     parser.add_argument("--sdk", type=Path)
     parser.add_argument("--output", type=Path, default=ROOT / "app/build/distribution")
@@ -100,6 +111,8 @@ def main():
         print(obtainium_link())
         return
     releases = json.loads(args.releases.read_text()) if args.releases else None
+    if args.release_pages:
+        releases = flatten_release_pages(json.loads(args.release_pages.read_text()))
     name, code = check(tag=args.tag, releases=releases)
     if args.action == "prepare":
         certificate = os.environ.get("ANDROID_SIGNING_CERT_SHA256", "")
