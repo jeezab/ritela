@@ -77,3 +77,7 @@ Debug APK из предыдущих Actions подписывались врем�
 Если выпуск упал до публикации и его тег уже отправлен, простое Re-run jobs повторяет workflow из старого коммита тега. Исправления в master не попадут в такой запуск. Выпусти следующую версию с новым тегом, не перезаписывая старый: после неудачного v0.2.0 текущий исправленный кандидат — v0.2.1.
 
 Список предыдущих выпусков получается через gh api --paginate --slurp без --jq: эти два флага вместе не поддерживаются GitHub CLI. Python проверяет и объединяет все страницы через --release-pages, включая пустой репозиторий. [Документация gh api](https://cli.github.com/manual/gh_api).
+
+Если Obtainium сообщает Could not find a suitable release: проверь источник https://github.com/jeezab/ritela (GitHub), GitHub token с Contents: Read-only для приватного repository и пустые фильтры названия/описания/имени APK. Токен добавляется в Obtainium Settings → Source-specific settings → GitHub → Personal access token. Браузерная авторизация GitHub и Actions signing secrets не авторизуют Obtainium. GitHub proxy prefix оставь пустым при прямом доступе: Obtainium не отправляет token через этот proxy. При свежем выпуске минимальный возраст обновления должен позволять его выбрать.
+
+2026-10-06 проверено: v0.2.1 опубликован (draft=false, prerelease=false), ritela-0.2.1.apk uploaded, 8 240 472 байт. Repository приватный; без авторизации API возвращает 404, с авторизацией release и assets доступны. Публичность репозитория не менялась; если понадобится распространение без token, это отдельное решение о публичном источнике APK.
