@@ -38,6 +38,10 @@ jobs:
         run: |
           ./scripts/check-workspace.ps1
           ./scripts/check-health-content.ps1
+      - name: Validate distribution metadata
+        run: |
+          python3 scripts/release.py check
+          python3 -m unittest discover -s scripts -p 'test_release.py'
       - name: Build, unit tests and lint
         run: bash ./gradlew checkKotlin assembleDebug testDebugUnitTest lintDebug --console=plain
       - name: Create UI gallery

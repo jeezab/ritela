@@ -44,6 +44,10 @@
 | `docs/DATA_FORMAT.md` | Фактический формат базы и инварианты дат |
 | `app/src/test/kotlin/app/ritela/` | JVM/Compose тесты и render checks |
 | `.github/workflows/android.yml` | Проверки, debug APK, checksum и отчёты |
+| `.github/workflows/release.yml` | Подписанный APK по тегу, проверки и GitHub Release для Obtainium |
+| `version.properties` | Единая версия приложения; versionCode вычисляется из SemVer |
+| `scripts/release.py`, `scripts/test_release.py` | Проверки версий/подписи, упаковка APK, ссылка Obtainium и regression checks |
+| `docs/RELEASES.md` | Настройка подписи и повторяемый выпуск через Obtainium |
 | `docs/TESTING.md` | Доступные команды и ограничения проверок |
 | `ARCHITECTURE.md`, `PRIVACY.md` | Фактическая архитектура и меры приватности |
 
@@ -59,7 +63,7 @@
 | M5 | Экспорт/импорт, приватность, защита | Шифрованный backup и транзакционный merge реализованы; app lock впереди |
 | M6 | Виджеты и уведомления | Не начат |
 | M7 | Визуальная проверка и производительность | Визуальные проверки ведутся уже в M1; добавлена галерея, итоговый аудит впереди |
-| M8 | Release pipeline и проверенный APK | Не начат |
+| M8 | Release pipeline и проверенный APK | Workflow и Obtainium подготовлены; production secrets, первый Release и установка впереди |
 
 Архитектурную карту модулей, форматы данных и команды Android добавлять после появления соответствующего кода. Полные критерии этапов находятся в PROJECT_BRIEF, разделы 58, 60–63.
 
