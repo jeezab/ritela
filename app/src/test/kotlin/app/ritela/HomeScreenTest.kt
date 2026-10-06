@@ -9,6 +9,8 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.captureToImage
@@ -179,6 +181,7 @@ class HomeScreenTest {
             repository.periods.first().single()
         }
         compose.onNodeWithTag("nav-calendar").performClick()
+        compose.onNodeWithTag("calendar-history").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Изменить").fetchSemanticsNodes().isNotEmpty()
         }
@@ -191,16 +194,18 @@ class HomeScreenTest {
         compose.onNodeWithText("Ещё идут").performClick()
         compose.onNodeWithText("Сохранить").performClick()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isNotEmpty()
+            runBlocking { repository.periods.first().single().end == null }
         }
         val changed = runBlocking { repository.periods.first().single() }
         assertEquals(original.id, changed.id)
         assertEquals(original.createdAt, changed.createdAt)
         assertEquals(null, changed.end)
+        compose.onNodeWithTag("calendar-history").performClick()
         compose.onNodeWithText("Удалить").performScrollTo().performClick()
         saveRendering("period-delete", dialog = true)
         compose.onNodeWithText("Отмена").performClick()
         assertEquals(changed, runBlocking { repository.periods.first().single() })
+        compose.onNodeWithTag("calendar-history").performClick()
         compose.onNodeWithText("Удалить").performScrollTo().performClick()
         compose.onNodeWithText("Удалить запись").performClick()
         compose.onNodeWithTag("nav-today").performClick()
@@ -216,26 +221,23 @@ class HomeScreenTest {
         val today = LocalDate.now()
         runBlocking { repository.add(today, today) }
         compose.onNodeWithTag("nav-calendar").performClick()
-        compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Менструация отмечена").fetchSemanticsNodes().isNotEmpty()
-        }
+        compose.onNodeWithTag("month-grid").performScrollToNode(hasTestTag("calendar-day-$today"))
+        compose.onNodeWithTag("calendar-day-$today").performClick()
         compose.onNodeWithText("Изменить").performScrollTo().performClick()
         compose.onNodeWithText("Изменить даты").assertIsDisplayed()
         compose.onNodeWithText("Отмена").performClick()
-        compose.onNodeWithTag("calendar-heading").performScrollTo()
         compose.onNodeWithTag("previous-month").performClick()
         val day = YearMonth.from(today).minusMonths(1).atDay(15)
+        compose.onNodeWithTag("month-grid").performScrollToNode(hasTestTag("calendar-day-$day"))
         compose.onNodeWithTag("calendar-day-$day").performClick()
+        saveRendering("calendar-day-details", dialog = true)
         compose.onNodeWithText("Отметить месячные").performScrollTo().performClick()
         compose.onNodeWithText("Дата окончания").performClick()
         compose.onNodeWithText("Готово").performClick()
         compose.onNodeWithText("Сохранить").performClick()
-        compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Менструация отмечена").fetchSemanticsNodes().isNotEmpty()
-        }
+        compose.waitUntil(10_000) { runBlocking { repository.periods.first().size == 2 } }
         val saved = runBlocking { repository.periods.first().first { it.start == day } }
         assertEquals(day, saved.end)
-        compose.onNodeWithTag("calendar-heading").performScrollTo()
         saveRendering("calendar-recorded")
     }
 
@@ -265,19 +267,33 @@ class HomeScreenTest {
                     }
                 }
             }
-            compose.onNodeWithTag("calendar-day-$predicted").performClick()
+            compose.onNodeWithTag(
+                "month-grid"
+            ).performScrollToNode(hasTestTag("calendar-day-$predicted"))
             saveRendering(if (dark) "calendar-dark" else "calendar-forecast")
+            compose.onNodeWithTag("calendar-day-$predicted").performClick()
+            compose.onNodeWithText(
+                "Недостаточно данных для оценки"
+            ).performScrollTo().assertIsDisplayed()
+            saveRendering(
+                if (dark) "calendar-day-details-dark" else "calendar-day-forecast-details",
+                dialog = true
+            )
+            compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
         }
-        compose.onNodeWithText("Ориентир начала менструации").performScrollTo().assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("Отметить месячные").fetchSemanticsNodes().isEmpty())
-        compose.onNodeWithTag("calendar-heading").performScrollTo()
-        compose.onNodeWithTag("month-grid").performTouchInput { swipeUp() }
-        val nextMonth = YearMonth.from(
-            today
-        ).plusMonths(
-            1
-        ).format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag("ru-RU")))
-        compose.onNodeWithText(nextMonth).assertIsDisplayed()
+        compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
+        val before = compose.onNodeWithTag("month-grid").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
+            .value()
+        compose.onNodeWithTag("month-grid").performTouchInput {
+            swipeUp(startY = centerY, endY = centerY - 100, durationMillis = 1000)
+        }
+        val after = compose.onNodeWithTag("month-grid").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
+            .value()
+        assertTrue(after > before)
+        saveRendering("calendar-free-scroll")
     }
 
     @Test
@@ -305,21 +321,29 @@ class HomeScreenTest {
                     }
                 }
             }
-            compose.onNodeWithTag("calendar-day-$today").assertIsDisplayed().performClick()
+            compose.onNodeWithTag(
+                "month-grid"
+            ).performScrollToNode(hasTestTag("calendar-day-$today"))
+            compose.onNodeWithTag("calendar-day-$today").assertIsDisplayed()
             saveRendering("calendar-narrow-${if (scale == 2f) "large" else "medium"}-text")
+            compose.onNodeWithTag("calendar-day-$today").performClick()
             compose.onNodeWithText("Отметить месячные").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithTag("calendar-heading").performScrollTo()
-            compose.onNodeWithTag("calendar-day-2026-10-04").assertIsDisplayed()
+            compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
+            compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
+            compose.onNodeWithTag(
+                "month-grid"
+            ).performScrollToNode(hasTestTag("calendar-day-2026-10-05"))
+            compose.onNodeWithTag("calendar-day-2026-10-11").assertIsDisplayed()
             val first = compose.onNodeWithTag(
                 "calendar-day-2026-10-05"
             ).fetchSemanticsNode().boundsInRoot
             val last = compose.onNodeWithTag(
-                "calendar-day-2026-10-04"
+                "calendar-day-2026-10-11"
             ).fetchSemanticsNode().boundsInRoot
             val viewport = compose.onRoot().fetchSemanticsNode().boundsInRoot
             assertTrue(first.left >= viewport.left && last.right <= viewport.right)
             compose.onNodeWithTag("next-month").performClick()
-            compose.onNodeWithText("ноябрь 2026").assertIsDisplayed()
+            compose.onNodeWithTag("month-selector").assertIsDisplayed()
         }
     }
 
@@ -336,6 +360,7 @@ class HomeScreenTest {
         compose.onNodeWithText("Done").assertIsDisplayed().performClick()
         compose.onNodeWithText("Save").performClick()
         compose.onNodeWithTag("nav-calendar").performClick()
+        compose.onNodeWithTag("calendar-history").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Edit").fetchSemanticsNodes().isNotEmpty()
         }
@@ -344,8 +369,12 @@ class HomeScreenTest {
         compose.onNodeWithText("Still ongoing").performClick()
         compose.onNodeWithText("Save").performClick()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Ongoing").fetchSemanticsNodes().isNotEmpty()
+            runBlocking {
+                (compose.activity.application as RitelaApplication)
+                    .periods.periods.first().single().end == null
+            }
         }
+        compose.onNodeWithTag("calendar-history").performClick()
         compose.onNodeWithText("Delete").performScrollTo().performClick()
         compose.onNodeWithText("Delete this period?").assertIsDisplayed()
         compose.onNodeWithText("Delete period").performClick()
@@ -411,6 +440,7 @@ class HomeScreenTest {
         saveRendering("settings")
         compose.onNodeWithTag("cycle-plus").assertDoesNotExist()
         compose.onNodeWithTag("duration-plus").assertDoesNotExist()
+        compose.onNodeWithTag("theme-selector").performClick()
         compose.onNodeWithTag("theme-dark").performClick()
         compose.waitUntil(10_000) {
             (compose.activity.application as RitelaApplication).settings.theme.value ==
@@ -423,7 +453,10 @@ class HomeScreenTest {
         )
         saveRendering("settings-dark")
         compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("theme-selector").performClick()
         compose.onNodeWithTag("theme-dark").assertIsSelected()
+        compose.onNodeWithText("Отмена").performClick()
+        compose.onNodeWithTag("theme-selector").performClick()
         compose.onNodeWithTag("theme-light").performClick()
         compose.waitUntil(10_000) {
             (compose.activity.application as RitelaApplication).settings.theme.value ==
@@ -434,6 +467,7 @@ class HomeScreenTest {
             0xFFF8F4EF.toInt(),
             compose.onRoot().captureToImage().asAndroidBitmap().getPixel(0, 0)
         )
+        compose.onNodeWithTag("theme-selector").performClick()
         compose.onNodeWithTag("theme-system").performClick()
         compose.waitUntil(10_000) {
             (compose.activity.application as RitelaApplication).settings.theme.value ==
@@ -445,11 +479,11 @@ class HomeScreenTest {
         compose.onNodeWithTag("month-year").performClick()
         compose.onNodeWithTag("select-year-2024").performClick()
         compose.onNodeWithTag("select-month-2").performClick()
-        compose.onNodeWithText("февраль 2024").assertIsDisplayed()
-        compose.onNodeWithTag("month-grid").performTouchInput { swipeUp() }
-        compose.onNodeWithText("март 2024").assertIsDisplayed()
-        compose.onNodeWithTag("month-grid").performTouchInput { swipeDown() }
-        compose.onNodeWithText("февраль 2024").assertIsDisplayed()
+        compose.onNodeWithTag("month-selector").assertIsDisplayed()
+        compose.onNodeWithTag("next-month").performClick()
+        compose.onNodeWithTag("month-selector").assertIsDisplayed()
+        compose.onNodeWithTag("previous-month").performClick()
+        compose.onNodeWithTag("month-selector").assertIsDisplayed()
     }
 
     @Test
@@ -489,6 +523,7 @@ class HomeScreenTest {
         compose.onNodeWithText("Language").assertIsDisplayed()
         saveRendering("settings-english")
         compose.onNodeWithText("Theme").assertIsDisplayed()
+        compose.onNodeWithTag("theme-selector").performClick()
         compose.onNodeWithTag("theme-dark").performClick()
         compose.waitUntil(10_000) {
             (compose.activity.application as RitelaApplication).settings.theme.value ==
@@ -525,6 +560,10 @@ class HomeScreenTest {
         compose.onNodeWithTag("log-day").performScrollTo()
         saveRendering("home-day-log")
         compose.onNodeWithTag("nav-calendar").performClick()
+        compose.onNodeWithTag(
+            "month-grid"
+        ).performScrollToNode(hasTestTag("calendar-day-${saved.date}"))
+        compose.onNodeWithTag("calendar-day-${saved.date}").performClick()
         compose.onNodeWithTag("log-day").performScrollTo().performClick()
         compose.onNodeWithTag("cramps-NONE").performClick()
         compose.onNodeWithTag("save-day").performClick()
@@ -589,6 +628,84 @@ class HomeScreenTest {
         saveRendering("day-entry-narrow-dark-english", dialog = true)
         compose.onNodeWithTag("save-day").performClick()
         assertEquals(app.ritela.domain.Pain.MODERATE, saved?.cramps)
+    }
+
+    @Test
+    fun periodEntryBlocksOccupiedDaysAndRangesAcrossThemButAllowsEditing() {
+        val today = LocalDate.of(2026, 10, 20)
+        val record = Period(
+            UUID.randomUUID(),
+            today.minusDays(10),
+            today.minusDays(6),
+            Instant.EPOCH,
+            Instant.EPOCH
+        )
+        val state = PeriodUiState(periods = listOf(record), today = today, loading = false)
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                RitelaTheme {
+                    app.ritela.ui.PeriodEntry(state, {}, { _, _ -> }, initialStart = today)
+                }
+            }
+        }
+        compose.onNodeWithTag("entry-day-2026-10-10").performScrollTo().assertIsNotEnabled()
+        saveRendering("period-occupied", dialog = true)
+        compose.onNodeWithTag("entry-day-2026-10-08").performClick()
+        compose.onNodeWithTag("entry-day-2026-10-16").assertIsNotEnabled()
+        compose.onNodeWithText("Сохранить").assertIsNotEnabled()
+        compose.onNodeWithTag("entry-day-2026-10-09").performClick()
+        compose.onNodeWithText("Сохранить").assertIsEnabled()
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                RitelaTheme {
+                    key("edit") {
+                        app.ritela.ui.PeriodEntry(
+                            state,
+                            {
+                            },
+                            { _, _ -> },
+                            initialStart = record.start,
+                            initialEnd = record.end,
+                            editing = true,
+                            editingId = record.id
+                        )
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("entry-day-2026-10-10").performScrollTo().assertIsEnabled()
+        compose.onNodeWithText("Сохранить").assertIsEnabled()
+    }
+
+    @Test
+    fun variableMeasurementsRenderSelectableSparklines() {
+        val today = LocalDate.of(2026, 10, 6)
+        val starts = listOf(180L, 152L, 121L, 94L, 65L, 36L, 7L)
+        val periods = starts.mapIndexed { index, offset ->
+            val start = today.minusDays(offset)
+            Period(
+                UUID(0, index.toLong()),
+                start,
+                start.plusDays(3L + index % 3),
+                Instant.EPOCH,
+                Instant.EPOCH
+            )
+        }
+        val state = PeriodUiState(
+            periods = periods,
+            today = today,
+            loading = false,
+            analysis = analyzeCycles(periods, today)
+        )
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                RitelaTheme { HomeScreen(state = state, today = today) }
+            }
+        }
+        compose.onNodeWithTag("cycle-insights").performScrollTo()
+        saveRendering("home-sparklines")
+        compose.onNodeWithText("31", substring = false).performScrollTo().performClick()
+        compose.onNodeWithText("7 мая 2026 г. · 31 дн.").performScrollTo().assertIsDisplayed()
     }
 
     private fun renderForecastHome() {

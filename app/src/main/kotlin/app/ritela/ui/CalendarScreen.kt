@@ -12,17 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.pager.VerticalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -41,6 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import app.ritela.R
 import app.ritela.domain.CalendarDayInfo
 import app.ritela.domain.CalendarDayKind
@@ -64,150 +68,209 @@ fun CalendarScreen(
     onLogDay: (LocalDate) -> Unit = {}
 ) {
     val base = remember { YearMonth.from(state.today) }
-    val pager = rememberPagerState(initialPage = 1200) { 2401 }
+    val list = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
     val scope = rememberCoroutineScope()
-    var selectedDay by rememberSaveable { mutableStateOf(state.today.toEpochDay()) }
+    var selectedDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var choosingMonth by rememberSaveable { mutableStateOf(false) }
-    val month = base.plusMonths((pager.currentPage - 1200).toLong())
-    val date = LocalDate.ofEpochDay(selectedDay)
-    val selection = calendarDay(state.periods, state.analysis, date, state.today)
-    val fontScale = LocalDensity.current.fontScale
-    val cellHeight = maxOf(56.dp, (40 * fontScale).dp)
-    Column(
-        Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(Spacing.medium)
-    ) {
-        Text(
-            stringResource(R.string.calendar_title),
-            Modifier.padding(
-                horizontal = Spacing.medium,
-                vertical = Spacing.medium
-            ).testTag("calendar-heading"),
-            style = MaterialTheme.typography.headlineLarge
-        )
-        MonthHeader(month, {
-            scope.launch { pager.animateScrollToPage((pager.currentPage - 1).coerceAtLeast(0)) }
-        }, {
-            scope.launch {
-                pager.animateScrollToPage(
-                    (
-                        pager.currentPage +
-                            1
-                        ).coerceAtMost(2400)
-                )
-            }
-        }, { choosingMonth = true })
-        TextButton(onClick = {
-            selectedDay = state.today.toEpochDay()
-            scope.launch {
-                pager.scrollToPage(
-                    1200 +
-                        (
-                            (YearMonth.from(state.today).year - base.year) * 12 +
-                                state.today.monthValue -
-                                base.monthValue
-                            )
-                )
-            }
-        }) { Text(stringResource(R.string.back_to_today)) }
-        Text(
-            stringResource(R.string.vertical_calendar_hint),
-            Modifier.padding(horizontal = Spacing.medium),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        VerticalPager(
-            state = pager,
-            modifier = Modifier.fillMaxWidth().height(cellHeight * 6 + 32.dp).testTag("month-grid"),
-            beyondViewportPageCount = 0
-        ) { page ->
-            val displayed = base.plusMonths((page - 1200).toLong())
-            MonthGrid(
-                displayed,
-                state.today,
-                date,
-                cellHeight = cellHeight,
-                tagPrefix = if (page ==
-                    pager.currentPage
-                ) {
-                    "calendar-day"
-                } else {
-                    "adjacent-day"
-                },
-                info = { calendarDay(state.periods, state.analysis, it, state.today) },
-                hasLog = { day -> state.dayLogs.any { it.date == day } },
-                onDay = {
-                    selectedDay =
-                        it.toEpochDay()
-                }
-            )
-        }
-        Column(
-            Modifier.padding(Spacing.medium),
-            verticalArrangement = Arrangement.spacedBy(Spacing.medium)
+    var historyOpen by rememberSaveable { mutableStateOf(false) }
+    var legendOpen by rememberSaveable { mutableStateOf(false) }
+    val visibleIndex by remember { derivedStateOf { list.firstVisibleItemIndex } }
+    val month = base.plusMonths((visibleIndex - 1200).toLong())
+    val cellHeight = maxOf(56.dp, (40 * LocalDensity.current.fontScale).dp)
+    fun showMonth(index: Int) {
+        scope.launch { list.scrollToItem(index.coerceIn(0, 2400)) }
+    }
+    Column(Modifier.fillMaxSize().padding(padding)) {
+        Row(
+            Modifier.padding(horizontal = Spacing.large),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                stringResource(R.string.calendar_legend),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                stringResource(R.string.calendar_title),
+                Modifier.weight(1f).testTag("calendar-heading"),
+                style = MaterialTheme.typography.headlineMedium
             )
-            Text(formattedDate(date), style = MaterialTheme.typography.titleLarge)
+            androidx.compose.material3.IconButton(onClick = { legendOpen = true }) {
+                Icon(
+                    painterResource(R.drawable.ic_info),
+                    contentDescription = stringResource(R.string.calendar_key)
+                )
+            }
+        }
+        MonthHeader(
+            month,
+            { showMonth(visibleIndex - 1) },
+            { showMonth(visibleIndex + 1) },
+            { choosingMonth = true }
+        )
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.medium),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(onClick = {
+                showMonth(1200)
+            }, modifier = Modifier.weight(1f).testTag("calendar-today")) {
+                Text(stringResource(R.string.home_title))
+            }
+            TextButton(onClick = {
+                historyOpen = true
+            }, modifier = Modifier.weight(1f).testTag("calendar-history")) {
+                Text(stringResource(R.string.history_short))
+            }
+        }
+        LazyColumn(
+            state = list,
+            modifier = Modifier.weight(1f).fillMaxWidth().testTag("month-grid")
+        ) {
+            items(2401, key = { it }) { index ->
+                val displayed = base.plusMonths((index - 1200).toLong())
+                Column(Modifier.testTag("calendar-month-$displayed")) {
+                    Text(
+                        displayed.format(
+                            DateTimeFormatter.ofPattern(
+                                "LLLL yyyy",
+                                LocalConfiguration.current.locales[0]
+                            )
+                        ),
+                        Modifier.padding(horizontal = Spacing.medium, vertical = Spacing.medium),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    MonthGrid(
+                        displayed,
+                        state.today,
+                        selectedDay?.let(LocalDate::ofEpochDay),
+                        cellHeight = cellHeight,
+                        info = { calendarDay(state.periods, state.analysis, it, state.today) },
+                        hasLog = { day -> state.dayLogs.any { it.date == day } },
+                        onDay = { selectedDay = it.toEpochDay() }
+                    )
+                }
+            }
+        }
+    }
+    if (legendOpen) {
+        AlertDialog(
+            onDismissRequest = { legendOpen = false },
+            title = { Text(stringResource(R.string.calendar_key)) },
+            text = { Text(stringResource(R.string.calendar_legend)) },
+            confirmButton = {
+                TextButton(onClick = { legendOpen = false }) {
+                    Text(stringResource(R.string.done))
+                }
+            }
+        )
+    }
+    if (choosingMonth) {
+        MonthYearPicker(month, (base.year - 100)..(base.year + 100), { choosingMonth = false }) {
+            choosingMonth = false
+            showMonth(1200 + (it.year - base.year) * 12 + it.monthValue - base.monthValue)
+        }
+    }
+    selectedDay?.let { epoch ->
+        CalendarDayDetails(
+            LocalDate.ofEpochDay(epoch),
+            state,
+            onDismiss = { selectedDay = null },
+            onAdd = {
+                selectedDay = null
+                onAdd(it)
+            },
+            onEdit = {
+                selectedDay = null
+                onEdit(it)
+            },
+            onDelete = {
+                selectedDay = null
+                onDelete(it)
+            },
+            onLogDay = {
+                selectedDay = null
+                onLogDay(it)
+            }
+        )
+    }
+    if (historyOpen) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { historyOpen = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(Modifier.fillMaxSize()) {
+                Column(Modifier.padding(Spacing.medium)) {
+                    Text(
+                        stringResource(R.string.calendar_history),
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.medium)
+                    ) {
+                        if (state.periods.isEmpty()) Text(stringResource(R.string.history_empty))
+                        state.periods.forEach { period ->
+                            Text(periodDates(period), style = MaterialTheme.typography.titleMedium)
+                            if (period.end == null) Text(stringResource(R.string.ongoing))
+                            Row {
+                                TextButton(
+                                    onClick = {
+                                        historyOpen = false
+                                        onEdit(period)
+                                    },
+                                    enabled = !state.saving,
+                                    modifier = Modifier.testTag("edit-period-${period.id}")
+                                ) {
+                                    Text(stringResource(R.string.edit))
+                                }
+                                TextButton(
+                                    onClick = {
+                                        historyOpen = false
+                                        onDelete(period)
+                                    },
+                                    enabled = !state.saving,
+                                    modifier = Modifier.testTag("delete-period-${period.id}")
+                                ) {
+                                    Text(stringResource(R.string.delete))
+                                }
+                            }
+                        }
+                    }
+                    TextButton(onClick = {
+                        historyOpen = false
+                    }) { Text(stringResource(R.string.done)) }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun CalendarDayDetails(
+    date: LocalDate,
+    state: PeriodUiState,
+    onDismiss: () -> Unit,
+    onAdd: (LocalDate) -> Unit,
+    onEdit: (Period) -> Unit,
+    onDelete: (Period) -> Unit,
+    onLogDay: (LocalDate) -> Unit
+) {
+    val selection = calendarDay(state.periods, state.analysis, date, state.today)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+            skipPartiallyExpanded = true
+        )
+    ) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(Spacing.large).testTag("day-details"),
+            verticalArrangement = Arrangement.spacedBy(Spacing.medium)
+        ) {
+            Text(formattedDate(date), style = MaterialTheme.typography.headlineSmall)
             Text(dayKindText(selection.kind))
             selection.period?.let { period ->
                 Text(periodDates(period))
-            } ?: run {
-                selection.forecast?.let { forecast ->
-                    Text(
-                        stringResource(
-                            R.string.forecast_range,
-                            formattedDate(forecast.lowerBound),
-                            formattedDate(forecast.upperBound)
-                        )
-                    )
-                    Text(
-                        stringResource(
-                            if (forecast.horizon >
-                                3
-                            ) {
-                                R.string.long_forecast_note
-                            } else {
-                                R.string.forecast_note
-                            }
-                        ),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                if (date <=
-                    state.today
-                ) {
-                    Button(
-                        onClick = { onAdd(date) },
-                        enabled =
-                            !state.loading && !state.saving
-                    ) {
-                        Text(stringResource(R.string.add_period))
-                    }
-                } else {
-                    Text(
-                        stringResource(R.string.future_calendar_note),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-            if (date <= state.today) {
-                DaySummary(
-                    state.dayLogs.firstOrNull { it.date == date },
-                    { onLogDay(date) },
-                    !state.loading && !state.saving
-                )
-                HelpCards(state.dayLogs.firstOrNull { it.date == date }, state.analysis, date)
-            }
-            Text(
-                stringResource(R.string.calendar_history),
-                style = MaterialTheme.typography.titleLarge
-            )
-            state.periods.forEach { period ->
-                Text(periodDates(period), style = MaterialTheme.typography.titleMedium)
                 if (period.end == null) Text(stringResource(R.string.ongoing))
                 Row {
                     TextButton(
@@ -225,30 +288,56 @@ fun CalendarScreen(
                         Text(stringResource(R.string.delete))
                     }
                 }
+            } ?: run {
+                selection.forecast?.let {
+                    Text(
+                        stringResource(
+                            R.string.forecast_range,
+                            formattedDate(it.lowerBound),
+                            formattedDate(it.upperBound)
+                        )
+                    )
+                }
+                if (date <= state.today) {
+                    Button(onClick = { onAdd(date) }, enabled = !state.loading && !state.saving) {
+                        Text(stringResource(R.string.add_period))
+                    }
+                } else {
+                    Text(stringResource(R.string.future_calendar_note))
+                }
             }
-            if (state.loading) {
-                Text(
-                    stringResource(R.string.loading)
+            Text(
+                stringResource(R.string.pregnancy_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                stringResource(R.string.pregnancy_unknown),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                stringResource(R.string.pregnancy_explanation),
+                style = MaterialTheme.typography.bodySmall
+            )
+            TextButton(onClick = {
+                context.startActivity(
+                    android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        (
+                            "https://www.nhs.uk/contraception/methods-of-contraception/" +
+                                "natural-family-planning/"
+                            ).toUri()
+                    )
                 )
-            } else {
-                ForecastCard(state.analysis)
+            }) { Text(stringResource(R.string.help_source, "NHS")) }
+            if (date <= state.today) {
+                DaySummary(
+                    state.dayLogs.firstOrNull { it.date == date },
+                    { onLogDay(date) },
+                    !state.loading && !state.saving
+                )
             }
-            state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
-        }
-    }
-    if (choosingMonth) {
-        MonthYearPicker(month, (base.year - 100)..(base.year + 100), {
-            choosingMonth =
-                false
-        }) {
-            choosingMonth = false
-            scope.launch {
-                pager.scrollToPage(
-                    (
-                        1200 + (it.year - base.year) * 12 + it.monthValue -
-                            base.monthValue
-                        ).coerceIn(0, 2400)
-                )
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("day-details-close")) {
+                Text(stringResource(R.string.done))
             }
         }
     }
@@ -306,6 +395,7 @@ fun MonthGrid(
     futureEnabled: Boolean = true,
     info: (LocalDate) -> CalendarDayInfo = { CalendarDayInfo(CalendarDayKind.NONE) },
     hasLog: (LocalDate) -> Boolean = { false },
+    dayEnabled: (LocalDate) -> Boolean = { true },
     onDay: (LocalDate) -> Unit
 ) {
     val locale = LocalConfiguration.current.locales[0]
@@ -324,7 +414,7 @@ fun MonthGrid(
                 }
             }
         }
-        val days = monthDays(month).let { it + List<LocalDate?>(42 - it.size) { null } }
+        val days = monthDays(month)
         for (week in days.chunked(7)) {
             Row(Modifier.fillMaxWidth()) {
                 for (day in week) {
@@ -342,7 +432,7 @@ fun MonthGrid(
                             onClick = {
                                 onDay(day)
                             },
-                            enabled = futureEnabled || day <= today,
+                            enabled = (futureEnabled || day <= today) && dayEnabled(day),
                             modifier = Modifier.weight(
                                 1f
                             ).height(cellHeight).testTag("$tagPrefix-$day").semantics {
@@ -353,22 +443,29 @@ fun MonthGrid(
                             shape = MaterialTheme.shapes.small,
                             color = when {
                                 inRange || detail.kind == CalendarDayKind.OBSERVED ->
-                                    MaterialTheme.colorScheme.primaryContainer
+                                    MaterialTheme.colorScheme.primary
 
                                 detail.kind !=
                                     CalendarDayKind.NONE ->
-                                    MaterialTheme.colorScheme.secondaryContainer.copy(
-                                        alpha = 0.5f
-                                    )
+                                    MaterialTheme.colorScheme.secondaryContainer
 
                                 else -> MaterialTheme.colorScheme.surface
+                            },
+                            contentColor = if (inRange || detail.kind == CalendarDayKind.OBSERVED) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
                             },
                             border = if (day == chosen ||
                                 day == today
                             ) {
                                 BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
                             } else {
-                                null
+                                if (detail.kind == CalendarDayKind.PREDICTED) {
+                                    BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
+                                } else {
+                                    null
+                                }
                             }
                         ) {
                             Column(
@@ -393,30 +490,30 @@ fun MonthGrid(
                                         null
                                     }
                                 )
-                                Text(
-                                    when {
-                                        inRange -> "●"
-
-                                        detail.kind == CalendarDayKind.OBSERVED -> "●"
-
-                                        detail.kind ==
-                                            CalendarDayKind.PREDICTED -> "◇"
-
-                                        detail.kind ==
-                                            CalendarDayKind.APPROXIMATE -> "≈"
-
-                                        detail.kind ==
-                                            CalendarDayKind.UNCERTAIN -> "·"
-
-                                        detail.kind ==
-                                            CalendarDayKind.ESTIMATED_PERIOD -> "○"
-
-                                        hasLog(day) -> "?"
-
-                                        else -> " "
-                                    },
-                                    style = MaterialTheme.typography.labelSmall
-                                )
+                                if (detail.kind == CalendarDayKind.OBSERVED || inRange) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_drop),
+                                        contentDescription = null,
+                                        modifier = Modifier.height(12.dp)
+                                    )
+                                } else if (hasLog(day)) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_note),
+                                        contentDescription = null,
+                                        modifier = Modifier.height(12.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        when (detail.kind) {
+                                            CalendarDayKind.PREDICTED -> "\u25c7"
+                                            CalendarDayKind.APPROXIMATE -> "\u2248"
+                                            CalendarDayKind.UNCERTAIN -> "\u00b7"
+                                            CalendarDayKind.ESTIMATED_PERIOD -> "\u25cb"
+                                            else -> " "
+                                        },
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
                             }
                         }
                     }

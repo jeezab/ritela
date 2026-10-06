@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([switch]$SkipRender, [switch]$Open)
+param([switch]$SkipRender, [switch]$Open, [switch]$CompareBefore)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -55,6 +55,12 @@ $labels = [ordered]@{
     'backup-password-english' = 'Backup password · English'
     'calendar-month-picker' = 'Выбор месяца и года'
     'period-range' = 'Выбор диапазона · граница месяца'
+    'period-occupied' = 'Запись дат · занятые дни'
+    'calendar-day-details' = 'Подробности выбранного дня'
+    'calendar-day-forecast-details' = 'Подробности дня · прогноз'
+    'calendar-day-details-dark' = 'Подробности дня · тёмная тема'
+    'calendar-free-scroll' = 'Календарь · свободная прокрутка'
+    'home-sparklines' = 'Ваш цикл · выбор измерения'
 }
 $cards = foreach ($name in $labels.Keys) {
     $path = Join-Path $directory "$name.png"
@@ -81,4 +87,23 @@ a:focus-visible{outline:3px solid #315d50} @media(max-width:380px){body{padding:
 $output = Join-Path $directory 'index.html'
 [IO.File]::WriteAllText($output, $html, [Text.UTF8Encoding]::new($false))
 Write-Output "UI gallery: $output"
+if ($CompareBefore) {
+    $comparison = foreach ($name in @('home-forecast', 'home-insights', 'home-help', 'settings', 'calendar-forecast', 'calendar-dark', 'period-entry')) {
+        $before = Join-Path $projectRoot "app/build/reports/polish-before/$name.png"
+        if (-not (Test-Path -LiteralPath $before)) { throw "Missing baseline: $before" }
+        $label = [System.Net.WebUtility]::HtmlEncode($labels[$name])
+        "<section><h2>$label</h2><div><figure><figcaption>До</figcaption><img src='../polish-before/$name.png'></figure><figure><figcaption>После</figcaption><img src='$name.png'></figure></div></section>"
+    }
+    $comparisonHtml = @"
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ritela · до и после</title><style>
+body{margin:24px;background:#F8F4EF;color:#2D2231;font:16px system-ui,sans-serif}
+section{margin:32px 0}div{display:flex;flex-wrap:wrap;gap:24px}figure{margin:0;width:320px}img{width:100%;height:auto}figcaption{margin-bottom:12px}
+</style><h1>Ritela · до и после</h1><p>Синтетические данные. Исходные снимки сохранены перед доработкой.</p>
+$($comparison -join [Environment]::NewLine)</html>
+"@
+    $output = Join-Path $directory 'comparison.html'
+    [IO.File]::WriteAllText($output, $comparisonHtml, [Text.UTF8Encoding]::new($false))
+    Write-Output "UI comparison: $output"
+}
 if ($Open) { Start-Process -FilePath $output }

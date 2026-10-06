@@ -1,11 +1,13 @@
 package app.ritela.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +20,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.ritela.R
 import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.ForecastUnavailable
@@ -34,10 +37,24 @@ fun ForecastCard(analysis: CycleAnalysis) {
         )
     ) {
         Column(
-            modifier = Modifier.padding(Spacing.large),
+            modifier = Modifier.padding(horizontal = Spacing.large, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(Spacing.small)
         ) {
-            analysis.cycleDay?.let { CycleDayBadge(it) }
+            analysis.cycleDay?.let { day ->
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val showOrbit = maxWidth >= 310.dp && LocalDensity.current.fontScale <= 1.3f
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) { CycleDayBadge(day) }
+                        if (showOrbit) {
+                            CycleOrbit(
+                                day,
+                                analysis.forecasts.firstOrNull()?.cycleMedian ?: 28,
+                                Modifier.size(64.dp)
+                            )
+                        }
+                    }
+                }
+            }
             Text(
                 stringResource(R.string.forecast_title),
                 style = MaterialTheme.typography.titleMedium
@@ -56,30 +73,26 @@ fun ForecastCard(analysis: CycleAnalysis) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) {
                     val locale = LocalConfiguration.current.locales[0]
                     val date = next.predictedStartDate.format(
                         DateTimeFormatter.ofPattern(
                             if (locale.language ==
                                 "ru"
                             ) {
-                                "d MMM"
+                                "d MMMM"
                             } else {
                                 "MMM d"
                             },
                             locale
                         )
                     )
-                    val showOrbit = maxWidth >= 310.dp && LocalDensity.current.fontScale <= 1.3f
-                    Row {
-                        Text(
-                            date,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.displayLarge,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        if (showOrbit) CycleOrbit(analysis.cycleDay ?: 1, next.cycleMedian)
+                    val dateStyle = if (locale.language == "ru") {
+                        MaterialTheme.typography.displayLarge.copy(fontSize = 40.sp)
+                    } else {
+                        MaterialTheme.typography.displayLarge
                     }
+                    Text(date, style = dateStyle, color = MaterialTheme.colorScheme.secondary)
                 }
                 Text(
                     stringResource(

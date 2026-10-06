@@ -31,6 +31,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.ritela.R
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.periodConflict
+import app.ritela.domain.validatePeriod
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -60,6 +62,8 @@ fun PeriodEntry(
     initialStart: LocalDate = LocalDate.now(),
     initialEnd: LocalDate? = null,
     editing: Boolean = false,
+    editingId: java.util.UUID? = null,
+    onDelete: (() -> Unit)? = null,
     onChange: () -> Unit = {}
 ) {
     var startDay by rememberSaveable { mutableStateOf(initialStart.toEpochDay()) }
@@ -73,6 +77,10 @@ fun PeriodEntry(
     val month = java.time.YearMonth.from(LocalDate.ofEpochDay(monthDay))
     val start = LocalDate.ofEpochDay(startDay)
     val end = endDay?.let(LocalDate::ofEpochDay)
+    val others = state.periods.filter { it.id != editingId }
+    val conflict = periodConflict(others, start, end)
+    val valid = validatePeriod(start, end, state.today) == null && conflict == null
+    fun free(day: LocalDate): Boolean = periodConflict(others, day, day) == null
     val cellHeight =
         maxOf(48.dp, (36 * androidx.compose.ui.platform.LocalDensity.current.fontScale).dp)
     androidx.compose.ui.window.Dialog(onDismissRequest = {
@@ -136,7 +144,11 @@ fun PeriodEntry(
                             enabled =
                                 !state.saving &&
                                     start.plusDays(state.analysis.periodDuration - 1L) <=
-                                    state.today
+                                    state.today && periodConflict(
+                                        others,
+                                        start,
+                                        start.plusDays(state.analysis.periodDuration - 1L)
+                                    ) == null
                         ) {
                             Text(
                                 androidx.compose.ui.res.pluralStringResource(
@@ -161,7 +173,22 @@ fun PeriodEntry(
                         cellHeight = cellHeight,
                         tagPrefix = "entry-day",
                         rangeStart = start, rangeEnd = end,
-                        futureEnabled = false, onDay = { day ->
+                        futureEnabled = false,
+                        info = {
+                            app.ritela.domain.calendarDay(
+                                others,
+                                app.ritela.domain.CycleAnalysis(),
+                                it,
+                                state.today
+                            )
+                        },
+                        dayEnabled = { day ->
+                            free(day) && (
+                                !awaitingEnd || day < start ||
+                                    periodConflict(others, start, day) == null
+                                )
+                        },
+                        onDay = { day ->
                             if (!state.saving) {
                                 if (awaitingEnd &&
                                     day >= start
@@ -177,8 +204,26 @@ fun PeriodEntry(
                             }
                         }
                     )
+                    Text(
+                        stringResource(R.string.entry_existing_hint),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    if (conflict != null) {
+                        Text(
+                            stringResource(R.string.overlap_error),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     state.problem?.let {
                         Text(problemText(it), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+                onDelete?.let { action ->
+                    TextButton(onClick = action, enabled = !state.saving) {
+                        Text(
+                            stringResource(R.string.delete),
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
                 Row(
@@ -192,7 +237,7 @@ fun PeriodEntry(
                         onClick = {
                             onSave(start, end)
                         },
-                        enabled = !state.saving,
+                        enabled = !state.saving && valid,
                         modifier = Modifier.weight(
                             1f
                         ).heightIn(min = Spacing.actionHeight)
@@ -214,6 +259,13 @@ fun PeriodEntry(
         PickDate(
             initial = if (isEnd) end ?: start else start,
             minimum = if (isEnd) start else null,
+            maximum = state.today,
+            selectable = { candidate ->
+                free(candidate) && (
+                    !isEnd ||
+                        periodConflict(others, start, candidate) == null
+                    )
+            },
             onDismiss = {
                 choosingEnd =
                     null
@@ -246,7 +298,8 @@ fun PickDate(
     onDismiss: () -> Unit,
     onChoose: (LocalDate) -> Unit,
     minimum: LocalDate? = null,
-    maximum: LocalDate = LocalDate.now()
+    maximum: LocalDate = LocalDate.now(),
+    selectable: (LocalDate) -> Boolean = { true }
 ) {
     // Material's picker encodes calendar dates as UTC midnight; storage uses epoch days.
     val picker = rememberDatePickerState(
@@ -255,7 +308,7 @@ fun PickDate(
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
                 val date = LocalDate.ofEpochDay(utcTimeMillis / 86_400_000L)
-                return date <= maximum && (minimum == null || date >= minimum)
+                return date <= maximum && (minimum == null || date >= minimum) && selectable(date)
             }
 
             override fun isSelectableYear(year: Int): Boolean =

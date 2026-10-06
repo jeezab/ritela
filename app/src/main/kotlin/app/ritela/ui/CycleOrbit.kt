@@ -14,24 +14,18 @@ import kotlin.math.sin
 
 /** Decorative history marker. The surrounding text carries all cycle information. */
 @Composable
-fun CycleOrbit(day: Long, length: Int) {
+fun CycleOrbit(day: Long, length: Int, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
-    Canvas(Modifier.size(104.dp)) {
+    Canvas(modifier.size(104.dp)) {
         val radius = size.minDimension * 0.43f
         drawCircle(colors.secondary.copy(alpha = 0.15f), radius, style = Stroke(1.dp.toPx()))
         val progress = ((day - 1).toFloat() / length.coerceAtLeast(1)).coerceIn(0f, 1f)
-        repeat(28) { index ->
-            val angle = (index / 28f * 2 * Math.PI - Math.PI / 2).toFloat()
+        repeat(12) { index ->
+            val angle = (index / 12f * 2 * Math.PI - Math.PI / 2).toFloat()
             val point = center + Offset(cos(angle) * radius, sin(angle) * radius)
             drawCircle(
-                if (index / 28f <=
-                    progress
-                ) {
-                    colors.primary
-                } else {
-                    colors.secondary.copy(alpha = 0.3f)
-                },
-                2.5.dp.toPx(),
+                colors.secondary.copy(alpha = 0.25f),
+                1.5.dp.toPx(),
                 point
             )
         }

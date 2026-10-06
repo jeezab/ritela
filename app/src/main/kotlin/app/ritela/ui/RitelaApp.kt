@@ -114,6 +114,10 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                         finishingId =
                             it.id.toString()
                     },
+                    onEdit = {
+                        editingId = it.id.toString()
+                        model.clearResult()
+                    },
                     onLogDay = {
                         model.clearResult()
                         loggingDay = state.today.toEpochDay()
@@ -145,6 +149,12 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                 initialStart = period.start,
                 initialEnd = period.end,
                 editing = true,
+                editingId = period.id,
+                onDelete = {
+                    editingId = null
+                    deletingId = period.id.toString()
+                    model.clearResult()
+                },
                 onChange = model::clearResult
             )
         }
@@ -224,6 +234,7 @@ fun HomeScreen(
     state: PeriodUiState = PeriodUiState(loading = false),
     onAdd: () -> Unit = {},
     onFinish: (Period) -> Unit = {},
+    onEdit: (Period) -> Unit = {},
     onLogDay: () -> Unit = {},
     today: LocalDate = LocalDate.now()
 ) {
@@ -238,17 +249,12 @@ fun HomeScreen(
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
             Text(
                 stringResource(R.string.app_name),
-                style = MaterialTheme.typography.displayLarge.copy(fontSize = 32.sp),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp),
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                stringResource(R.string.home_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
                 today.format(
-                    DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.FULL)
+                    DateTimeFormatter.ofPattern("EEEE, d MMMM")
                         .withLocale(LocalConfiguration.current.locales[0])
                 ),
                 style = MaterialTheme.typography.headlineSmall
@@ -298,22 +304,23 @@ fun HomeScreen(
                 }
             }
         }
-        Button(
-            onClick = { if (active != null) onFinish(active) else onAdd() },
-            enabled = !state.loading && !state.saving,
-            modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight)
-        ) {
-            Text(
-                stringResource(
-                    if (active !=
-                        null
-                    ) {
-                        R.string.finish_period
-                    } else {
-                        R.string.add_period
-                    }
-                )
-            )
+        if (active == null) {
+            Button(
+                onClick = onAdd,
+                enabled = !state.loading && !state.saving,
+                modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight)
+            ) {
+                Text(stringResource(R.string.add_period))
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.medium)) {
+                TextButton(onClick = { onEdit(active) }, enabled = !state.saving) {
+                    Text(stringResource(R.string.edit))
+                }
+                Button(onClick = { onFinish(active) }, enabled = !state.saving) {
+                    Text(stringResource(R.string.finish_period))
+                }
+            }
         }
         state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
         if (!state.loading && state.periods.isNotEmpty() &&
@@ -326,7 +333,7 @@ fun HomeScreen(
             onLogDay,
             !state.loading && !state.saving
         )
-        CycleInsights(state.periods, today, state.dayLogs)
+        CycleInsights(state.periods, today, state.dayLogs, onLogDay)
         HelpCards(state.dayLogs.firstOrNull { it.date == today }, state.analysis, today)
         Text(
             stringResource(R.string.privacy_description),
@@ -338,7 +345,7 @@ fun HomeScreen(
 
 @Composable
 fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
         for (index in 0..2) {
             NavigationBarItem(
                 selected = page == index,
@@ -370,7 +377,15 @@ fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
                                 1 -> R.string.calendar_title
                                 else -> R.string.settings_title
                             }
-                        )
+                        ),
+                        fontSize = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >
+                            1.3f
+                        ) {
+                            10.sp
+                        } else {
+                            12.sp
+                        },
+                        softWrap = false
                     )
                 }
             )
