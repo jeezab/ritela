@@ -1,6 +1,6 @@
 # Точка продолжения
 
-2026-10-06. Исправлены две подтверждённые скриншотами ошибки CI: несовместимые gh api --slurp/--jq в release job и отсутствие PNG после восстановления test task из Gradle cache. Подготовлена версия 0.2.1/code 2001 для нового тега. По запросу пользователя master и новый тег v0.2.1 отправлены в origin. Оба удалённых ref подтверждены на d710b7b; публикация Release пока не подтверждена.
+2026-10-06. Исправлены две подтверждённые скриншотами ошибки CI: несовместимые gh api --slurp/--jq в release job и отсутствие PNG после восстановления test task из Gradle cache. Подготовлена версия 0.2.1/code 2001 для нового тега. По запросу пользователя master и новый тег v0.2.1 отправлены в origin. Оба удалённых ref подтверждены на d710b7b; Release v0.2.1 опубликован и подтверждён через GitHub API: draft=false, prerelease=false, APK uploaded.
 
 ## Результат
 
@@ -20,6 +20,10 @@
 
 ## Следующий шаг / ограничения
 
-Следующий шаг: проверить новые Android и Release APK runs для отправленного v0.2.1, подпись production и APK/checksum в Releases. Secrets по сообщениям пользователя настраивались, их наличие и значения локально не проверены. GitHub CLI в окружении не установлен; запрос release API на реальном repository не выполнялся. Команда и формат данных сверены с официальной документацией gh api. Секреты и ключи в Git не добавлялись.
+Следующий шаг: проверить новые Android и Release APK runs для отправленного v0.2.1, подпись production и установку/обновление через Obtainium. Release и APK/checksum уже подтверждены API. Secrets по сообщениям пользователя настраивались, их наличие и значения локально не проверены. GitHub CLI в окружении не установлен; release API проверен read-only через существующую Git credential без вывода токена. Команда и формат данных сверены с официальной документацией gh api. Секреты и ключи в Git не добавлялись.
 
-Проверка cache выполнялась на Windows; новый Linux run ещё не подтверждён. Первый signed release и Obtainium installation/update, device smoke tests календаря/TalkBack/SAF backup и клинический review остаются впереди.
+Проверка cache выполнялась на Windows; новый Linux run ещё не подтверждён. APK первого Release доступен через авторизованный API; production-подпись отдельно не проверена. Obtainium installation/update, device smoke tests календаря/TalkBack/SAF backup и клинический review остаются впереди.
+
+## Проверка доступа Obtainium
+
+2026-10-06: jeezab/ritela private=true. Без токена GET releases/tags/v0.2.1 → HTTP 404; с существующей авторизацией → опубликованный Ritela 0.2.1, APK 8 240 472 байт, uploaded, application/vnd.android.package-archive, и checksum. Это подтверждает metadata и доступ, не подпись скачанного файла. Для Obtainium нужен отдельный fine-grained token с jeezab/ritela и Contents: Read-only в GitHub source settings; браузерная сессия и Actions signing secrets не дают Obtainium доступа. При сохранённой ошибке проверить source URL, фильтры APK/названия/описания и GitHub proxy. Токены не логировались и не сохранялись в файлы.
