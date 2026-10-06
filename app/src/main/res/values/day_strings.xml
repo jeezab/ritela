@@ -34,7 +34,6 @@
     <string name="sex_masturbation">Masturbation</string>
     <string name="sex_other">Other</string>
     <string name="sex_barrier_note">These tags do not describe all contraception methods or estimate pregnancy risk.</string>
-    <string name="not_logged">Not logged</string>
     <string name="day_summary">%1$s: %2$s</string>
     <string name="cycle_day_label">Cycle day</string>
     <string name="cycle_trends">Your cycle</string>
@@ -51,14 +50,11 @@
     <string name="period_chart">Period duration</string>
     <string name="period_chart_empty">Log an end date to see duration.</string>
     <string name="symptom_chart">Pain · last 7 days</string>
-    <string name="symptom_chart_key">Headache / cramps · 0 none, 1 mild, 2 moderate, 3 severe; — not logged</string>
-    <string name="symptom_chart_empty">Day logs will appear here. An empty day does not mean no pain.</string>
     <string name="calendar_history">Period history</string>
     <string name="day_has_log">Day logged</string>
     <string name="help_title">For you</string>
     <string name="help_all">All articles</string>
     <string name="help_source">Source · %s</string>
-    <string name="help_reviewed">Sources checked · 5 Oct 2026</string>
     <string name="medicine_ack">I am 18 or older. I have checked the cautions and the leaflet for my medicine.</string>
     <string name="medicine_intro">Adult reference doses, not a personal prescription. For under-18s, pregnancy, chronic illness or other medicines, ask a clinician or pharmacist first. Follow your local product leaflet.</string>
     <string name="backup_title">Your data</string>

@@ -34,7 +34,6 @@
     <string name="sex_masturbation">Мастурбация</string>
     <string name="sex_other">Другое</string>
     <string name="sex_barrier_note">Эти отметки не описывают все способы контрацепции и не оценивают риск беременности.</string>
-    <string name="not_logged">Не отмечено</string>
     <string name="day_summary">%1$s: %2$s</string>
     <string name="cycle_day_label">День цикла</string>
     <string name="cycle_trends">Ваш цикл</string>
@@ -53,14 +52,11 @@
     <string name="period_chart">Длительность месячных</string>
     <string name="period_chart_empty">Отметьте дату окончания — появится длительность.</string>
     <string name="symptom_chart">Боль · последние 7 дней</string>
-    <string name="symptom_chart_key">Голова / живот · 0 нет, 1 слабо, 2 умеренно, 3 сильно; — не отмечено</string>
-    <string name="symptom_chart_empty">Здесь появятся отметки дня. Пустая дата не означает отсутствие боли.</string>
     <string name="calendar_history">История месячных</string>
     <string name="day_has_log">Есть отметки дня</string>
     <string name="help_title">Для вас</string>
     <string name="help_all">Все статьи</string>
     <string name="help_source">Источник · %s</string>
-    <string name="help_reviewed">Источники проверены · 5 октября 2026</string>
     <string name="medicine_ack">Мне 18 лет или больше. Я проверила ограничения и инструкцию к своему препарату.</string>
     <string name="medicine_intro">Справочные дозы для взрослых, не личное назначение. До 18 лет, при беременности, хронических заболеваниях или приёме других лекарств сначала спросите врача или фармацевта. Следуйте инструкции к своему препарату.</string>
     <string name="backup_title">Ваши данные</string>

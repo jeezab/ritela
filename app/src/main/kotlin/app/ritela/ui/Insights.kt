@@ -8,18 +8,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -32,9 +31,6 @@ import app.ritela.R
 import app.ritela.domain.DayLog
 import app.ritela.domain.Period
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
-import kotlin.math.roundToInt
 
 @Composable
 fun CycleDayBadge(day: Long) {
@@ -63,52 +59,55 @@ fun CycleDayBadge(day: Long) {
 @Composable
 fun DaySummary(log: DayLog?, onEdit: () -> Unit, enabled: Boolean = true) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-        TextButton(onClick = onEdit, enabled = enabled, modifier = Modifier.testTag("log-day")) {
-            Icon(painterResource(R.drawable.ic_note), contentDescription = null)
-            Text(stringResource(R.string.log_day), Modifier.padding(start = Spacing.small))
-        }
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(Spacing.small),
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalArrangement = Arrangement.spacedBy(Spacing.small)
         ) {
+            Text(stringResource(R.string.home_title), style = MaterialTheme.typography.titleLarge)
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.testTag("log-day")
+            ) {
+                Icon(painterResource(R.drawable.ic_note), contentDescription = null)
+                Text(stringResource(R.string.log_day), Modifier.padding(start = Spacing.small))
+            }
+        }
+        if (log == null || log.empty) {
+            Text(
+                stringResource(R.string.today_empty),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        log?.let {
             listOf(
-                Triple(R.string.headache, R.drawable.ic_head, log?.headache),
-                Triple(R.string.cramps, R.drawable.ic_drop, log?.cramps),
-                Triple(R.string.energy_title, R.drawable.ic_energy, log?.energy)
+                Triple(R.string.headache, R.drawable.ic_head, it.headache),
+                Triple(R.string.cramps, R.drawable.ic_drop, it.cramps),
+                Triple(R.string.backache, R.drawable.ic_drop, it.backache),
+                Triple(R.string.flow_title, R.drawable.ic_drop, it.flow),
+                Triple(R.string.mood_title, R.drawable.ic_heart, it.mood),
+                Triple(R.string.energy_title, R.drawable.ic_energy, it.energy)
             ).forEach { (label, icon, value) ->
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Column(
-                        Modifier.padding(Spacing.medium),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.small)
+                if (value != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                     ) {
                         Icon(
                             painterResource(icon),
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.height(20.dp)
                         )
-                        Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
                         Text(
-                            value?.let { eventLabel(it) } ?: stringResource(R.string.not_logged),
-                            style = MaterialTheme.typography.bodyMedium
+                            stringResource(
+                                R.string.day_summary,
+                                stringResource(label),
+                                eventLabel(value)
+                            )
                         )
                     }
-                }
-            }
-        }
-        log?.let {
-            val rest = listOf(
-                R.string.backache to it.backache,
-                R.string.flow_title to it.flow,
-                R.string.mood_title to it.mood
-            )
-            rest.forEach { (label, value) ->
-                value?.let {
-                    Text(
-                        stringResource(R.string.day_summary, stringResource(label), eventLabel(it))
-                    )
                 }
             }
             if (it.sex.isNotEmpty()) {
@@ -117,9 +116,7 @@ fun DaySummary(log: DayLog?, onEdit: () -> Unit, enabled: Boolean = true) {
                     style = MaterialTheme.typography.labelLarge
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                    it.sex.sortedBy { value ->
-                        value.name
-                    }.forEach { value -> Text(eventLabel(value)) }
+                    it.sex.forEach { sex -> Text(eventLabel(sex)) }
                 }
             }
             if (it.note.isNotBlank()) Text(it.note)
@@ -128,169 +125,204 @@ fun DaySummary(log: DayLog?, onEdit: () -> Unit, enabled: Boolean = true) {
 }
 
 @Composable
-fun CycleInsights(periods: List<Period>, today: LocalDate, logs: List<DayLog>) {
-    val ordered = periods.sortedBy { it.start }
-    val samples = ordered.zipWithNext().filter { (a, _) -> a.start >= today.minusYears(1) }
-        .takeLast(12).map { (a, b) -> a.start to ChronoUnit.DAYS.between(a.start, b.start).toInt() }
-        .filter { it.second in 1..365 }
+fun CycleInsights(
+    periods: List<Period>,
+    today: LocalDate,
+    logs: List<DayLog>,
+    onLogDay: () -> Unit = {}
+) {
+    val cycles = app.ritela.domain.measuredCycles(periods, today)
+    val durations = app.ritela.domain.measuredDurations(periods, today)
     Column(
-        verticalArrangement = Arrangement.spacedBy(Spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(Spacing.large),
         modifier = Modifier.testTag("cycle-insights")
     ) {
-        Text(stringResource(R.string.cycle_trends), style = MaterialTheme.typography.titleLarge)
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.small)
         ) {
-            Column(
-                Modifier.fillMaxWidth().padding(Spacing.medium),
-                verticalArrangement = Arrangement.spacedBy(Spacing.medium)
-            ) {
-                Icon(
-                    painterResource(R.drawable.ic_chart),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                if (samples.isEmpty()) {
-                    Text(stringResource(R.string.chart_empty))
-                } else {
-                    val sorted = samples.map { it.second }.sorted()
-                    val middle = sorted.size / 2
-                    val median = ((sorted[(sorted.size - 1) / 2] + sorted[middle]) / 2.0)
-                        .roundToInt()
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.large)) {
-                        Column {
-                            Text(
-                                stringResource(R.string.cycle_median),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                            Text(
-                                pluralStringResource(R.plurals.days_value, median, median),
-                                style = MaterialTheme.typography.headlineMedium
-                            )
-                        }
-                        Column {
-                            Text(
-                                stringResource(R.string.cycle_spread),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                            Text(
-                                stringResource(R.string.days_range, sorted.first(), sorted.last()),
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                        }
-                    }
+            Icon(
+                painterResource(R.drawable.ic_chart),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(stringResource(R.string.cycle_trends), style = MaterialTheme.typography.titleLarge)
+        }
+        if (cycles.values.isEmpty()) {
+            Text(stringResource(R.string.chart_empty))
+        } else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.large)) {
+                Column {
                     Text(
-                        stringResource(R.string.year_basis),
+                        pluralStringResource(
+                            R.plurals.days_value,
+                            cycles.median!!,
+                            cycles.median!!
+                        ),
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        stringResource(R.string.cycle_median),
                         style = MaterialTheme.typography.bodySmall
                     )
-                    MeasuredChart(samples.takeLast(6))
                 }
-            }
-        }
-        val durations = ordered.filter { it.end != null && it.start >= today.minusYears(1) }
-            .takeLast(6).map { it.start to (ChronoUnit.DAYS.between(it.start, it.end) + 1).toInt() }
-        Card {
-            Column(
-                Modifier.fillMaxWidth().padding(Spacing.medium),
-                verticalArrangement = Arrangement.spacedBy(Spacing.medium)
-            ) {
-                Text(
-                    stringResource(R.string.period_chart),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                if (durations.isEmpty()) {
+                Column {
                     Text(
-                        stringResource(R.string.period_chart_empty)
+                        stringResource(R.string.days_range, cycles.min!!, cycles.max!!),
+                        style = MaterialTheme.typography.titleLarge
                     )
-                } else {
-                    MeasuredChart(durations)
-                }
-            }
-        }
-        Card {
-            Column(
-                Modifier.fillMaxWidth().padding(Spacing.medium),
-                verticalArrangement = Arrangement.spacedBy(Spacing.small)
-            ) {
-                Text(
-                    stringResource(R.string.symptom_chart),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                val recent = (6 downTo 0).map { today.minusDays(it.toLong()) }
-                val data = recent.map { date -> date to logs.firstOrNull { it.date == date } }
-                if (data.all { it.second?.headache == null && it.second?.cramps == null }) {
-                    Text(stringResource(R.string.symptom_chart_empty))
-                } else {
-                    val colors = MaterialTheme.colorScheme
-                    Canvas(Modifier.fillMaxWidth().height(72.dp)) {
-                        data.forEachIndexed { index, (_, log) ->
-                            val cell = size.width / 7
-                            listOf(log?.headache, log?.cramps).forEachIndexed { series, pain ->
-                                if (pain != null) {
-                                    val x = cell * (index + 0.4f + series * 0.25f)
-                                    drawLine(
-                                        if (series == 0) colors.primary else colors.secondary,
-                                        Offset(x, size.height),
-                                        Offset(
-                                            x,
-                                            size.height -
-                                                (pain.ordinal + 0.15f) / 3.2f * size.height
-                                        ),
-                                        strokeWidth = cell * 0.16f
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                        data.forEach { (date, log) ->
-                            Text(
-                                "${date.dayOfMonth}: ${log?.headache?.ordinal ?: "—"}/${log?.cramps?.ordinal ?: "—"}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
                     Text(
-                        stringResource(R.string.symptom_chart_key),
+                        stringResource(R.string.cycle_spread),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
+            Text(
+                stringResource(R.string.year_basis),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            SeriesInsight(cycles.values.takeLast(6))
+        }
+        androidx.compose.material3.HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        Text(stringResource(R.string.period_chart), style = MaterialTheme.typography.titleLarge)
+        if (durations.values.isEmpty()) {
+            Text(stringResource(R.string.period_chart_empty))
+        } else {
+            Text(
+                pluralStringResource(R.plurals.days_value, durations.median!!, durations.median!!),
+                style = MaterialTheme.typography.headlineMedium
+            )
+            SeriesInsight(durations.values.takeLast(6))
+        }
+        androidx.compose.material3.HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        Text(stringResource(R.string.symptom_chart), style = MaterialTheme.typography.titleLarge)
+        val recent = (6 downTo 0).map { today.minusDays(it.toLong()) }
+        val data = recent.map { date -> date to logs.firstOrNull { it.date == date } }
+        val measured = data.filter { it.second?.headache != null || it.second?.cramps != null }
+        if (measured.isEmpty()) {
+            Text(
+                stringResource(R.string.pain_empty_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                stringResource(R.string.pain_empty_body),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(onClick = onLogDay) { Text(stringResource(R.string.log_day)) }
+        } else {
+            val withPain = measured.count { (_, log) ->
+                (log?.headache?.ordinal ?: 0) > 0 ||
+                    (log?.cramps?.ordinal ?: 0) > 0
+            }
+            Text(
+                stringResource(
+                    if (withPain ==
+                        0
+                    ) {
+                        R.string.no_pain_logged
+                    } else {
+                        R.string.pain_logged_days
+                    },
+                    withPain
+                )
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
+                measured.forEach { (date, log) ->
+                    Text(
+                        "${date.dayOfMonth}: ${log?.headache?.let {
+                            eventLabel(it)
+                        } ?: "\u2014"} / " +
+                            (log?.cramps?.let { eventLabel(it) } ?: "\u2014"),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            Text(
+                stringResource(R.string.pain_series_key),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
+private fun SeriesInsight(values: List<Pair<LocalDate, Int>>) {
+    val min = values.minOf { it.second }
+    val max = values.maxOf { it.second }
+    Text(
+        if (min == max) {
+            pluralStringResource(
+                R.plurals.stable_values,
+                values.size,
+                values.size,
+                pluralStringResource(R.plurals.days_value, min, min)
+            )
+        } else {
+            pluralStringResource(
+                R.plurals.variable_values,
+                values.size,
+                values.size,
+                stringResource(R.string.days_range, min, max)
+            )
+        },
+        style = MaterialTheme.typography.bodyMedium
+    )
+    if (values.size >= 2 && min != max) MeasuredChart(values)
+}
+
+@Composable
 private fun MeasuredChart(values: List<Pair<LocalDate, Int>>) {
     val displayed = if (LocalDensity.current.fontScale > 1.3f) values.takeLast(3) else values
-    val color = MaterialTheme.colorScheme.primary
-    val grid = MaterialTheme.colorScheme.outlineVariant
+    var selected by androidx.compose.runtime.saveable.rememberSaveable(values) {
+        androidx.compose.runtime.mutableStateOf(displayed.lastIndex)
+    }
+    val colors = MaterialTheme.colorScheme
     val description =
         stringResource(R.string.chart_values, displayed.joinToString { it.second.toString() })
-    Canvas(Modifier.fillMaxWidth().height(100.dp).semantics { contentDescription = description }) {
-        val max = (displayed.maxOf { it.second } + 2).toFloat()
-        repeat(3) { index ->
-            val y = size.height * index / 2
-            drawLine(grid, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
-        }
+    Canvas(Modifier.fillMaxWidth().height(64.dp).semantics { contentDescription = description }) {
+        val min = displayed.minOf { it.second }.toFloat() - 1
+        val max = displayed.maxOf { it.second }.toFloat() + 1
         val points = displayed.mapIndexed { index, (_, value) ->
-            Offset(size.width * (index + 0.5f) / displayed.size, size.height * (1 - value / max))
+            Offset(
+                size.width * (index + 0.5f) / displayed.size,
+                size.height * (1 - (value - min) / (max - min))
+            )
         }
-        points.zipWithNext().forEach { (a, b) -> drawLine(color, a, b, 2.dp.toPx()) }
-        points.forEach { point -> drawCircle(color, 4.dp.toPx(), point) }
+        points.zipWithNext().forEach { (a, b) -> drawLine(colors.primary, a, b, 2.dp.toPx()) }
+        points.forEachIndexed { index, point ->
+            drawCircle(
+                if (index ==
+                    selected
+                ) {
+                    colors.secondary
+                } else {
+                    colors.primary
+                },
+                3.dp.toPx(),
+                point
+            )
+        }
     }
-    val locale = LocalConfiguration.current.locales[0]
     Row(Modifier.fillMaxWidth()) {
-        displayed.forEach { (date, value) ->
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(value.toString(), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    date.format(DateTimeFormatter.ofPattern("d MMM", locale)),
-                    style = MaterialTheme.typography.bodySmall
-                )
+        displayed.forEachIndexed { index, (_, value) ->
+            TextButton(onClick = { selected = index }, modifier = Modifier.weight(1f)) {
+                Text(value.toString())
             }
         }
     }
+    val choice = displayed[selected.coerceIn(displayed.indices)]
+    Text(
+        stringResource(
+            R.string.chart_selected,
+            formattedDate(choice.first),
+            pluralStringResource(R.plurals.days_value, choice.second, choice.second)
+        ),
+        style = MaterialTheme.typography.bodySmall
+    )
 }

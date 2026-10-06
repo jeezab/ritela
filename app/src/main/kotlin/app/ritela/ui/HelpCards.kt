@@ -207,7 +207,7 @@ fun HelpCards(log: DayLog?, analysis: CycleAnalysis, date: LocalDate) {
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.medium)) {
             items(relevantArticles(log, analysis), key = { it.id }) { item ->
-                ArticleTile(item, { article = item }, Modifier.width(260.dp))
+                ArticleTile(item, { article = item }, Modifier.width(228.dp))
             }
         }
     }
@@ -267,7 +267,7 @@ private fun ArticleTile(article: HelpArticle, onClick: () -> Unit, modifier: Mod
             Text(
                 stringResource(article.body),
                 style = MaterialTheme.typography.bodyMedium,
-                maxLines = 3,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
@@ -312,7 +312,6 @@ private fun HelpArticleDialog(article: HelpArticle, date: LocalDate, onDismiss: 
                     )
                 }
             }
-            Text(stringResource(R.string.help_reviewed), style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = {
                 context.startActivity(Intent(Intent.ACTION_VIEW, article.url.toUri()))
             }) {

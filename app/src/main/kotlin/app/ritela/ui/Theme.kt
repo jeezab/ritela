@@ -28,7 +28,9 @@ object Spacing {
 }
 
 private val AppShapes = Shapes(
-    large = RoundedCornerShape(24.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
     extraLarge = RoundedCornerShape(32.dp)
 )
 
