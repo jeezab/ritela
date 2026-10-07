@@ -3,6 +3,7 @@ package app.ritela
 import android.content.pm.PackageManager
 import android.view.WindowManager
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
@@ -30,6 +31,7 @@ import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import app.ritela.domain.Period
 import app.ritela.domain.analyzeCycles
 import app.ritela.ui.AppNavigation
@@ -738,7 +740,7 @@ class HomeScreenTest {
             compose.onNodeWithText("Ritela").performScrollTo()
             val english = compose.activity.resources.configuration.locales[0].language == "en"
             compose.onNodeWithText(
-                if (english) "Cycle day" else "День цикла"
+                if (english) "Cycle day 24" else "День 24 цикла"
             ).assertIsDisplayed()
             compose.onNodeWithText(
                 if (english) "Log period" else "Отметить месячные"
@@ -933,6 +935,44 @@ class HomeScreenTest {
             swipeDown()
         }
         compose.onNodeWithTag("day-details").assertDoesNotExist()
+    }
+
+    @Test
+    fun forecastHeroKeepsDataReadableWithLargeTextAndMovesBasisIntoDetails() {
+        val today = LocalDate.of(2026, 10, 7)
+        val start = today.minusDays(7)
+        val records =
+            listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
+        val analysis = analyzeCycles(records, today)
+        for ((scale, dark) in listOf(1f to false, 2f to false, 2f to true)) {
+            compose.activity.runOnUiThread {
+                compose.activity.setContent {
+                    val density = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(density.density, scale)
+                    ) {
+                        RitelaTheme(darkTheme = dark) {
+                            androidx.compose.foundation.layout.Column(
+                                androidx.compose.ui.Modifier.width(320.dp)
+                            ) {
+                                app.ritela.ui.ForecastCard(analysis, today, reducedMotion = true)
+                            }
+                        }
+                    }
+                }
+            }
+            compose.onNodeWithTag(
+                "forecast-date"
+            ).assertTextEquals("28 октября").assertIsDisplayed()
+            val hero = compose.onNodeWithTag("forecast-hero").fetchSemanticsNode().boundsInRoot
+            val date = compose.onNodeWithTag("forecast-date").fetchSemanticsNode().boundsInRoot
+            assertTrue(date.left >= hero.left && date.right <= hero.right)
+            val basis = compose.activity.getString(R.string.default_forecast_basis, 28)
+            compose.onNodeWithText(basis).assertDoesNotExist()
+            compose.onNodeWithTag("forecast-info").performClick()
+            compose.onNodeWithText(basis).assertIsDisplayed()
+            compose.onNodeWithText(compose.activity.getString(R.string.done)).performClick()
+        }
     }
 
     @Test

@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -311,9 +312,13 @@ fun HomeScreen(
             Button(
                 onClick = onAdd,
                 enabled = !state.loading && !state.saving,
-                modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight)
+                modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
             ) {
-                Text(stringResource(R.string.add_period))
+                Icon(painterResource(R.drawable.ic_drop), null)
+                Text(stringResource(R.string.add_period), Modifier.padding(start = Spacing.small))
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.medium)) {
@@ -331,6 +336,7 @@ fun HomeScreen(
         ) {
             ForecastCard(state.analysis, state.today)
         }
+        if (hasForecast) ForecastDurationInsight(state.analysis.periodDuration)
         DaySummary(
             state.dayLogs.firstOrNull { it.date == today },
             onLogDay,
