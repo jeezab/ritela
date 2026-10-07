@@ -33,7 +33,7 @@ Obtainium читает GitHub Releases, а не Actions artifacts. Каждый 
 
 ## Повторяемый выпуск
 
-1. Измени `versionName` в `version.properties`. Только три числовых компонента без суффиксов и ведущих нулей. Текущий кандидат: `0.2.2`.
+1. Измени `versionName` в `version.properties`. Только три числовых компонента без суффиксов и ведущих нулей. Текущий кандидат: `0.2.4`.
 2. Выполни проверки и сохрани отдельный коммит по CONTRIBUTING:
 
    ```powershell
@@ -47,22 +47,22 @@ Obtainium читает GitHub Releases, а не Actions artifacts. Каждый 
 
    ```powershell
    git push origin master
-   git tag v0.2.2
-   git push origin v0.2.2
+   git tag v0.2.4
+   git push origin v0.2.4
    ```
 
 4. Workflow `Release APK` проверяет тег и предыдущие стабильные выпуски, собирает debug/release, запускает тесты и lint, проверяет сертификат и содержимое APK. После проверок создаёт черновик GitHub Release, загружает APK и SHA-256 и публикует только после успешной загрузки. Повторный запуск продолжает незавершённый черновик; опубликованный выпуск не перезаписывается. Ключ из runner temp удаляется и при ошибке. Обычный workflow Android продолжает выдавать debug artifact.
-5. В Obtainium проверь обновления и установи выпуск. Для следующего выпуска повтори с увеличенной версией, например `0.2.3`. Не перезаписывай APK опубликованной версии и не меняй подписывающий ключ.
+5. В Obtainium проверь обновления и установи выпуск. Для следующего выпуска повтори с увеличенной версией, например `0.2.5`. Не перезаписывай APK опубликованной версии и не меняй подписывающий ключ.
 
 Android versionCode: `major × 1000000 + minor × 1000 + patch`. Допустимы major 0–2000, minor/patch 0–999; нулевой итог запрещён. `0.2.1` имеет код 2001, выше прежнего debug-кода 1. Workflow отклоняет повторную или более старую версию относительно всех опубликованных стабильных Releases.
 
 Локальная проверка подписанного APK без публикации:
 
 ```powershell
-python scripts/release.py prepare --tag v0.2.2 --apk app/build/outputs/apk/release/app-release.apk --sdk .toolchain/android-sdk
+python scripts/release.py prepare --tag v0.2.4 --apk app/build/outputs/apk/release/app-release.apk --sdk .toolchain/android-sdk
 ```
 
-Нужен `ANDROID_SIGNING_CERT_SHA256`; результат — `app/build/distribution/ritela-0.2.2.apk` и `.sha256`. Скрипт отказывает при неверной версии/package, debug-флаге, сетевых разрешениях, неправильном сертификате или перезаписи результата. `python scripts/release.py link` восстанавливает точную ссылку README.
+Нужен `ANDROID_SIGNING_CERT_SHA256`; результат — `app/build/distribution/ritela-0.2.4.apk` и `.sha256`. Скрипт отказывает при неверной версии/package, debug-флаге, сетевых разрешениях, неправильном сертификате или перезаписи результата. `python scripts/release.py link` восстанавливает точную ссылку README.
 
 ## Доступ и переход с первого APK
 
@@ -83,3 +83,5 @@ Debug APK из предыдущих Actions подписывались врем�
 2026-10-06 проверено: v0.2.1 опубликован (draft=false, prerelease=false), ritela-0.2.1.apk uploaded, 8 240 472 байт. Repository приватный; без авторизации API возвращает 404, с авторизацией release и assets доступны. Публичность репозитория не менялась; если понадобится распространение без token, это отдельное решение о публичном источнике APK.
 
 2026-10-07: подготовлена версия 0.2.2/code 2002 для новых скриншотов, optional-password backup, редактируемого дневника и календарного прогноза. Пользователь явно запросил push master и нового тега; существующие v0.2.0/v0.2.1 не меняются. Публикацию production APK подтверждает Release APK workflow после отправки v0.2.2.
+
+2026-10-07: кандидат 0.2.4/code 2004 включает восстановленный swipe карточки календарного дня и компактный небесный hero с reduced-motion. Опубликованные стабильные версии до v0.2.3 подтверждены GitHub API; v0.2.4 новый. Пользователь явно разрешил push master и тег v0.2.4. APK выпускается существующим Release APK workflow.
