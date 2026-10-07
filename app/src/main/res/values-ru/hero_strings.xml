@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="hero_orbit_info">На орбите: солнце — начало цикла; светлая планета — фолликулярная фаза; яркая жемчужина — овуляция; розовая планета — лютеиновая фаза; полумесяц — конец цикла. Кольцо отмечает текущий день. Это символические вехи, а не точные границы фаз.</string>
     <string name="hero_cycle_day">День %1$d цикла</string>
     <string name="forecast_info">О прогнозе</string>
     <string name="hero_phase_info">Фаза цикла предполагается по отмеченным датам.</string>

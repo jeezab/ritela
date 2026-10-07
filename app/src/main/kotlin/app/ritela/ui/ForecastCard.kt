@@ -57,15 +57,20 @@ fun ForecastCard(
     val next = analysis.forecasts.firstOrNull()
     val scene = cycleSceneState(analysis, today)
     val colors = MaterialTheme.colorScheme
+    val heroSurface = androidx.compose.ui.graphics.lerp(
+        colors.surfaceContainerLow,
+        colors.secondaryContainer,
+        0.18f
+    )
     val locale = LocalConfiguration.current.locales[0]
     val fontScale = LocalDensity.current.fontScale
     Card(
         modifier = Modifier.fillMaxWidth().testTag("forecast-hero"),
         shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerLow)
+        colors = CardDefaults.cardColors(containerColor = heroSurface)
     ) {
         Column(
-            Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -94,10 +99,7 @@ fun ForecastCard(
             if (next != null && fontScale <= 1.5f) {
                 CycleOrbitScene(
                     analysis.cycleDay ?: 1,
-                    scene.length,
-                    scene.phase,
                     scene.progress,
-                    next.lowerBound..next.upperBound,
                     reducedMotion,
                     OrbitColors(
                         colors.primary,
@@ -109,9 +111,9 @@ fun ForecastCard(
                         } else {
                             Color(0xFFF3D4BA)
                         },
-                        colors.surfaceContainerLow
+                        heroSurface
                     ),
-                    Modifier.fillMaxWidth().height(if (fontScale > 1.2f) 88.dp else 116.dp)
+                    Modifier.fillMaxWidth().height(if (fontScale > 1.2f) 124.dp else 156.dp)
                 )
             }
             Text(
@@ -204,6 +206,7 @@ fun ForecastCard(
                         )
                     }
                     Text(stringResource(R.string.hero_phase_info))
+                    Text(stringResource(R.string.hero_orbit_info))
                 }
             },
             confirmButton = {
@@ -264,7 +267,19 @@ private fun ForecastHeroPreview() {
     val today = LocalDate.of(2026, 10, 7)
     val start = today.minusDays(7)
     val records = listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
+    // Synthetic design fixture from the task; production always uses the supplied analysis.
+    val basis = analyzeCycles(records, today)
+    val sample = basis.copy(
+        forecasts = listOf(
+            basis.forecasts.first().copy(
+                predictedStartDate = LocalDate.of(2026, 11, 2),
+                lowerBound = LocalDate.of(2026, 10, 30),
+                upperBound = LocalDate.of(2026, 11, 5),
+                cycleMedian = 29
+            )
+        )
+    )
     RitelaTheme {
-        Box(Modifier.padding(16.dp)) { ForecastCard(analyzeCycles(records, today), today, true) }
+        Box(Modifier.padding(16.dp)) { ForecastCard(sample, today, true) }
     }
 }

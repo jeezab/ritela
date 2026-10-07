@@ -11,6 +11,9 @@ if (-not $SkipRender) {
 $directory = Join-Path $projectRoot 'app/build/reports/screenshots'
 $labels = [ordered]@{
     'home-light' = 'Главная · светлая тема'
+    'orbit-hero-light' = 'Небесный hero · светлая тема'
+    'orbit-hero-dark' = 'Небесный hero · тёмная тема'
+    'orbit-hero-large-text' = 'Небесный hero · шрифт 200%'
     'home-dark' = 'Главная · тёмная тема'
     'home-active' = 'Месячные идут'
     'home-recorded' = 'Заполненная история'

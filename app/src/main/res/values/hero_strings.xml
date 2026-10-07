@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="hero_orbit_info">Along the orbit: sun — cycle start; pale planet — follicular phase; bright pearl — ovulation; rose planet — luteal phase; crescent — cycle end. The ring marks your current day. These are symbolic landmarks, not exact phase boundaries.</string>
     <string name="hero_cycle_day">Cycle day %1$d</string>
     <string name="forecast_info">About this forecast</string>
     <string name="hero_phase_info">Cycle phases are estimated from the dates you log.</string>
