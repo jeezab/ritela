@@ -125,7 +125,8 @@ enum class CalendarDayKind {
     UNCERTAIN,
     APPROXIMATE,
     ESTIMATED_PERIOD,
-    FERTILE_ESTIMATE
+    FERTILE_ESTIMATE,
+    OVULATION_ESTIMATE
 }
 
 /** A seven-day planning estimate around the assumed ovulation date, never a safe-day rule. */
@@ -142,6 +143,28 @@ fun estimatedFertileWindow(
     return followingStarts.filter { it > firstStart }.sorted().map { next ->
         next.minusDays(19)..next.minusDays(13)
     }.firstOrNull { date in it }
+}
+
+enum class ConceptionEstimate { UNKNOWN, LOWER, HIGHER, PEAK }
+
+/** Relative calendar categories, never an individual probability or confirmed ovulation. */
+fun conceptionEstimate(
+    periods: List<Period>,
+    analysis: CycleAnalysis,
+    date: LocalDate,
+    today: LocalDate
+): ConceptionEstimate {
+    val kind = calendarDay(periods, analysis, date, today).kind
+    if (kind == CalendarDayKind.OVULATION_ESTIMATE) return ConceptionEstimate.PEAK
+    if (kind == CalendarDayKind.FERTILE_ESTIMATE) return ConceptionEstimate.HIGHER
+    val first = periods.minOfOrNull { it.start } ?: return ConceptionEstimate.UNKNOWN
+    val last =
+        analysis.forecasts.lastOrNull()?.predictedStartDate ?: return ConceptionEstimate.UNKNOWN
+    return if (date in first..last && analysis.unavailable == null) {
+        ConceptionEstimate.LOWER
+    } else {
+        ConceptionEstimate.UNKNOWN
+    }
 }
 
 data class CalendarDayInfo(
@@ -182,11 +205,13 @@ fun calendarDay(
     }
     // Show the expected bleeding days, not the entire expanding start uncertainty interval.
     return CalendarDayInfo(
-        if (estimatedFertileWindow(periods, analysis, date) != null) {
-            CalendarDayKind.FERTILE_ESTIMATE
-        } else {
-            CalendarDayKind.NONE
-        }
+        estimatedFertileWindow(periods, analysis, date)?.let { window ->
+            if (date == window.start.plusDays(5)) {
+                CalendarDayKind.OVULATION_ESTIMATE
+            } else {
+                CalendarDayKind.FERTILE_ESTIMATE
+            }
+        } ?: CalendarDayKind.NONE
     )
 }
 
