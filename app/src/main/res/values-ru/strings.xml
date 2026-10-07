@@ -40,9 +40,6 @@
     <string name="forecast_invalid">Проверьте даты записей — по этой истории пока нельзя построить прогноз.</string>
     <string name="forecast_ongoing">Укажите окончание текущей менструации, чтобы увидеть следующий прогноз.</string>
     <string name="forecast_past_due">Ожидаемый диапазон уже прошёл. Если месячные начались, отметьте новые даты.</string>
-    <string name="history_stable">История ровная</string>
-    <string name="history_variable">Сроки менялись</string>
-    <string name="history_limited">Мало данных</string>
     <string name="calendar_legend">Красный — отмеченные месячные · розовый — прогноз месячных · зелёный — предполагаемое фертильное окно</string>
     <string name="calendar_observed">Менструация отмечена</string>
     <string name="calendar_predicted">Прогноз начала месячных</string>
@@ -57,7 +54,7 @@
     </plurals>
     <string name="settings_title">Настройки</string>
     <string name="language_title">Язык</string>
-    <string name="default_forecast_basis">Цикл %d дней · пока не накопится история</string>
+    <string name="default_forecast_basis">На основе цикла в %d дней</string>
     <string name="calendar_estimated_period">Предполагаемый день месячных</string>
     <string name="choose_month">Месяц и год</string>
     <string name="year">Год</string>

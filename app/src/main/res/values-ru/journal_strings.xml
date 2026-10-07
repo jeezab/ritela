@@ -22,4 +22,7 @@
     <string name="conception_unconfirmed">Овуляция не подтверждена</string>
     <string name="conception_peak">Пик по прогнозу</string>
     <string name="ovulation_estimate">Предполагаемая овуляция</string>
+    <string name="period_expected_today">Ожидаются сегодня</string>
+    <plurals name="period_countdown"><item quantity="one">Примерно через %1$d день</item><item quantity="few">Примерно через %1$d дня</item><item quantity="many">Примерно через %1$d дней</item><item quantity="other">Примерно через %1$d дня</item></plurals>
+    <plurals name="period_expected_ago"><item quantity="one">Ожидались %1$d день назад</item><item quantity="few">Ожидались %1$d дня назад</item><item quantity="many">Ожидались %1$d дней назад</item><item quantity="other">Ожидались %1$d дня назад</item></plurals>
 </resources>
