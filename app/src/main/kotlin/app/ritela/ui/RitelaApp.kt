@@ -266,7 +266,7 @@ fun HomeScreen(
         val active = state.periods.firstOrNull { it.end == null }
         val latest = active ?: state.periods.firstOrNull()
         val hasForecast = !state.loading && active == null && state.analysis.forecasts.isNotEmpty()
-        if (hasForecast) ForecastCard(state.analysis)
+        if (hasForecast) ForecastCard(state.analysis, state.today)
         if (!hasForecast) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -329,7 +329,7 @@ fun HomeScreen(
         if (!state.loading && state.periods.isNotEmpty() &&
             active == null && !hasForecast
         ) {
-            ForecastCard(state.analysis)
+            ForecastCard(state.analysis, state.today)
         }
         DaySummary(
             state.dayLogs.firstOrNull { it.date == today },

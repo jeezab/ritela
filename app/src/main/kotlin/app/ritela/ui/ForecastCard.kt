@@ -24,11 +24,12 @@ import androidx.compose.ui.unit.sp
 import app.ritela.R
 import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.ForecastUnavailable
-import app.ritela.domain.HistoryConfidence
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 @Composable
-fun ForecastCard(analysis: CycleAnalysis) {
+fun ForecastCard(analysis: CycleAnalysis, today: LocalDate = LocalDate.now()) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
@@ -106,14 +107,27 @@ fun ForecastCard(analysis: CycleAnalysis) {
                     shape = MaterialTheme.shapes.large
                 ) {
                     Text(
-                        stringResource(
-                            when (next.confidence) {
-                                HistoryConfidence.HIGH -> R.string.history_stable
-                                HistoryConfidence.MEDIUM -> R.string.history_variable
-                                HistoryConfidence.LOW -> R.string.history_limited
-                            }
-                        ),
-                        style = MaterialTheme.typography.labelLarge,
+                        when (
+                            val days = ChronoUnit.DAYS.between(
+                                today,
+                                next.predictedStartDate
+                            ).toInt()
+                        ) {
+                            0 -> stringResource(R.string.period_expected_today)
+
+                            in 1..Int.MAX_VALUE -> pluralStringResource(
+                                R.plurals.period_countdown,
+                                days,
+                                days
+                            )
+
+                            else -> pluralStringResource(
+                                R.plurals.period_expected_ago,
+                                -days,
+                                -days
+                            )
+                        },
+                        style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(
                             horizontal = Spacing.medium,
                             vertical = Spacing.small

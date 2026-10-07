@@ -929,6 +929,26 @@ class HomeScreenTest {
         compose.onNodeWithTag("day-details").assertDoesNotExist()
     }
 
+    @Test
+    fun homeCountdownUsesTodayAndHandlesExpectedDatePassing() {
+        val start = LocalDate.of(2026, 9, 20)
+        val records =
+            listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
+        for ((today, expected) in listOf(
+            start.plusDays(25) to "Примерно через 3 дня",
+            start.plusDays(28) to "Ожидаются сегодня",
+            start.plusDays(30) to "Ожидались 2 дня назад"
+        )) {
+            compose.activity.runOnUiThread {
+                compose.activity.setContent {
+                    RitelaTheme { app.ritela.ui.ForecastCard(analyzeCycles(records, today), today) }
+                }
+            }
+            compose.onNodeWithText(expected).assertIsDisplayed()
+            assertTrue(compose.onAllNodesWithText("Мало данных").fetchSemanticsNodes().isEmpty())
+        }
+    }
+
     private fun saveRendering(name: String, dialog: Boolean = false) {
         compose.waitForIdle()
         val bitmap = if (dialog) {

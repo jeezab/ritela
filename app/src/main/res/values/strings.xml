@@ -40,9 +40,6 @@
     <string name="forecast_invalid">Check your recorded dates before we can show an estimate.</string>
     <string name="forecast_ongoing">Log the end of this period to see the next estimate.</string>
     <string name="forecast_past_due">The estimated range has passed. If your period started, log the new dates.</string>
-    <string name="history_stable">Consistent history</string>
-    <string name="history_variable">Timing varies</string>
-    <string name="history_limited">Limited data</string>
     <string name="calendar_legend">Red — recorded periods · pink — expected periods · green — estimated fertile window</string>
     <string name="calendar_observed">Period recorded</string>
     <string name="calendar_predicted">Estimated period start</string>
@@ -55,7 +52,7 @@
     </plurals>
     <string name="settings_title">Settings</string>
     <string name="language_title">Language</string>
-    <string name="default_forecast_basis">%d-day cycle · until there is enough history</string>
+    <string name="default_forecast_basis">Based on a %d-day cycle</string>
     <string name="calendar_estimated_period">Estimated period day</string>
     <string name="choose_month">Month and year</string>
     <string name="year">Year</string>
