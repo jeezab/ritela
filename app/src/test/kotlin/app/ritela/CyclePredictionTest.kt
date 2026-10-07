@@ -221,7 +221,11 @@ class CyclePredictionTest {
             val fertileStart = forecast.predictedStartDate.minusDays(19)
             for (offset in 0L..6L) {
                 assertEquals(
-                    CalendarDayKind.FERTILE_ESTIMATE,
+                    if (offset == 5L) {
+                        CalendarDayKind.OVULATION_ESTIMATE
+                    } else {
+                        CalendarDayKind.FERTILE_ESTIMATE
+                    },
                     calendarDay(records, result, fertileStart.plusDays(offset), today).kind
                 )
             }

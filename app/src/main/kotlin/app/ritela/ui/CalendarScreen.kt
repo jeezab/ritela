@@ -48,9 +48,10 @@ import androidx.core.net.toUri
 import app.ritela.R
 import app.ritela.domain.CalendarDayInfo
 import app.ritela.domain.CalendarDayKind
+import app.ritela.domain.ConceptionEstimate
 import app.ritela.domain.Period
 import app.ritela.domain.calendarDay
-import app.ritela.domain.estimatedFertileWindow
+import app.ritela.domain.conceptionEstimate
 import app.ritela.domain.journalSelections
 import app.ritela.domain.monthDays
 import java.time.DayOfWeek
@@ -323,24 +324,14 @@ private fun CalendarDayDetails(
             )
             Text(
                 stringResource(
-                    if (estimatedFertileWindow(state.periods, state.analysis, date) != null) {
-                        R.string.conception_higher
-                    } else {
-                        if (state.periods.isEmpty() || state.analysis.forecasts.isEmpty() ||
-                            date < state.periods.minOf { it.start } ||
-                            date > state.analysis.forecasts.last().predictedStartDate
-                        ) {
-                            R.string.conception_unconfirmed
-                        } else {
-                            R.string.conception_outside
-                        }
+                    when (conceptionEstimate(state.periods, state.analysis, date, state.today)) {
+                        ConceptionEstimate.PEAK -> R.string.conception_peak
+                        ConceptionEstimate.HIGHER -> R.string.conception_higher
+                        ConceptionEstimate.LOWER -> R.string.conception_outside
+                        ConceptionEstimate.UNKNOWN -> R.string.conception_unconfirmed
                     }
                 ),
                 style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                stringResource(R.string.pregnancy_explanation),
-                style = MaterialTheme.typography.bodySmall
             )
             TextButton(onClick = {
                 context.startActivity(
@@ -471,6 +462,9 @@ fun MonthGrid(
                                 inRange || detail.kind == CalendarDayKind.OBSERVED ->
                                     CalendarColors.period
 
+                                detail.kind == CalendarDayKind.OVULATION_ESTIMATE ->
+                                    CalendarColors.ovulation
+
                                 detail.kind == CalendarDayKind.FERTILE_ESTIMATE ->
                                     CalendarColors.fertile
 
@@ -481,7 +475,7 @@ fun MonthGrid(
                                 else -> MaterialTheme.colorScheme.surface
                             },
                             contentColor = if (inRange || detail.kind == CalendarDayKind.OBSERVED) {
-                                androidx.compose.ui.graphics.Color.White
+                                CalendarColors.ink
                             } else if (detail.kind != CalendarDayKind.NONE) {
                                 CalendarColors.ink
                             } else {
@@ -542,6 +536,7 @@ fun MonthGrid(
                                             CalendarDayKind.APPROXIMATE -> "\u2248"
                                             CalendarDayKind.UNCERTAIN -> "\u00b7"
                                             CalendarDayKind.ESTIMATED_PERIOD -> "\u25cb"
+                                            CalendarDayKind.OVULATION_ESTIMATE -> "\u273f"
                                             CalendarDayKind.FERTILE_ESTIMATE -> "\u273f"
                                             else -> " "
                                         },
@@ -651,5 +646,6 @@ private fun dayKindText(kind: CalendarDayKind): String = stringResource(
         CalendarDayKind.ESTIMATED_PERIOD -> R.string.calendar_estimated_period
         CalendarDayKind.NONE -> R.string.calendar_empty
         CalendarDayKind.FERTILE_ESTIMATE -> R.string.fertile_estimate
+        CalendarDayKind.OVULATION_ESTIMATE -> R.string.ovulation_estimate
     }
 )

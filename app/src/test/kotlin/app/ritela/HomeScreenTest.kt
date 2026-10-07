@@ -273,7 +273,7 @@ class HomeScreenTest {
             saveRendering(if (dark) "calendar-dark" else "calendar-forecast")
             compose.onNodeWithTag("calendar-day-$predicted").performClick()
             compose.onNodeWithText(
-                "Вне предполагаемого фертильного окна"
+                "Ниже по прогнозу"
             ).performScrollTo().assertIsDisplayed()
             saveRendering(
                 if (dark) "calendar-day-details-dark" else "calendar-day-forecast-details",
