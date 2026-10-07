@@ -899,6 +899,36 @@ class HomeScreenTest {
         )
     }
 
+    @Test
+    fun calendarDayScrollingDoesNotMoveOrDismissTheSheet() {
+        val today = LocalDate.of(2026, 10, 7)
+        val state = PeriodUiState(
+            loading = false,
+            today = today,
+            dayLogs = listOf(app.ritela.domain.DayLog(today, note = "Synthetic note. ".repeat(60)))
+        )
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                RitelaTheme {
+                    CalendarScreen(androidx.compose.foundation.layout.PaddingValues(), state, {
+                    }, {}, {})
+                }
+            }
+        }
+        compose.onNodeWithTag("calendar-day-$today").performClick()
+        compose.onNodeWithTag("day-details-close").performScrollTo()
+        val initialTop = compose.onNodeWithTag(
+            "day-details-frame"
+        ).fetchSemanticsNode().boundsInRoot.top
+        repeat(4) { compose.onNodeWithTag("day-details").performTouchInput { swipeDown() } }
+        val finalTop = compose.onNodeWithTag(
+            "day-details-frame"
+        ).fetchSemanticsNode().boundsInRoot.top
+        assertTrue(kotlin.math.abs(initialTop - finalTop) < 1f)
+        compose.onNodeWithTag("day-details-header-close").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("day-details").assertDoesNotExist()
+    }
+
     private fun saveRendering(name: String, dialog: Boolean = false) {
         compose.waitForIdle()
         val bitmap = if (dialog) {

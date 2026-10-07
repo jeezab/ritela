@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -272,88 +273,116 @@ private fun CalendarDayDetails(
     val context = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetGesturesEnabled = false,
+        dragHandle = null,
         sheetState = androidx.compose.material3.rememberModalBottomSheetState(
             skipPartiallyExpanded = true
         )
     ) {
-        Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(Spacing.large).testTag("day-details"),
-            verticalArrangement = Arrangement.spacedBy(Spacing.medium)
-        ) {
-            Text(formattedDate(date), style = MaterialTheme.typography.headlineSmall)
-            if (selection.kind != CalendarDayKind.NONE) Text(dayKindText(selection.kind))
-            selection.period?.let { period ->
-                Text(periodDates(period))
-                if (period.end == null) Text(stringResource(R.string.ongoing))
-                Row {
-                    TextButton(
-                        onClick = { onEdit(period) },
-                        enabled = !state.saving,
-                        modifier = Modifier.testTag("edit-period-${period.id}")
-                    ) {
-                        Text(stringResource(R.string.edit))
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.9f).testTag("day-details-frame")) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = Spacing.large),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    formattedDate(date),
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                androidx.compose.material3.IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.testTag("day-details-header-close")
+                ) {
+                    Icon(painterResource(R.drawable.ic_close), stringResource(R.string.done))
+                }
+            }
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(Spacing.large).testTag("day-details"),
+                verticalArrangement = Arrangement.spacedBy(Spacing.medium)
+            ) {
+                if (selection.kind != CalendarDayKind.NONE) Text(dayKindText(selection.kind))
+                selection.period?.let { period ->
+                    Text(periodDates(period))
+                    if (period.end == null) Text(stringResource(R.string.ongoing))
+                    Row {
+                        TextButton(
+                            onClick = { onEdit(period) },
+                            enabled = !state.saving,
+                            modifier = Modifier.testTag("edit-period-${period.id}")
+                        ) {
+                            Text(stringResource(R.string.edit))
+                        }
+                        TextButton(
+                            onClick = { onDelete(period) },
+                            enabled = !state.saving,
+                            modifier = Modifier.testTag("delete-period-${period.id}")
+                        ) {
+                            Text(stringResource(R.string.delete))
+                        }
                     }
-                    TextButton(
-                        onClick = { onDelete(period) },
-                        enabled = !state.saving,
-                        modifier = Modifier.testTag("delete-period-${period.id}")
-                    ) {
-                        Text(stringResource(R.string.delete))
+                } ?: run {
+                    selection.forecast?.let {
+                        Text(
+                            stringResource(
+                                R.string.forecast_range,
+                                formattedDate(it.lowerBound),
+                                formattedDate(it.upperBound)
+                            )
+                        )
+                    }
+                    if (date <= state.today) {
+                        Button(onClick = {
+                            onAdd(date)
+                        }, enabled = !state.loading && !state.saving) {
+                            Text(stringResource(R.string.add_period))
+                        }
                     }
                 }
-            } ?: run {
-                selection.forecast?.let {
-                    Text(
-                        stringResource(
-                            R.string.forecast_range,
-                            formattedDate(it.lowerBound),
-                            formattedDate(it.upperBound)
+                Text(
+                    stringResource(R.string.pregnancy_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    stringResource(
+                        when (
+                            conceptionEstimate(
+                                state.periods,
+                                state.analysis,
+                                date,
+                                state.today
+                            )
+                        ) {
+                            ConceptionEstimate.PEAK -> R.string.conception_peak
+                            ConceptionEstimate.HIGHER -> R.string.conception_higher
+                            ConceptionEstimate.LOWER -> R.string.conception_outside
+                            ConceptionEstimate.UNKNOWN -> R.string.conception_unconfirmed
+                        }
+                    ),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                TextButton(onClick = {
+                    context.startActivity(
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            (
+                                "https://www.nhs.uk/contraception/methods-of-contraception/" +
+                                    "natural-family-planning/"
+                                ).toUri()
                         )
                     )
-                }
+                }) { Text(stringResource(R.string.help_source, "NHS")) }
                 if (date <= state.today) {
-                    Button(onClick = { onAdd(date) }, enabled = !state.loading && !state.saving) {
-                        Text(stringResource(R.string.add_period))
-                    }
-                }
-            }
-            Text(
-                stringResource(R.string.pregnancy_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                stringResource(
-                    when (conceptionEstimate(state.periods, state.analysis, date, state.today)) {
-                        ConceptionEstimate.PEAK -> R.string.conception_peak
-                        ConceptionEstimate.HIGHER -> R.string.conception_higher
-                        ConceptionEstimate.LOWER -> R.string.conception_outside
-                        ConceptionEstimate.UNKNOWN -> R.string.conception_unconfirmed
-                    }
-                ),
-                style = MaterialTheme.typography.bodyMedium
-            )
-            TextButton(onClick = {
-                context.startActivity(
-                    android.content.Intent(
-                        android.content.Intent.ACTION_VIEW,
-                        (
-                            "https://www.nhs.uk/contraception/methods-of-contraception/" +
-                                "natural-family-planning/"
-                            ).toUri()
+                    DaySummary(
+                        state.dayLogs.firstOrNull { it.date == date },
+                        { onLogDay(date) },
+                        !state.loading && !state.saving,
+                        layout = state.journalLayout
                     )
-                )
-            }) { Text(stringResource(R.string.help_source, "NHS")) }
-            if (date <= state.today) {
-                DaySummary(
-                    state.dayLogs.firstOrNull { it.date == date },
-                    { onLogDay(date) },
-                    !state.loading && !state.saving,
-                    layout = state.journalLayout
-                )
-            }
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("day-details-close")) {
-                Text(stringResource(R.string.done))
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.testTag("day-details-close")) {
+                    Text(stringResource(R.string.done))
+                }
             }
         }
     }
