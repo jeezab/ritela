@@ -3,6 +3,7 @@ package app.ritela
 import android.content.pm.PackageManager
 import android.view.WindowManager
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.CompositionLocalProvider
@@ -994,6 +995,58 @@ class HomeScreenTest {
             }
             compose.onNodeWithText(expected).assertIsDisplayed()
             assertTrue(compose.onAllNodesWithText("Мало данных").fetchSemanticsNodes().isEmpty())
+        }
+    }
+
+    @Test
+    fun renderPolishedOrbitHeroInLightDarkAndLargeText() {
+        val today = LocalDate.of(2026, 10, 7)
+        val start = today.minusDays(7)
+        val records =
+            listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
+        val basis = analyzeCycles(records, today)
+        val analysis = basis.copy(
+            forecasts = listOf(
+                basis.forecasts.first().copy(
+                    predictedStartDate = LocalDate.of(2026, 11, 2),
+                    lowerBound = LocalDate.of(2026, 10, 30),
+                    upperBound = LocalDate.of(2026, 11, 5),
+                    cycleMedian = 29
+                )
+            )
+        )
+        for ((name, scale, dark) in listOf(
+            Triple("orbit-hero-light", 1f, false),
+            Triple("orbit-hero-dark", 1f, true),
+            Triple("orbit-hero-large-text", 2f, false)
+        )) {
+            compose.activity.runOnUiThread {
+                compose.activity.setContent {
+                    val density = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(density.density, scale)
+                    ) {
+                        RitelaTheme(darkTheme = dark) {
+                            androidx.compose.material3.Surface {
+                                androidx.compose.foundation.layout.Column(
+                                    androidx.compose.ui.Modifier.width(360.dp)
+                                        .then(androidx.compose.ui.Modifier.padding(16.dp))
+                                ) {
+                                    app.ritela.ui.ForecastCard(
+                                        analysis,
+                                        today,
+                                        reducedMotion = true
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            compose.onNodeWithTag("forecast-date").assertTextEquals("2 ноября").assertIsDisplayed()
+            compose.onNodeWithText("Примерно через 26 дней").assertIsDisplayed()
+            compose.onNodeWithText("День 8 цикла").assertIsDisplayed()
+            saveRendering(name)
         }
     }
 

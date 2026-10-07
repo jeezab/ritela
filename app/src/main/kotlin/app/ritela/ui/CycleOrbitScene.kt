@@ -1,14 +1,12 @@
-package app.ritela.ui
+﻿package app.ritela.ui
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
@@ -19,155 +17,153 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
-import app.ritela.domain.EstimatedCyclePhase
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.min
 
 data class OrbitColors(val ink: Color, val rose: Color, val peach: Color, val surface: Color)
 
-/** Cached vector scene. State reads happen in drawing, not in composition on every frame. */
+/** One analytic ellipse. All geometry and brushes are cached; animation only invalidates drawing. */
 @Composable
 fun CycleOrbitScene(
     cycleDay: Long,
-    cycleLengthEstimate: Int,
-    phase: EstimatedCyclePhase,
     progress: Float,
-    predictedWindow: ClosedRange<LocalDate>?,
     reducedMotion: Boolean,
     colors: OrbitColors,
     modifier: Modifier = Modifier
 ) {
-    val pulse = orbitPulse(reducedMotion)
-    val position = if (reducedMotion) {
-        rememberUpdatedState(progress.coerceIn(0f, 1f))
-    } else {
-        animateFloatAsState(progress.coerceIn(0f, 1f), tween(900), label = "cycle position")
-    }
-    val length = cycleLengthEstimate.coerceAtLeast(1)
-    val peakProgress = ((length - 14).toFloat() / length).coerceIn(0f, 1f)
-    val glow = when (phase) {
-        EstimatedCyclePhase.EARLY -> colors.rose
-        EstimatedCyclePhase.FOLLICULAR -> colors.peach
-        EstimatedCyclePhase.OVULATION -> colors.peach
-        else -> colors.ink
-    }
-    val phaseLight = if (reducedMotion) {
-        rememberUpdatedState(glow)
-    } else {
-        animateColorAsState(glow, tween(900), label = "phase light")
-    }
-    Box(
-        modifier.fillMaxSize().testTag("cycle-orbit-$cycleDay")
-            .clearAndSetSemantics {}.drawWithCache {
-                val center = Offset(size.width / 2, size.height / 2)
-                val rx = size.width * 0.32f
-                val ry = size.height * 0.37f
-                fun point(fraction: Float): Offset {
-                    val angle = (fraction * 2 * PI - PI * 0.8).toFloat()
-                    return center + Offset(cos(angle) * rx, sin(angle) * ry)
-                }
-                val orbit = Path().apply {
-                    repeat(65) { index ->
-                        val fraction = index / 64f
-                        val angle = (fraction * 2 * PI - PI * 0.8).toFloat()
-                        val organic = 1f + 0.018f * sin(angle * 3)
-                        val p = center + Offset(cos(angle) * rx * organic, sin(angle) * ry)
-                        if (index == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
-                    }
-                    close()
-                }
-                val nodes = List(6) { point(it / 6f) }
-                val sun = point(0f)
-                val moon = point(0.9f)
-                val peak = point(peakProgress)
-                val halo = Brush.radialGradient(
-                    listOf(glow.copy(alpha = 0.16f), Color.Transparent),
-                    center,
-                    rx
-                )
-                val sunBrush = Brush.radialGradient(
-                    listOf(colors.peach, colors.rose.copy(alpha = 0.3f)),
-                    sun,
-                    9.dp.toPx()
-                )
-                val stroke = Stroke(1.dp.toPx())
-                val windowStroke = Stroke(3.dp.toPx())
-                val driftDistance = 2.dp.toPx()
-                val uncertainty = predictedWindow?.let {
-                    (ChronoUnit.DAYS.between(it.start, it.endInclusive).toFloat() / length * 360)
-                        .coerceIn(0f, 120f)
-                } ?: 0f
-                onDrawBehind {
-                    val breath = pulse.value
-                    drawCircle(halo, rx, center)
-                    drawPath(orbit, colors.ink.copy(alpha = 0.18f + breath * 0.06f), style = stroke)
-                    if (uncertainty > 0f) {
-                        drawArc(
-                            colors.rose.copy(alpha = 0.18f),
-                            -144f - uncertainty / 2,
-                            uncertainty,
-                            false,
-                            center - Offset(rx, ry),
-                            Size(rx * 2, ry * 2),
-                            style = windowStroke
-                        )
-                    }
-                    nodes.forEachIndexed { index, node ->
-                        val drift = Offset(
-                            0f,
-                            (breath - 0.5f) * if (index % 2 == 0) driftDistance else -driftDistance
-                        )
-                        drawCircle(colors.rose.copy(alpha = 0.45f), 2.5.dp.toPx(), node + drift)
-                    }
-                    drawCircle(colors.peach.copy(alpha = 0.12f), 17.dp.toPx(), sun)
-                    drawCircle(sunBrush, 8.dp.toPx(), sun)
-                    drawCircle(colors.ink.copy(alpha = 0.28f), 8.dp.toPx(), moon)
-                    drawCircle(
-                        colors.surface,
-                        7.dp.toPx(),
-                        moon + Offset(4.dp.toPx(), -2.dp.toPx())
+    val breath = orbitPulse(reducedMotion, 0.93f, 1f, 2600, "orbit breathing")
+    val currentPulse = orbitPulse(reducedMotion, 0.98f, 1.04f, 2100, "current point")
+    Canvas(
+        modifier.testTag("cycle-orbit-$cycleDay").clearAndSetSemantics {}.drawWithCache {
+            // Reserve space for the tilted ellipse and the largest halo at every width.
+            val unit = min(size.width / 300f, size.height / 150f)
+            val center = Offset(size.width / 2, size.height / 2)
+            val geometry = OrbitGeometry(center, 115f * unit, 43f * unit)
+            val orbitSize = Size(geometry.horizontalRadius * 2, geometry.verticalRadius * 2)
+            val orbitTopLeft = center - Offset(geometry.horizontalRadius, geometry.verticalRadius)
+            val stroke = Stroke(1.dp.toPx())
+            val sun = geometry.pointOnOrbit(OrbitPhaseMarkers.START.angleDegrees)
+            val follicular = geometry.pointOnOrbit(OrbitPhaseMarkers.FOLLICULAR.angleDegrees)
+            val ovulation = geometry.pointOnOrbit(OrbitPhaseMarkers.OVULATION.angleDegrees)
+            val luteal = geometry.pointOnOrbit(OrbitPhaseMarkers.LUTEAL.angleDegrees)
+            val moon = geometry.pointOnOrbit(OrbitPhaseMarkers.END.angleDegrees)
+            val active = geometry.pointOnOrbit(currentOrbitAngle(progress))
+            fun halo(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
+                listOf(color.copy(alpha = 0.24f), color.copy(alpha = 0.07f), Color.Transparent),
+                point,
+                radius * unit
+            )
+            val sunHalo = halo(colors.peach, sun, 19f)
+            val pearl = androidx.compose.ui.graphics.lerp(colors.peach, Color(0xFFFFF4E5), 0.65f)
+            val moonColor = androidx.compose.ui.graphics.lerp(
+                colors.ink,
+                colors.surface,
+                if (colors.surface.luminance() < 0.4f) 0.25f else 0.65f
+            )
+            val ovulationHalo = halo(colors.rose, ovulation, 24f)
+            val activeHalo = halo(colors.rose, active, 16f)
+            val mist = Brush.radialGradient(
+                listOf(colors.rose.copy(alpha = 0.07f), Color.Transparent),
+                center,
+                85f * unit
+            )
+            fun planet(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
+                listOf(androidx.compose.ui.graphics.lerp(color, Color.White, 0.4f), color),
+                point - Offset(radius * unit * 0.3f, radius * unit * 0.4f),
+                radius * unit * 1.5f
+            )
+            val sunBody = planet(colors.peach, sun, 6.5f)
+            val pearlBody = planet(pearl, ovulation, 8.5f)
+            // A true vector crescent: its transparent cutout preserves the underlying ellipse.
+            val moonRadius = 7.5f * unit
+            val moonDisc = Path().apply {
+                addOval(
+                    androidx.compose.ui.geometry.Rect(
+                        moon - Offset(moonRadius, moonRadius),
+                        Size(moonRadius * 2, moonRadius * 2)
                     )
-                    drawCircle(colors.peach.copy(alpha = 0.16f), 12.dp.toPx(), peak)
-                    drawCircle(colors.peach, 4.dp.toPx(), peak)
-                    val active = point(position.value)
-                    val scale = 0.98f + breath * 0.04f
-                    drawCircle(phaseLight.value.copy(alpha = 0.12f), 16.dp.toPx() * scale, active)
-                    drawCircle(colors.surface, 7.dp.toPx() * scale, active)
-                    drawCircle(
-                        colors.rose.copy(alpha = 0.5f),
-                        7.dp.toPx() * scale,
-                        active,
+                )
+            }
+            val cutoutCenter = moon + Offset(3.8f * unit, -2.4f * unit)
+            val moonCutout = Path().apply {
+                addOval(
+                    androidx.compose.ui.geometry.Rect(
+                        cutoutCenter - Offset(moonRadius, moonRadius),
+                        Size(
+                            moonRadius * 2,
+                            moonRadius * 2
+                        )
+                    )
+                )
+            }
+            val crescent = Path.combine(PathOperation.Difference, moonDisc, moonCutout)
+            onDrawBehind {
+                val light = breath.value
+                drawCircle(mist, 85f * unit, center)
+                rotate(geometry.tiltDegrees, center) {
+                    drawOval(
+                        colors.rose.copy(alpha = 0.36f * light),
+                        orbitTopLeft,
+                        orbitSize,
                         style = stroke
                     )
-                    drawCircle(
-                        colors.ink.copy(alpha = 0.18f),
-                        1.dp.toPx(),
-                        center + Offset(rx, -ry)
-                    )
-                    drawCircle(
-                        colors.rose.copy(alpha = 0.25f),
-                        1.dp.toPx(),
-                        center - Offset(rx, -ry)
-                    )
                 }
+                drawCircle(sunHalo, 19f * unit, sun, alpha = light)
+                drawCircle(sunBody, 6.5f * unit, sun)
+                drawCircle(colors.surface, 4.2f * unit, follicular)
+                drawCircle(
+                    colors.rose.copy(alpha = 0.55f),
+                    4.2f * unit,
+                    follicular,
+                    style = Stroke(0.8.dp.toPx())
+                )
+                drawCircle(ovulationHalo, 24f * unit, ovulation, alpha = light)
+                drawCircle(pearlBody, 8.5f * unit, ovulation)
+                drawCircle(
+                    colors.rose.copy(alpha = 0.30f),
+                    8.5f * unit,
+                    ovulation,
+                    style = Stroke(0.7.dp.toPx())
+                )
+                drawCircle(colors.rose.copy(alpha = 0.65f), 4.5f * unit, luteal)
+                drawPath(crescent, moonColor)
+                val scale = currentPulse.value
+                drawCircle(activeHalo, 16f * unit * scale, active)
+                drawCircle(colors.surface, 6f * unit * scale, active)
+                drawCircle(
+                    colors.rose.copy(alpha = 0.8f),
+                    6f * unit * scale,
+                    active,
+                    style = stroke
+                )
+                drawCircle(colors.ink.copy(alpha = 0.8f), 2.4f * unit, active)
             }
-    )
+        }
+    ) {}
 }
 
 @Composable
-private fun orbitPulse(reducedMotion: Boolean): State<Float> {
-    if (reducedMotion) return rememberUpdatedState(0.5f)
-    return rememberInfiniteTransition(label = "orbit breathing").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2600), RepeatMode.Reverse),
-        label = "orbit light"
+private fun orbitPulse(
+    reducedMotion: Boolean,
+    from: Float,
+    to: Float,
+    halfPeriod: Int,
+    label: String
+): State<Float> {
+    if (reducedMotion) return rememberUpdatedState(1f)
+    return rememberInfiniteTransition(label = label).animateFloat(
+        initialValue = from,
+        targetValue = to,
+        animationSpec = infiniteRepeatable(
+            tween(halfPeriod, easing = FastOutSlowInEasing),
+            RepeatMode.Reverse
+        ),
+        label = label
     )
 }
