@@ -1,6 +1,6 @@
 # Точка продолжения
 
-2026-10-07. Выполнен пакет доработок скриншотов, резервных копий, календаря, длительности прогноза и редактируемого дневника. Все локальные обязательные Android checks прошли. Версия приложения остаётся 0.2.1; эта доработка подготовлена к локальному коммиту, новый релиз/тег не создавался.
+2026-10-07. Выполнен пакет доработок скриншотов, резервных копий, календаря, длительности прогноза и редактируемого дневника. Все локальные обязательные Android checks прошли. По новому явному запросу пользователя подготовлен выпуск 0.2.2/code 2002 для отправки master и нового тега v0.2.2. Существующие теги не меняются; публикацию APK должен подтвердить GitHub workflow.
 
 ## Результат
 
@@ -19,15 +19,19 @@
 - scripts/gradle.ps1 checkKotlin assembleDebug testDebugUnitTest lintDebug — BUILD SUCCESSFUL. 65 tests, 0 failures/errors; lint 0 errors/warnings, 9 informational hints.
 - Автоматически: screenshots разрешены при сохранённом manifest privacy, defaults/reactive recalculation, семидневные fertile/bleeding границы всех 12 горизонтов, отделение preset/измеренных данных, ID/reorder/minimum tag, custom selections, plaintext и пароли 1/300 символов, старый payload, миграции v1/v2→v3, config перенос, CRUD/recreation, drag после удаления тега, Save/Cancel иконки и изменение длительности после перезапуска.
 - Просмотрены настоящие PNG: календарь light/dark, редактор, форма без разделов, dark EN 320dp/200%, графики и отдельная средняя длительность. Галерея preview-ui.ps1 -SkipRender — PASS, 53 PNG.
-- verify-apk.ps1 — PASS: signed app.ritela debug APK, API 26–37, no network permissions; 12 169 753 bytes, SHA256 ab7f019b1ab3ce2e1fd941c1a5a7abb780433c6d2eeced8240cb5936f773239d. Артефакт: app/build/outputs/apk/debug/app-debug.apk.
+- verify-apk.ps1 — PASS: signed app.ritela debug APK, API 26–37, no network permissions; 11 866 174 bytes, SHA256 7152be6b2c76129aeb4083d6f05dd832f77edd5c960c2bc393e5bfb01dfdfe23. Артефакт: app/build/outputs/apk/debug/app-debug.apk.
 - check-workspace и check-health-content — PASS; quick_validate для двух изменённых скиллов — PASS; git diff --check — PASS.
 
 ## Следующий шаг / ограничения
 
-Проверить текущий APK на устройстве: системный скриншот, клавиатура и поля редактора, drag/TalkBack, SAF export/import обоих вариантов и переход с установленной базы v2. JVM PNG/тесты не заменяют device smoke test. Новый CI run и production APK для этих изменений не проверены; клинический review не проводился. Менять численные проценты риска по одному календарю нельзя считать подтверждённым расчётом.
+Следующий шаг: проверить Android/Release APK workflow для v0.2.2, опубликованный production APK и обновление через Obtainium. Затем проверить APK на устройстве: системный скриншот, клавиатура и поля редактора, drag/TalkBack, SAF export/import обоих вариантов и переход с установленной базы v2. JVM PNG/тесты не заменяют device smoke test. Новый CI run и production APK для этих изменений не проверены; клинический review не проводился. Менять численные проценты риска по одному календарю нельзя считать подтверждённым расчётом.
 
 Ручная копия не переносит язык, тему или preset длительности: настройки устройства сохраняются. Конфликт сохранённых layouts отменяет импорт вместе с остальными конфликтами; автоматического объединения несовпадающих структур нет. Пользовательские названия общие для EN/RU, стандартные подписи локализованы. Удалённые интерфейсные разделы скрывают значения, но не удаляют старые записи.
 
 ## Выпуски и Obtainium
 
-Ранее опубликован Release v0.2.1 (draft=false, prerelease=false), APK uploaded; старый tag не менялся. jeezab/ritela — private. Obtainium требуется отдельный fine-grained token для этого repository с Contents Read-only; без авторизации GitHub release API возвращает 404. Секреты/ключи не добавлялись в Git, production подпись отдельно не проверялась. Этот пакет не опубликован отдельным релизом.
+Ранее опубликован Release v0.2.1 (draft=false, prerelease=false), APK uploaded; старый tag не менялся. jeezab/ritela — private. Obtainium требуется отдельный fine-grained token для этого repository с Contents Read-only; без авторизации GitHub release API возвращает 404. Секреты/ключи не добавлялись в Git, production подпись отдельно не проверялась. Подготовлен отдельный v0.2.2; публикация ещё не подтверждена.
+
+## Выпуск 0.2.2
+
+2026-10-07: git fetch origin --tags подтвердил отсутствие входящих коммитов (master опережал origin/master на 2). version.properties → 0.2.2, versionCode 2002. release.py check --tag v0.2.2 и 7 release tests — PASS; полный checkKotlin/assembleDebug/testDebugUnitTest/lintDebug повторён после смены версии — PASS, 65 tests без ошибок. verify-apk и preview-ui -SkipRender — PASS. Отправка master и нового тега явно разрешена пользователем; production secrets не читались.
