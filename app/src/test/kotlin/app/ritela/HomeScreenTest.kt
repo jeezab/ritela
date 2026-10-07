@@ -8,6 +8,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -766,7 +767,10 @@ class HomeScreenTest {
         compose.onNodeWithTag("log-day").performScrollTo().performClick()
         compose.onNodeWithTag("journal-edit-headache").performScrollTo().performClick()
         saveRendering("journal-editor", dialog = true)
-        compose.onNodeWithTag("journal-move-headache-SEVERE").performScrollTo().performClick()
+        val reorder = compose.onNodeWithTag("headache-SEVERE").performScrollTo()
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .first()
+        compose.runOnIdle { reorder.action() }
         awaitLayout { it.sections.first().tags[2].id == "SEVERE" }
         for (tag in listOf("NONE", "MILD", "MODERATE")) {
             compose.onNodeWithTag("journal-remove-headache-$tag").performScrollTo().performClick()

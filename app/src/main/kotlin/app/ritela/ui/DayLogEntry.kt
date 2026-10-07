@@ -1,10 +1,5 @@
 package app.ritela.ui
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -42,12 +38,17 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import app.ritela.R
 import app.ritela.data.JournalCodec
 import app.ritela.domain.DayLog
@@ -538,42 +539,44 @@ private fun JournalChips(
     onRename: (JournalTag) -> Unit
 ) {
     val bounds = remember(section.id) { mutableStateMapOf<String, Rect>() }
-    val tilt = if (editing) {
-        val transition = rememberInfiniteTransition(label = "journal-edit")
-        transition.animateFloat(
-            -1.5f,
-            1.5f,
-            infiniteRepeatable(tween(170), RepeatMode.Reverse),
-            label = "wiggle"
-        )
-    } else {
-        remember { mutableStateOf(0f) }
-    }
+    val hitMargin = with(LocalDensity.current) { 10.dp.toPx() }
+    val moveBefore = stringResource(R.string.journal_move_before)
+    val moveAfter = stringResource(R.string.journal_move_after)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
-        section.tags.forEach { tag ->
+        section.tags.forEachIndexed { index, tag ->
             var drag by remember(tag.id) { mutableStateOf(Offset.Zero) }
+            var touchStart by remember(tag.id) { mutableStateOf(Offset.Zero) }
+            var dragging by remember(tag.id) { mutableStateOf(false) }
             Box(
                 Modifier.onGloballyPositioned { bounds[tag.id] = it.boundsInRoot() }
+                    .zIndex(if (dragging) 1f else 0f)
                     .graphicsLayer {
-                        rotationZ = if (editing) tilt.value else 0f
                         translationX = drag.x
-                        translationY =
-                            drag.y
+                        translationY = drag.y
+                        alpha = if (dragging) 0.85f else 1f
                     }
                     .pointerInput(editing, enabled, section.tags) {
                         if (editing && enabled) {
                             detectDragGesturesAfterLongPress(
-                                onDragStart = { drag = Offset.Zero },
-                                onDragCancel = { drag = Offset.Zero },
-                                onDragEnd = {
-                                    val center = bounds[tag.id]?.center?.plus(drag)
-                                    val target = center?.let { point ->
-                                        bounds.filterKeys { id ->
-                                            id != tag.id && section.tags.any { it.id == id }
-                                        }
-                                            .filterValues { it.contains(point) }.keys.firstOrNull()
-                                    }
+                                onDragStart = { position ->
+                                    touchStart = (bounds[tag.id]?.topLeft ?: Offset.Zero) + position
                                     drag = Offset.Zero
+                                    dragging = true
+                                },
+                                onDragCancel = {
+                                    drag = Offset.Zero
+                                    dragging = false
+                                },
+                                onDragEnd = {
+                                    val point = touchStart + drag
+                                    val target = bounds.filterKeys { id ->
+                                        id != tag.id && section.tags.any { it.id == id }
+                                    }.filterValues { it.inflate(hitMargin).contains(point) }
+                                        .minByOrNull { (_, rect) ->
+                                            (rect.center - point).getDistanceSquared()
+                                        }?.key
+                                    drag = Offset.Zero
+                                    dragging = false
                                     if (target != null) onMove(tag.id, target)
                                 },
                                 onDrag = { change, amount ->
@@ -584,39 +587,54 @@ private fun JournalChips(
                         }
                     }
             ) {
-                Column {
-                    if (editing) {
-                        Row {
-                            IconButton(
-                                onClick = { onRemove(tag.id) },
-                                enabled = enabled && section.tags.size > 1,
-                                modifier = Modifier.testTag(
-                                    "journal-remove-${section.id}-${tag.id}"
-                                )
-                            ) {
-                                Icon(
-                                    painterResource(R.drawable.ic_minus),
-                                    stringResource(R.string.journal_delete_tag),
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                            val index = section.tags.indexOf(tag)
-                            TextButton(
-                                onClick = { onMove(tag.id, section.tags[index - 1].id) },
-                                enabled = enabled && index > 0,
-                                modifier = Modifier.testTag("journal-move-${section.id}-${tag.id}")
-                            ) {
-                                Text(stringResource(R.string.journal_move_before))
-                            }
-                        }
-                    }
-                    FilterChip(
-                        tag.id in selected,
-                        { if (editing) onRename(tag) else onSelect(tag.id) },
-                        enabled = enabled,
-                        modifier = Modifier.testTag("${section.id}-${tag.id}"),
-                        label = { Text(journalTagLabel(section, tag)) }
+                FilterChip(
+                    selected = tag.id in selected,
+                    onClick = { if (editing) onRename(tag) else onSelect(tag.id) },
+                    enabled = enabled,
+                    modifier = Modifier.padding(
+                        top = if (editing) 12.dp else 0.dp,
+                        end = if (editing) 12.dp else 0.dp
                     )
+                        .testTag("${section.id}-${tag.id}").semantics {
+                            if (editing && enabled) {
+                                customActions = buildList {
+                                    if (index > 0) {
+                                        add(
+                                            CustomAccessibilityAction(moveBefore) {
+                                                onMove(tag.id, section.tags[index - 1].id)
+                                                true
+                                            }
+                                        )
+                                    }
+                                    if (index <
+                                        section.tags.lastIndex
+                                    ) {
+                                        add(
+                                            CustomAccessibilityAction(moveAfter) {
+                                                onMove(tag.id, section.tags[index + 1].id)
+                                                true
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                    label = { Text(journalTagLabel(section, tag)) }
+                )
+                if (editing) {
+                    IconButton(
+                        onClick = { onRemove(tag.id) },
+                        enabled = enabled && section.tags.size > 1,
+                        modifier = Modifier.align(Alignment.TopEnd).offset(y = (-8).dp).size(32.dp)
+                            .testTag("journal-remove-${section.id}-${tag.id}")
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_minus),
+                            stringResource(R.string.journal_delete_tag),
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
