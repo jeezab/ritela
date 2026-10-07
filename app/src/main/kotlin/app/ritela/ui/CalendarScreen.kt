@@ -1,6 +1,7 @@
 package app.ritela.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -34,6 +36,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -271,17 +275,44 @@ private fun CalendarDayDetails(
 ) {
     val selection = calendarDay(state.periods, state.analysis, date, state.today)
     val context = androidx.compose.ui.platform.LocalContext.current
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+    val scope = rememberCoroutineScope()
+    var headerDrag by remember { mutableFloatStateOf(0f) }
+    val dismissDistance = with(LocalDensity.current) { 32.dp.toPx() }
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetGesturesEnabled = false,
         dragHandle = null,
-        sheetState = androidx.compose.material3.rememberModalBottomSheetState(
-            skipPartiallyExpanded = true
-        )
+        sheetState = sheetState
     ) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.9f).testTag("day-details-frame")) {
+        Column(
+            Modifier.fillMaxWidth().fillMaxHeight(0.9f)
+                .graphicsLayer { translationY = headerDrag }.testTag("day-details-frame")
+        ) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = Spacing.large),
+                Modifier.fillMaxWidth().heightIn(min = 64.dp)
+                    .testTag("day-details-drag-header")
+                    .pointerInput(sheetState, dismissDistance) {
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { change, amount ->
+                                change.consume()
+                                headerDrag = (headerDrag + amount).coerceAtLeast(0f)
+                            },
+                            onDragCancel = { headerDrag = 0f },
+                            onDragEnd = {
+                                if (headerDrag >= dismissDistance) {
+                                    scope.launch {
+                                        sheetState.hide()
+                                        onDismiss()
+                                    }
+                                } else {
+                                    headerDrag = 0f
+                                }
+                            }
+                        )
+                    }.padding(horizontal = Spacing.large),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(

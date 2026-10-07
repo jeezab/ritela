@@ -929,7 +929,9 @@ class HomeScreenTest {
             "day-details-frame"
         ).fetchSemanticsNode().boundsInRoot.top
         assertTrue(kotlin.math.abs(initialTop - finalTop) < 1f)
-        compose.onNodeWithTag("day-details-header-close").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("day-details-drag-header").performTouchInput {
+            swipeDown()
+        }
         compose.onNodeWithTag("day-details").assertDoesNotExist()
     }
 
