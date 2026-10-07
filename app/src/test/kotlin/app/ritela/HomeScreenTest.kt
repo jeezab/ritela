@@ -73,7 +73,7 @@ class HomeScreenTest {
             "Записи хранятся на этом устройстве"
         ).performScrollTo().assertIsDisplayed()
         assertTrue(
-            compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0
+            compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE == 0
         )
         val applicationInfo = compose.activity.applicationInfo
         assertFalse(
@@ -273,7 +273,7 @@ class HomeScreenTest {
             saveRendering(if (dark) "calendar-dark" else "calendar-forecast")
             compose.onNodeWithTag("calendar-day-$predicted").performClick()
             compose.onNodeWithText(
-                "Недостаточно данных для оценки"
+                "Вне предполагаемого фертильного окна"
             ).performScrollTo().assertIsDisplayed()
             saveRendering(
                 if (dark) "calendar-day-details-dark" else "calendar-day-forecast-details",
@@ -534,6 +534,9 @@ class HomeScreenTest {
 
     @Test
     fun dayCanBeLoggedOnHomeAndEditedInCalendarAfterRecreation() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag("log-day").performScrollTo().performClick()
         compose.onNodeWithTag("headache-NONE").performClick()
         compose.onNodeWithTag("cramps-MODERATE").performClick()
@@ -598,7 +601,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("nav-settings").performClick()
         compose.onNodeWithTag("backup-export").performScrollTo().performClick()
         compose.onNodeWithText(
-            "At least 12 characters. Keep this password: it cannot be recovered."
+            "Leave blank to export without a password. Keep the password if you set one."
         )
             .assertIsDisplayed()
         saveRendering("backup-password-english", dialog = true)
@@ -748,6 +751,152 @@ class HomeScreenTest {
             val help = if (dark) "home-help-dark" else "home-help"
             saveRendering(if (english) "$help-english" else help)
         }
+    }
+
+    @Test
+    fun journalEditorPersistsTagsTitleIconsAndAllowsNoSections() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
+        }
+        val app = compose.activity.application as RitelaApplication
+        fun awaitLayout(predicate: (app.ritela.domain.JournalLayout) -> Boolean) {
+            compose.waitUntil(10_000) { runBlocking { predicate(app.journal.layout.first()) } }
+            compose.waitForIdle()
+        }
+        compose.onNodeWithTag("log-day").performScrollTo().performClick()
+        compose.onNodeWithTag("journal-edit-headache").performScrollTo().performClick()
+        saveRendering("journal-editor", dialog = true)
+        compose.onNodeWithTag("journal-move-headache-SEVERE").performScrollTo().performClick()
+        awaitLayout { it.sections.first().tags[2].id == "SEVERE" }
+        for (tag in listOf("NONE", "MILD", "MODERATE")) {
+            compose.onNodeWithTag("journal-remove-headache-$tag").performScrollTo().performClick()
+            awaitLayout { it.sections.first().tags.none { tagValue -> tagValue.id == tag } }
+        }
+        compose.onNodeWithTag("journal-remove-headache-SEVERE").assertIsNotEnabled()
+        compose.onNodeWithTag("journal-edit-title").performClick()
+        compose.onNodeWithTag("journal-name").performTextReplacement("Мой день")
+        compose.onNodeWithTag("journal-confirm").performClick()
+        awaitLayout { it.title == "Мой день" }
+        compose.onNodeWithTag("journal-add-section").performScrollTo().performClick()
+        compose.onNodeWithTag("journal-name").performTextReplacement("Сон")
+        compose.onNodeWithTag("journal-first-tag").performTextReplacement("Выспалась")
+        compose.onNodeWithTag("journal-confirm").performClick()
+        awaitLayout { it.sections.size == 8 }
+        val custom = runBlocking { app.journal.layout.first().sections.last() }
+        compose.onNodeWithTag(
+            "${custom.id}-${custom.tags.single().id}"
+        ).performScrollTo().performClick()
+        compose.onNodeWithTag("journal-icon-STAR").performScrollTo().performClick()
+        compose.onNodeWithTag("save-day").performClick()
+        compose.waitUntil(10_000) { runBlocking { app.days.logs.first().isNotEmpty() } }
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("log-day").performScrollTo().performClick()
+        compose.onNodeWithText("Мой день").assertIsDisplayed()
+        compose.onNodeWithTag(
+            "${custom.id}-${custom.tags.single().id}"
+        ).performScrollTo().assertIsSelected()
+        compose.onNodeWithTag("journal-icon-STAR").performScrollTo().assertIsSelected()
+        val sections = runBlocking { app.journal.layout.first().sections }
+        for (section in sections) {
+            compose.onNodeWithTag("journal-edit-${section.id}").performScrollTo().performClick()
+            compose.onNodeWithTag("journal-delete-${section.id}").performScrollTo().performClick()
+            awaitLayout { it.sections.none { item -> item.id == section.id } }
+        }
+        compose.onNodeWithTag("day-note").performTextReplacement("Заметка остаётся")
+        saveRendering("journal-note-only", dialog = true)
+        compose.onNodeWithTag("save-day").performClick()
+        compose.waitUntil(10_000) {
+            runBlocking {
+                app.days.logs.first().single().note ==
+                    "Заметка остаётся"
+            }
+        }
+        assertTrue(runBlocking { app.journal.layout.first().sections.isEmpty() })
+        assertEquals(
+            setOf(custom.tags.single().id),
+            runBlocking {
+                app.days.logs.first().single().custom[custom.id]
+            }
+        )
+    }
+
+    @Test
+    fun journalTagsCanBeReorderedWithLongPressDrag() {
+        val section = app.ritela.domain.JournalSection(
+            "sleep",
+            "Sleep",
+            tags = listOf(
+                app.ritela.domain.JournalTag("a", "Short"),
+                app.ritela.domain.JournalTag("b", "Rested"),
+                app.ritela.domain.JournalTag("c", "Long")
+            )
+        )
+        var layout = app.ritela.domain.JournalLayout(sections = listOf(section))
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                RitelaTheme {
+                    app.ritela.ui.DayLogEntry(
+                        app.ritela.domain.DayLog(LocalDate.now()),
+                        PeriodUiState(journalLayout = layout),
+                        {},
+                        {},
+                        onLayoutChange = {
+                            layout =
+                                it
+                        }
+                    )
+                }
+            }
+        }
+        compose.onNodeWithTag("journal-edit-sleep").performClick()
+        val from = compose.onNodeWithTag("sleep-a").fetchSemanticsNode().boundsInRoot
+        val to = compose.onNodeWithTag("sleep-b").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("sleep-a").performTouchInput {
+            down(center)
+            advanceEventTime(700)
+            moveTo(center + (to.center - from.center), delayMillis = 300)
+            up()
+        }
+        compose.waitForIdle()
+        assertEquals(listOf("b", "a", "c"), layout.sections.single().tags.map { it.id })
+        compose.onNodeWithTag("journal-remove-sleep-a").performClick()
+        val remainingFrom = compose.onNodeWithTag("sleep-b").fetchSemanticsNode().boundsInRoot
+        val remainingTo = compose.onNodeWithTag("sleep-c").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("sleep-b").performTouchInput {
+            down(center)
+            advanceEventTime(700)
+            moveTo(center + (remainingTo.center - remainingFrom.center), delayMillis = 300)
+            up()
+        }
+        compose.waitForIdle()
+        assertEquals(listOf("c", "b"), layout.sections.single().tags.map { it.id })
+        compose.onNodeWithText("Название и иконка").performClick()
+        compose.onNodeWithTag("journal-section-icon-STAR").performClick()
+        compose.onNodeWithTag("journal-config-cancel").performClick()
+        assertEquals(app.ritela.domain.JournalIcon.NOTE, layout.sections.single().icon)
+        compose.onNodeWithText("Название и иконка").performClick()
+        compose.onNodeWithTag("journal-section-icon-STAR").performClick()
+        compose.onNodeWithTag("journal-confirm").performClick()
+        assertEquals(app.ritela.domain.JournalIcon.STAR, layout.sections.single().icon)
+    }
+
+    @Test
+    fun forecastDurationCanBeChangedAndSurvivesRestart() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("nav-settings").performClick()
+        compose.onNodeWithTag("forecast-duration").performScrollTo().performClick()
+        compose.onNodeWithTag("forecast-duration-input").performTextReplacement("3")
+        compose.onNodeWithText("Сохранить").performClick()
+        compose.waitUntil(10_000) {
+            val app = compose.activity.application as RitelaApplication
+            app.settings.values.value.periodDuration == 3
+        }
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("forecast-duration").performScrollTo().assertTextEquals(
+            "Прогноз месячных: 3 дня"
+        )
     }
 
     private fun saveRendering(name: String, dialog: Boolean = false) {

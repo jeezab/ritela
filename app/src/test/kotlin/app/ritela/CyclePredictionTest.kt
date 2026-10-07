@@ -22,7 +22,8 @@ class CyclePredictionTest {
         val changed =
             records.dropLast(1) + records.last().copy(end = records.last().start.plusDays(9))
         val result = analyzeCycles(changed, changed.last().end!!)
-        assertEquals(4, result.periodDuration)
+        assertEquals(7, result.periodDuration)
+        assertEquals(4, result.measuredPeriodDuration)
     }
 
     @Test fun yearWindowExcludesOlderCyclesWithoutInventingMissingRecords() {
@@ -66,7 +67,8 @@ class CyclePredictionTest {
             val result = analyzeCycles(records, records.last().end!!)
             assertTrue(result.usesDefaults)
             assertEquals(28, result.forecasts.first().cycleMedian)
-            assertEquals(4, result.periodDuration)
+            assertEquals(7, result.periodDuration)
+            assertEquals(4, result.measuredPeriodDuration)
         }
         val records = history(List(6) { 28 })
         val open = records.dropLast(1) + records.last().copy(end = null)
@@ -79,7 +81,8 @@ class CyclePredictionTest {
         val first = Period(UUID(0, 1), today.minusDays(5), today, Instant.EPOCH, Instant.EPOCH)
         val result = analyzeCycles(listOf(first), today)
         assertTrue(result.usesDefaults)
-        assertEquals(6, result.periodDuration)
+        assertEquals(7, result.periodDuration)
+        assertEquals(6, result.measuredPeriodDuration)
         assertEquals(first.start.plusDays(28), result.forecasts.first().predictedStartDate)
         assertEquals(
             CalendarDayKind.ESTIMATED_PERIOD,
@@ -91,7 +94,7 @@ class CyclePredictionTest {
         assertEquals(open.start.plusDays(30), modified.forecasts.first().predictedStartDate)
         assertEquals(
             6,
-            analyzeCycles(listOf(first), today, PredictionDefaults(30, 7)).periodDuration
+            analyzeCycles(listOf(first), today, PredictionDefaults(30, 7)).measuredPeriodDuration
         )
     }
 
@@ -201,12 +204,74 @@ class CyclePredictionTest {
             calendarDay(records, result, next.predictedStartDate, today).kind
         )
         assertEquals(
-            CalendarDayKind.UNCERTAIN,
+            CalendarDayKind.NONE,
             calendarDay(records, result, next.lowerBound, today).kind
         )
         assertEquals(
             CalendarDayKind.APPROXIMATE,
             calendarDay(records, result, result.forecasts.last().predictedStartDate, today).kind
+        )
+    }
+
+    @Test fun calendarPaintsOnlyExpectedBleedingDaysAndSevenFertileDaysAtEveryHorizon() {
+        val records = history(List(6) { 28 })
+        val today = records.last().end!!
+        val result = analyzeCycles(records, today)
+        for (forecast in result.forecasts) {
+            val fertileStart = forecast.predictedStartDate.minusDays(19)
+            for (offset in 0L..6L) {
+                assertEquals(
+                    CalendarDayKind.FERTILE_ESTIMATE,
+                    calendarDay(records, result, fertileStart.plusDays(offset), today).kind
+                )
+            }
+            assertEquals(
+                CalendarDayKind.NONE,
+                calendarDay(records, result, fertileStart.minusDays(1), today).kind
+            )
+            assertEquals(
+                CalendarDayKind.NONE,
+                calendarDay(records, result, fertileStart.plusDays(7), today).kind
+            )
+            for (offset in 1L..6L) {
+                assertEquals(
+                    CalendarDayKind.ESTIMATED_PERIOD,
+                    calendarDay(
+                        records,
+                        result,
+                        forecast.predictedStartDate.plusDays(offset),
+                        today
+                    ).kind
+                )
+            }
+            assertEquals(
+                CalendarDayKind.NONE,
+                calendarDay(records, result, forecast.predictedStartDate.plusDays(7), today).kind
+            )
+        }
+        assertTrue(
+            result.forecasts.last().upperBound >
+                result.forecasts.last().predictedStartDate.plusDays(7)
+        )
+        val shorter = analyzeCycles(records, today, PredictionDefaults(periodDuration = 3))
+        assertEquals(
+            CalendarDayKind.NONE,
+            calendarDay(
+                records,
+                shorter,
+                shorter.forecasts.first().predictedStartDate.plusDays(3),
+                today
+            ).kind
+        )
+        assertEquals(result.forecasts, shorter.forecasts)
+        assertEquals(result.measuredPeriodDuration, shorter.measuredPeriodDuration)
+        assertEquals(
+            CalendarDayKind.OBSERVED,
+            calendarDay(records, result, records.last().start, today).kind
+        )
+        assertEquals(
+            CalendarDayKind.NONE,
+            calendarDay(emptyList(), analyzeCycles(emptyList(), today), today, today).kind
         )
     }
 }

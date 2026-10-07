@@ -1,0 +1,23 @@
+<resources>
+    <string name="fertile_estimate">Estimated fertile window</string>
+    <string name="conception_higher">Conception may be more likely around these days</string>
+    <string name="conception_outside">Outside the estimated fertile window</string>
+    <string name="forecast_duration">Period forecast duration</string>
+    <plurals name="forecast_duration_value"><item quantity="one">Period forecast: %1$d day</item><item quantity="other">Period forecast: %1$d days</item></plurals>
+    <string name="forecast_duration_hint">Used for expected days in the calendar. Recorded duration is shown separately.</string>
+    <string name="days_label">Days (1–60)</string>
+    <string name="journal_section">Section</string>
+    <string name="journal_add_section">+ Add section</string>
+    <string name="journal_section_settings">Name and icon</string>
+    <string name="journal_add_tag">+ Add tag</string>
+    <string name="journal_delete_section">Delete section</string>
+    <string name="journal_calendar_icon">Calendar icon</string>
+    <string name="journal_name">Name</string>
+    <string name="journal_first_tag">First tag</string>
+    <string name="journal_automatic">Automatic</string>
+    <string name="journal_flower">Flower</string>
+    <string name="journal_star">Star</string>
+    <string name="journal_delete_tag">Delete tag</string>
+    <string name="journal_move_before">Move earlier</string>
+    <string name="conception_unconfirmed">Ovulation is not confirmed</string>
+</resources>

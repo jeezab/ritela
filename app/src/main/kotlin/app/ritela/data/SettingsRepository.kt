@@ -14,7 +14,7 @@ class SettingsRepository(private val preferences: SharedPreferences) {
     private val state = MutableStateFlow(
         PredictionDefaults(
             preferences.getInt("cycleLength", 28).coerceIn(1, 365),
-            preferences.getInt("periodDuration", 5).coerceIn(1, 60)
+            preferences.getInt("forecastPeriodDuration", 7).coerceIn(1, 60)
         )
     )
     val values = state.asStateFlow()
@@ -34,7 +34,7 @@ class SettingsRepository(private val preferences: SharedPreferences) {
         require(value.cycleLength in 1..365 && value.periodDuration in 1..60)
         preferences.edit(commit = true) {
             putInt("cycleLength", value.cycleLength)
-            putInt("periodDuration", value.periodDuration)
+            putInt("forecastPeriodDuration", value.periodDuration)
         }
         state.value = value
     }

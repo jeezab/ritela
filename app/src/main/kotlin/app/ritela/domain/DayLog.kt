@@ -17,12 +17,19 @@ data class DayLog(
     val mood: Mood? = null,
     val energy: Energy? = null,
     val sex: Set<Sex> = emptySet(),
-    val note: String = ""
+    val note: String = "",
+    val custom: Map<String, Set<String>> = emptyMap(),
+    val calendarIcon: JournalIcon? = null
 ) {
     val empty: Boolean get() = headache == null && cramps == null && backache == null &&
-        flow == null && mood == null && energy == null && sex.isEmpty() && note.isBlank()
+        flow == null && mood == null && energy == null && sex.isEmpty() && note.isBlank() &&
+        custom.values.all { it.isEmpty() } && calendarIcon == null
 }
 
 fun validateDayLog(log: DayLog, today: LocalDate): Boolean =
     log.date <= today && log.date.year in 1900..9999 && log.note.length <= 1000 &&
-        (Sex.NONE !in log.sex || log.sex.size == 1)
+        (Sex.NONE !in log.sex || log.sex.size == 1) && log.custom.size <= 64 &&
+        log.custom.all { (id, tags) ->
+            validJournalId(id) && tags.size <= 64 &&
+                tags.all(::validJournalId)
+        }

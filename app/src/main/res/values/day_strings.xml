@@ -33,7 +33,6 @@
     <string name="sex_anal">Anal sex</string>
     <string name="sex_masturbation">Masturbation</string>
     <string name="sex_other">Other</string>
-    <string name="sex_barrier_note">These tags do not describe all contraception methods or estimate pregnancy risk.</string>
     <string name="day_summary">%1$s: %2$s</string>
     <string name="cycle_day_label">Cycle day</string>
     <string name="cycle_trends">Your cycle</string>
@@ -47,9 +46,8 @@
     <string name="year_basis">Median · last 12 months</string>
     <string name="chart_empty">Log two period starts to see your first cycle length.</string>
     <string name="chart_values">Cycle lengths in days: %s</string>
-    <string name="period_chart">Period duration</string>
+    <string name="period_chart">Average recorded period duration</string>
     <string name="period_chart_empty">Log an end date to see duration.</string>
-    <string name="symptom_chart">Pain · last 7 days</string>
     <string name="calendar_history">Period history</string>
     <string name="day_has_log">Day logged</string>
     <string name="help_title">For you</string>
@@ -62,8 +60,8 @@
     <string name="backup_import">Import backup</string>
     <string name="backup_password">Backup password</string>
     <string name="backup_repeat">Repeat password</string>
-    <string name="backup_password_hint">At least 12 characters. Keep this password: it cannot be recovered.</string>
-    <string name="backup_open_hint">Enter the password you used when exporting.</string>
+    <string name="backup_password_hint">Leave blank to export without a password. Keep the password if you set one.</string>
+    <string name="backup_open_hint">Enter the export password, or leave blank for a file without a password.</string>
     <string name="backup_continue">Continue</string>
     <string name="backup_preview">Import records? Periods: %1$d · day logs: %2$d</string>
     <string name="backup_merge_hint">Existing records stay. Identical records are skipped; a conflict cancels the whole import.</string>

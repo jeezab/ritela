@@ -43,13 +43,12 @@
     <string name="history_stable">История ровная</string>
     <string name="history_variable">Сроки менялись</string>
     <string name="history_limited">Мало данных</string>
-    <string name="calendar_legend">Закрашено — отмечено · ◇ прогноз начала\n○ ожидаемые дни · ≈ дальний прогноз · точка — диапазон</string>
+    <string name="calendar_legend">Красный — отмеченные месячные · розовый — прогноз месячных · зелёный — предполагаемое фертильное окно</string>
     <string name="calendar_observed">Менструация отмечена</string>
     <string name="calendar_predicted">Прогноз начала месячных</string>
     <string name="calendar_uncertain">Возможная дата начала</string>
     <string name="calendar_approximate">Дальний прогноз начала</string>
     <string name="calendar_empty">Нет записи</string>
-    <string name="future_calendar_note">Будущие даты можно смотреть. Записать месячные можно за сегодня или прошлые дни.</string>
     <plurals name="cycles_used">
         <item quantity="one">По %d завершённому циклу</item>
         <item quantity="few">По %d завершённым циклам</item>

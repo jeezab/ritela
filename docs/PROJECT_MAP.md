@@ -40,7 +40,7 @@
 | `app/src/main/kotlin/app/ritela/ui/CalendarScreen.kt` | Свободная лента месяцев, детали дня, история и действия |
 | `app/src/main/kotlin/app/ritela/ui/ForecastCard.kt` | Дата прогноза, диапазон и качество истории |
 | `app/src/main/kotlin/app/ritela/data/` | Room database, DAO, storage entity, repository |
-| `app/schemas/` | Экспортированные схемы Room v1/v2 |
+| `app/schemas/` | Экспортированные схемы Room v1/v2/v3 |
 | `docs/DATA_FORMAT.md` | Фактический формат базы и инварианты дат |
 | `app/src/test/kotlin/app/ritela/` | JVM/Compose тесты и render checks |
 | `.github/workflows/android.yml` | Проверки, debug APK, checksum и отчёты |
@@ -70,3 +70,5 @@
 Новые файлы: domain/DayLog.kt — типы и валидация отметок; data/DayLogEntity/Dao/Repository — Room/Flow; data/BackupRepository — шифрование, preview и atomic merge; ui/DayLogEntry — общая форма; ui/Insights — реальные графики; ui/HelpCards — каталог/подбор/детали; ui/BackupActions — SAF/пароль/подтверждение. Документы [HEALTH_CONTENT.md](HEALTH_CONTENT.md), [BACKUP.md](BACKUP.md); скрипт scripts/check-health-content.ps1 и skill health-content-check. DayLogBackupTest проверяет миграцию и целостность копии.
 
 Доработка UI 2026-10-06: [исходный промпт](prompts/2026-10-06-ui-polish.txt); domain/MeasuredSeries.kt — годовые измерения для статистики; domain/Period.kt — periodConflict для проверки диапазона до сохранения. preview-ui.ps1 -CompareBefore строит сравнение с локально сохранёнными исходными PNG.
+
+Редактируемый дневник: `domain/JournalLayout.kt` — модель/инварианты и преобразование selections; `data/JournalRepository.kt` — Room DAO/JSON codec/поток настройки; `ui/DayLogEntry.kt` — редактор и drag; `journal_strings.xml` EN/RU. Room v3 сохраняет custom selections и иконку дня; backup payload v2 переносит layout. `JournalLayoutTest` и DayLogBackupTest проверяют изменения/миграции/перенос; HomeScreenTest — полноценное редактирование.
