@@ -27,6 +27,13 @@ object Spacing {
     val calendarBorder = 2.dp
 }
 
+object CalendarColors {
+    val period = Color(0xFFB94052)
+    val estimatedPeriod = Color(0xFFF5D8DC)
+    val fertile = Color(0xFFDDECCF)
+    val ink = Color(0xFF352E32)
+}
+
 private val AppShapes = Shapes(
     small = RoundedCornerShape(12.dp),
     medium = RoundedCornerShape(16.dp),

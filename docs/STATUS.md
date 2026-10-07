@@ -1,29 +1,33 @@
 # Точка продолжения
 
-2026-10-06. Исправлены две подтверждённые скриншотами ошибки CI: несовместимые gh api --slurp/--jq в release job и отсутствие PNG после восстановления test task из Gradle cache. Подготовлена версия 0.2.1/code 2001 для нового тега. По запросу пользователя master и новый тег v0.2.1 отправлены в origin. Оба удалённых ref подтверждены на d710b7b; Release v0.2.1 опубликован и подтверждён через GitHub API: draft=false, prerelease=false, APK uploaded.
+2026-10-07. Выполнен пакет доработок скриншотов, резервных копий, календаря, длительности прогноза и редактируемого дневника. Все локальные обязательные Android checks прошли. Версия приложения остаётся 0.2.1; эта доработка подготовлена к локальному коммиту, новый релиз/тег не создавался.
 
 ## Результат
 
-- release.yml получает массив страниц через gh api --paginate --slurp без --jq. release.py --release-pages проверяет структуру JSON и объединяет все страницы перед проверкой предыдущих версий; сторонний jq не требуется. Добавлены проверки пустого repository, нескольких страниц, более новой версии на второй странице и неправильных входных данных.
-- В Gradle PNG-каталог reports/screenshots объявлен output задачи testDebugUnitTest с именем uiScreenshots. Снимки восстанавливаются вместе с test reports при FROM-CACHE. Галерея продолжает требовать все 51 изображения.
-- version.properties обновлён до 0.2.1. Тег v0.2.0 уже существует: повторный запуск старого tag workflow не получает новый код из master. RELEASES.md содержит команды следующего тега v0.2.1 и объяснение восстановления после неудачного выпуска; старый тег не менялся.
-- TESTING.md фиксирует проверку восстановления PNG. UI, прогноз, схема и медицинский контент не менялись. Ранее исправленный Room/ViewModel test и Obtainium support сохранены.
+- FLAG_SECURE удалён по прямому запросу: системные скриншоты разрешены. Системный cloud backup остаётся отключён, сетевых permissions нет.
+- Пароль экспорта необязателен, в форме нет ограничений длины. Пустой пароль создаёт открытый JSON envelope ritela.backup.plain; любой непустой включает прежний AES-256-GCM/PBKDF2. Импорт читает оба варианта и прежний payload v1, проверяет данные и сохраняет атомарный merge без перезаписи конфликтов. Новый payload v2 переносит структуру дневника, custom tags и иконки.
+- Календарь: отмеченные месячные красные, прогноз светло-красный, предполагаемое фертильное окно светло-зелёное. Ожидаемые месячные занимают заданную длительность, а не расширяющийся диапазон возможного начала. Bounds сохранены в расчёте/подробностях: статистическая неопределённость не скрыта. Просмотр будущих дней работает, добавление будущих дат запрещено. Из sheet убраны «Нет записи» и пояснение про будущие даты.
+- Вместо прежнего отсутствия оценки — предполагаемое фертильное окно и качественная подпись без персональных процентов и safe days. До точки отсчёта/при отсутствии прогноза овуляция не подтверждается. Семидневный шаблон — инженерная эвристика, источники и ограничения зафиксированы в PREDICTION/HEALTH_CONTENT; клинической валидации нет.
+- Settings: длительность календарного прогноза default 7, изменение 1–60 дней. Новый forecastPeriodDuration отделён от старого periodDuration. Цикл default 28, медиана/MAD годового окна сохранены. Главная отдельно показывает среднюю длительность по завершённым записям; график боли за семь дней убран.
+- Дневник: редактируемый заголовок, добавление/переименование/удаление разделов и тегов, карандаш у раздела, покачивание, красный минус над тегом, минимум один тег, удержание/перетаскивание и доступное действие «Раньше». Разделов может быть ноль, заметка остаётся. Иконки раздела и отдельного дня отображаются в календаре. Save/Cancel имени и иконки не меняет данные до подтверждения; структуру дневника сохраняют отдельные операции без закрытия формы дня. Удалён отдельный disclaimer у секс-тегов.
+- Room v3: явные MIGRATION_1_2 + MIGRATION_2_3 сохраняют периоды и старые day_logs. Новые поля custom/calendarIcon и journal_layout с постоянными ID. Изменение интерфейсных тегов не удаляет исторические значения; custom tag не получает медицинскую семантику встроенного enum.
+- Документация, карта, решения, privacy/backup/style и два существующих скилла обновлены; lock содержит новые версии/hash. Новые редакторские PNG зарегистрированы в preview-ui.ps1.
 
 ## Проверки
 
 - scripts/gradle.ps1 formatKotlin — PASS.
-- scripts/gradle.ps1 checkKotlin assembleDebug testDebugUnitTest lintDebug — BUILD SUCCESSFUL: 56 tests, 0 failures/errors; lint 0 ошибок/предупреждений, 9 informational hints.
-- Проверка реального Gradle cache: каталог screenshots перенесён в проверенный игнорируемый путь внутри workspace; scripts/gradle.ps1 testDebugUnitTest --build-cache → testDebugUnitTest FROM-CACHE. Все 51 PNG восстановлены; preview-ui.ps1 -SkipRender → PASS. Резервная копия оставлена в .toolchain/screenshots-cache-probe-*.
-- python -m unittest discover -s scripts -p 'test_release.py' — 7 tests PASS. release.py check --tag v0.2.1 — PASS; вызов CLI с --release-pages и синтетическим JSON нескольких страниц — PASS.
-- actionlint 1.7.12 для обоих workflow — PASS (локально без shellcheck). check-workspace, check-health-content и git diff --check — PASS.
-- verify-apk.ps1 — PASS: signed app.ritela, API 26–37, без сетевых permissions. Debug APK 11 796 995 байт; SHA256 b5dc0ee433776c58d6aa305c4da3fedf5968aa7a462029a7a28a6d007c054415.
+- scripts/gradle.ps1 checkKotlin assembleDebug testDebugUnitTest lintDebug — BUILD SUCCESSFUL. 65 tests, 0 failures/errors; lint 0 errors/warnings, 9 informational hints.
+- Автоматически: screenshots разрешены при сохранённом manifest privacy, defaults/reactive recalculation, семидневные fertile/bleeding границы всех 12 горизонтов, отделение preset/измеренных данных, ID/reorder/minimum tag, custom selections, plaintext и пароли 1/300 символов, старый payload, миграции v1/v2→v3, config перенос, CRUD/recreation, drag после удаления тега, Save/Cancel иконки и изменение длительности после перезапуска.
+- Просмотрены настоящие PNG: календарь light/dark, редактор, форма без разделов, dark EN 320dp/200%, графики и отдельная средняя длительность. Галерея preview-ui.ps1 -SkipRender — PASS, 53 PNG.
+- verify-apk.ps1 — PASS: signed app.ritela debug APK, API 26–37, no network permissions; 12 169 753 bytes, SHA256 ab7f019b1ab3ce2e1fd941c1a5a7abb780433c6d2eeced8240cb5936f773239d. Артефакт: app/build/outputs/apk/debug/app-debug.apk.
+- check-workspace и check-health-content — PASS; quick_validate для двух изменённых скиллов — PASS; git diff --check — PASS.
 
 ## Следующий шаг / ограничения
 
-Следующий шаг: проверить новые Android и Release APK runs для отправленного v0.2.1, подпись production и установку/обновление через Obtainium. Release и APK/checksum уже подтверждены API. Secrets по сообщениям пользователя настраивались, их наличие и значения локально не проверены. GitHub CLI в окружении не установлен; release API проверен read-only через существующую Git credential без вывода токена. Команда и формат данных сверены с официальной документацией gh api. Секреты и ключи в Git не добавлялись.
+Проверить текущий APK на устройстве: системный скриншот, клавиатура и поля редактора, drag/TalkBack, SAF export/import обоих вариантов и переход с установленной базы v2. JVM PNG/тесты не заменяют device smoke test. Новый CI run и production APK для этих изменений не проверены; клинический review не проводился. Менять численные проценты риска по одному календарю нельзя считать подтверждённым расчётом.
 
-Проверка cache выполнялась на Windows; новый Linux run ещё не подтверждён. APK первого Release доступен через авторизованный API; production-подпись отдельно не проверена. Obtainium installation/update, device smoke tests календаря/TalkBack/SAF backup и клинический review остаются впереди.
+Ручная копия не переносит язык, тему или preset длительности: настройки устройства сохраняются. Конфликт сохранённых layouts отменяет импорт вместе с остальными конфликтами; автоматического объединения несовпадающих структур нет. Пользовательские названия общие для EN/RU, стандартные подписи локализованы. Удалённые интерфейсные разделы скрывают значения, но не удаляют старые записи.
 
-## Проверка доступа Obtainium
+## Выпуски и Obtainium
 
-2026-10-06: jeezab/ritela private=true. Без токена GET releases/tags/v0.2.1 → HTTP 404; с существующей авторизацией → опубликованный Ritela 0.2.1, APK 8 240 472 байт, uploaded, application/vnd.android.package-archive, и checksum. Это подтверждает metadata и доступ, не подпись скачанного файла. Для Obtainium нужен отдельный fine-grained token с jeezab/ritela и Contents: Read-only в GitHub source settings; браузерная сессия и Actions signing secrets не дают Obtainium доступа. При сохранённой ошибке проверить source URL, фильтры APK/названия/описания и GitHub proxy. Токены не логировались и не сохранялись в файлы.
+Ранее опубликован Release v0.2.1 (draft=false, prerelease=false), APK uploaded; старый tag не менялся. jeezab/ritela — private. Obtainium требуется отдельный fine-grained token для этого repository с Contents Read-only; без авторизации GitHub release API возвращает 404. Секреты/ключи не добавлялись в Git, production подпись отдельно не проверялась. Этот пакет не опубликован отдельным релизом.

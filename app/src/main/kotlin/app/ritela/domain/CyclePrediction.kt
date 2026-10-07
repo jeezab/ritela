@@ -23,14 +23,15 @@ data class CycleForecast(
     val cycleVariation: Double
 )
 
-data class PredictionDefaults(val cycleLength: Int = 28, val periodDuration: Int = 5)
+data class PredictionDefaults(val cycleLength: Int = 28, val periodDuration: Int = 7)
 
 data class CycleAnalysis(
     val cycleDay: Long? = null,
     val forecasts: List<CycleForecast> = emptyList(),
     val unavailable: ForecastUnavailable? = ForecastUnavailable.NEED_MORE,
     val usesDefaults: Boolean = false,
-    val periodDuration: Int = 5
+    val periodDuration: Int = 7,
+    val measuredPeriodDuration: Int? = null
 )
 
 /** Engineering estimate of period starts. Confidence is a history-quality label, not a probability. */
@@ -97,10 +98,18 @@ fun analyzeCycles(
             day,
             unavailable = ForecastUnavailable.PAST_DUE,
             usesDefaults = fallback,
-            periodDuration = duration
+            periodDuration = defaults.periodDuration,
+            measuredPeriodDuration = duration.takeIf { durations.isNotEmpty() }
         )
     }
-    return CycleAnalysis(day, forecasts, null, fallback, duration)
+    return CycleAnalysis(
+        day,
+        forecasts,
+        null,
+        fallback,
+        defaults.periodDuration,
+        duration.takeIf { durations.isNotEmpty() }
+    )
 }
 
 private fun median(values: List<Double>): Double {
@@ -109,7 +118,31 @@ private fun median(values: List<Double>): Double {
     return if (sorted.size % 2 == 0) (sorted[middle - 1] + sorted[middle]) / 2 else sorted[middle]
 }
 
-enum class CalendarDayKind { NONE, OBSERVED, PREDICTED, UNCERTAIN, APPROXIMATE, ESTIMATED_PERIOD }
+enum class CalendarDayKind {
+    NONE,
+    OBSERVED,
+    PREDICTED,
+    UNCERTAIN,
+    APPROXIMATE,
+    ESTIMATED_PERIOD,
+    FERTILE_ESTIMATE
+}
+
+/** A seven-day planning estimate around the assumed ovulation date, never a safe-day rule. */
+fun estimatedFertileWindow(
+    periods: List<Period>,
+    analysis: CycleAnalysis,
+    date: LocalDate
+): ClosedRange<LocalDate>? {
+    if (analysis.unavailable == ForecastUnavailable.INVALID_HISTORY) return null
+    val firstStart = periods.minOfOrNull { it.start } ?: return null
+    if (date < firstStart) return null
+    val followingStarts =
+        periods.map { it.start } + analysis.forecasts.map { it.predictedStartDate }
+    return followingStarts.filter { it > firstStart }.sorted().map { next ->
+        next.minusDays(19)..next.minusDays(13)
+    }.firstOrNull { date in it }
+}
 
 data class CalendarDayInfo(
     val kind: CalendarDayKind,
@@ -147,14 +180,14 @@ fun calendarDay(
     ) {
         return CalendarDayInfo(CalendarDayKind.ESTIMATED_PERIOD, forecast = estimatedPeriod)
     }
-    val range = analysis.forecasts.firstOrNull { date >= it.lowerBound && date <= it.upperBound }
-    return if (range ==
-        null
-    ) {
-        CalendarDayInfo(CalendarDayKind.NONE)
-    } else {
-        CalendarDayInfo(CalendarDayKind.UNCERTAIN, forecast = range)
-    }
+    // Show the expected bleeding days, not the entire expanding start uncertainty interval.
+    return CalendarDayInfo(
+        if (estimatedFertileWindow(periods, analysis, date) != null) {
+            CalendarDayKind.FERTILE_ESTIMATE
+        } else {
+            CalendarDayKind.NONE
+        }
+    )
 }
 
 /** Monday-first grid with blank cells outside the displayed month. */

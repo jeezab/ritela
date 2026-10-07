@@ -239,7 +239,7 @@ private fun BackupPasswordDialog(
                     )
                     OutlinedTextField(
                         value = password,
-                        onValueChange = { if (it.length <= 256) password = it },
+                        onValueChange = { password = it },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth().testTag("backup-password"),
@@ -248,7 +248,7 @@ private fun BackupPasswordDialog(
                     if (exporting) {
                         OutlinedTextField(
                             value = repeat,
-                            onValueChange = { if (it.length <= 256) repeat = it },
+                            onValueChange = { repeat = it },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth().testTag("backup-repeat"),
@@ -266,9 +266,9 @@ private fun BackupPasswordDialog(
                             onContinue(chars)
                         },
                         enabled = if (exporting) {
-                            password.length >= 12 && password == repeat
+                            password == repeat
                         } else {
-                            password.isNotEmpty()
+                            true
                         },
                         modifier = Modifier.testTag("backup-continue")
                     ) {

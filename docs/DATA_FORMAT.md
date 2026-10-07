@@ -1,6 +1,6 @@
 # Локальное хранение
 
-Room database v2: `ritela.db`, схема [2.json](../app/schemas/app.ritela.data.RitelaDatabase/2.json); исходная [v1](../app/schemas/app.ritela.data.RitelaDatabase/1.json) сохранена для migration. Таблица `periods`:
+Room database v3: `ritela.db`, схема [3.json](../app/schemas/app.ritela.data.RitelaDatabase/3.json); исходная [v1](../app/schemas/app.ritela.data.RitelaDatabase/1.json) сохранена для migration. Таблица `periods`:
 
 | Поле | Формат |
 |---|---|
@@ -18,8 +18,10 @@ Calendar date не переводится в UTC timestamp. Только ада�
 
 DAO/Repository читают все записи: это нужно календарю и расчёту цикла. История доступна в календаре целиком; на главной графики. Производные прогнозы вычисляются заново и не сохраняются в таблице. Реализован зашифрованный JSON backup и merge: [BACKUP.md](BACKUP.md). Схема v2 добавляет day_logs; явная MIGRATION_1_2 не меняет periods. Для последующих изменений схемы обязательна явная migration с автоматической проверкой.
 
-Исходные настройки хранятся отдельно в приватных SharedPreferences `settings`: `cycleLength` INT (default 28, 1..365) и `periodDuration` INT (default 5, 1..60). Они не переписывают даты Room. SettingsRepository использует синхронный commit в IO dispatcher, затем публикует StateFlow; combine с Room вызывает пересчёт. Автоматический системный backup остаётся запрещён; ручная копия зашифрована паролем. Предполагаемые дни будущих периодов не вставляются в таблицу periods.
+Исходные настройки хранятся отдельно в приватных SharedPreferences `settings`: `cycleLength` INT (default 28, 1..365) и `forecastPeriodDuration` INT (default 7, 1..60). Они не переписывают даты Room. SettingsRepository использует синхронный commit в IO dispatcher, затем публикует StateFlow; combine с Room вызывает пересчёт. Автоматический системный backup остаётся запрещён; ручная копия защищается необязательным паролем. Предполагаемые дни будущих периодов не вставляются в таблицу periods.
 
-Тема в тех же preferences: themeMode STRING = SYSTEM / LIGHT / DARK, по умолчанию SYSTEM. Сохранение в IO с последующей публикацией отдельного StateFlow. Ранее сохранённые cycleLength/periodDuration остаются совместимыми; их выбор убран из интерфейса. Настройки темы не меняют схему Room.
+Тема в тех же preferences: themeMode STRING = SYSTEM / LIGHT / DARK, по умолчанию SYSTEM. Сохранение в IO с последующей публикацией отдельного StateFlow. Ранее сохранённый cycleLength совместим; forecastPeriodDuration — отдельный новый preset, прежний periodDuration не влияет на новый календарь. Выбор длительности доступен в UI. Настройки темы не меняют схему Room.
 
 Таблица day_logs (v2): day INTEGER PRIMARY KEY (epoch day), nullable TEXT headache/cramps/backache/flow/mood/energy с enum names, sex TEXT (имена в алфавитном порядке через запятую), note TEXT (≤1000 символов). Боль NONE/MILD/MODERATE/SEVERE; flow NONE/LIGHT/MEDIUM/HEAVY; mood CALM/HAPPY/LOW/ANXIOUS/IRRITABLE; energy LOW/NORMAL/HIGH. Sex NONE/CONDOM/NO_BARRIER/VAGINAL/ORAL/ANAL/MASTURBATION/OTHER: несколько тегов за день, NONE отдельно от остальных. NULL/пустой набор — не отмечено; NONE — явное отсутствие. Пустая отметка удаляется, сохранение — Upsert по дню. Будущие дни запрещены. Форма draft переживает пересоздание Activity; ошибочное сохранение не закрывает форму.
+
+Версия 3: MIGRATION_2_3 добавляет `day_logs.custom TEXT NOT NULL DEFAULT '{}'` (JSON section ID → tag ID array), nullable `calendarIcon TEXT`, таблицу `journal_layout(id INTEGER PRIMARY KEY, config TEXT NOT NULL)`. Единственная строка id=1; отсутствие строки даёт стандартные разделы. Layout хранит заголовок, разделы с постоянными ID, названиями, иконками, tags и multiple. Допустимы 0..64 раздела, 1..64 тега в разделе; строки до 200 символов, ID до 80. Новые ID — UUID; встроенные остаются именами полей/enum. Изменение структуры не удаляет исторические значения. Произвольный тег не интерпретируется как медицинский enum. Пустые/недопустимые структуры отклоняются.

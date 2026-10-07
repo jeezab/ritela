@@ -33,7 +33,6 @@
     <string name="sex_anal">Анальный</string>
     <string name="sex_masturbation">Мастурбация</string>
     <string name="sex_other">Другое</string>
-    <string name="sex_barrier_note">Эти отметки не описывают все способы контрацепции и не оценивают риск беременности.</string>
     <string name="day_summary">%1$s: %2$s</string>
     <string name="cycle_day_label">День цикла</string>
     <string name="cycle_trends">Ваш цикл</string>
@@ -49,9 +48,8 @@
     <string name="year_basis">Медиана · последние 12 месяцев</string>
     <string name="chart_empty">Отметьте два начала месячных — появится первая длина цикла.</string>
     <string name="chart_values">Длина циклов в днях: %s</string>
-    <string name="period_chart">Длительность месячных</string>
+    <string name="period_chart">Средняя длительность по записям</string>
     <string name="period_chart_empty">Отметьте дату окончания — появится длительность.</string>
-    <string name="symptom_chart">Боль · последние 7 дней</string>
     <string name="calendar_history">История месячных</string>
     <string name="day_has_log">Есть отметки дня</string>
     <string name="help_title">Для вас</string>
@@ -64,8 +62,8 @@
     <string name="backup_import">Импорт данных</string>
     <string name="backup_password">Пароль копии</string>
     <string name="backup_repeat">Повторите пароль</string>
-    <string name="backup_password_hint">Не меньше 12 символов. Сохраните пароль: восстановить его нельзя.</string>
-    <string name="backup_open_hint">Введите пароль, заданный при экспорте.</string>
+    <string name="backup_password_hint">Можно оставить пустым и экспортировать без пароля. Если зададите пароль, сохраните его.</string>
+    <string name="backup_open_hint">Введите пароль экспорта или оставьте поле пустым для файла без пароля.</string>
     <string name="backup_continue">Продолжить</string>
     <string name="backup_preview">Импортировать месячные: %1$d, отметки дня: %2$d?</string>
     <string name="backup_merge_hint">Текущие записи сохранятся. Одинаковые пропускаются; при конфликте весь импорт отменяется.</string>

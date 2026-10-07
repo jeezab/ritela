@@ -50,6 +50,8 @@ import app.ritela.domain.CalendarDayInfo
 import app.ritela.domain.CalendarDayKind
 import app.ritela.domain.Period
 import app.ritela.domain.calendarDay
+import app.ritela.domain.estimatedFertileWindow
+import app.ritela.domain.journalSelections
 import app.ritela.domain.monthDays
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -142,6 +144,17 @@ fun CalendarScreen(
                         cellHeight = cellHeight,
                         info = { calendarDay(state.periods, state.analysis, it, state.today) },
                         hasLog = { day -> state.dayLogs.any { it.date == day } },
+                        logIcon = { day ->
+                            val log = state.dayLogs.firstOrNull { it.date == day }
+                            val icon =
+                                log?.calendarIcon ?: state.journalLayout.sections.firstOrNull {
+                                    it.id in
+                                        log?.journalSelections().orEmpty().filterValues { tags ->
+                                            tags.isNotEmpty()
+                                        }
+                                }?.icon ?: app.ritela.domain.JournalIcon.NOTE
+                            journalIcon(icon)
+                        },
                         onDay = { selectedDay = it.toEpochDay() }
                     )
                 }
@@ -268,7 +281,7 @@ private fun CalendarDayDetails(
             verticalArrangement = Arrangement.spacedBy(Spacing.medium)
         ) {
             Text(formattedDate(date), style = MaterialTheme.typography.headlineSmall)
-            Text(dayKindText(selection.kind))
+            if (selection.kind != CalendarDayKind.NONE) Text(dayKindText(selection.kind))
             selection.period?.let { period ->
                 Text(periodDates(period))
                 if (period.end == null) Text(stringResource(R.string.ongoing))
@@ -302,8 +315,6 @@ private fun CalendarDayDetails(
                     Button(onClick = { onAdd(date) }, enabled = !state.loading && !state.saving) {
                         Text(stringResource(R.string.add_period))
                     }
-                } else {
-                    Text(stringResource(R.string.future_calendar_note))
                 }
             }
             Text(
@@ -311,7 +322,20 @@ private fun CalendarDayDetails(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                stringResource(R.string.pregnancy_unknown),
+                stringResource(
+                    if (estimatedFertileWindow(state.periods, state.analysis, date) != null) {
+                        R.string.conception_higher
+                    } else {
+                        if (state.periods.isEmpty() || state.analysis.forecasts.isEmpty() ||
+                            date < state.periods.minOf { it.start } ||
+                            date > state.analysis.forecasts.last().predictedStartDate
+                        ) {
+                            R.string.conception_unconfirmed
+                        } else {
+                            R.string.conception_outside
+                        }
+                    }
+                ),
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
@@ -333,7 +357,8 @@ private fun CalendarDayDetails(
                 DaySummary(
                     state.dayLogs.firstOrNull { it.date == date },
                     { onLogDay(date) },
-                    !state.loading && !state.saving
+                    !state.loading && !state.saving,
+                    layout = state.journalLayout
                 )
             }
             TextButton(onClick = onDismiss, modifier = Modifier.testTag("day-details-close")) {
@@ -396,6 +421,7 @@ fun MonthGrid(
     info: (LocalDate) -> CalendarDayInfo = { CalendarDayInfo(CalendarDayKind.NONE) },
     hasLog: (LocalDate) -> Boolean = { false },
     dayEnabled: (LocalDate) -> Boolean = { true },
+    logIcon: (LocalDate) -> Int = { R.drawable.ic_note },
     onDay: (LocalDate) -> Unit
 ) {
     val locale = LocalConfiguration.current.locales[0]
@@ -443,16 +469,21 @@ fun MonthGrid(
                             shape = MaterialTheme.shapes.small,
                             color = when {
                                 inRange || detail.kind == CalendarDayKind.OBSERVED ->
-                                    MaterialTheme.colorScheme.primary
+                                    CalendarColors.period
+
+                                detail.kind == CalendarDayKind.FERTILE_ESTIMATE ->
+                                    CalendarColors.fertile
 
                                 detail.kind !=
                                     CalendarDayKind.NONE ->
-                                    MaterialTheme.colorScheme.secondaryContainer
+                                    CalendarColors.estimatedPeriod
 
                                 else -> MaterialTheme.colorScheme.surface
                             },
                             contentColor = if (inRange || detail.kind == CalendarDayKind.OBSERVED) {
-                                MaterialTheme.colorScheme.onPrimary
+                                androidx.compose.ui.graphics.Color.White
+                            } else if (detail.kind != CalendarDayKind.NONE) {
+                                CalendarColors.ink
                             } else {
                                 MaterialTheme.colorScheme.onSurface
                             },
@@ -490,7 +521,9 @@ fun MonthGrid(
                                         null
                                     }
                                 )
-                                if (detail.kind == CalendarDayKind.OBSERVED || inRange) {
+                                if ((detail.kind == CalendarDayKind.OBSERVED || inRange) &&
+                                    !hasLog(day)
+                                ) {
                                     Icon(
                                         painterResource(R.drawable.ic_drop),
                                         contentDescription = null,
@@ -498,7 +531,7 @@ fun MonthGrid(
                                     )
                                 } else if (hasLog(day)) {
                                     Icon(
-                                        painterResource(R.drawable.ic_note),
+                                        painterResource(logIcon(day)),
                                         contentDescription = null,
                                         modifier = Modifier.height(12.dp)
                                     )
@@ -509,6 +542,7 @@ fun MonthGrid(
                                             CalendarDayKind.APPROXIMATE -> "\u2248"
                                             CalendarDayKind.UNCERTAIN -> "\u00b7"
                                             CalendarDayKind.ESTIMATED_PERIOD -> "\u25cb"
+                                            CalendarDayKind.FERTILE_ESTIMATE -> "\u273f"
                                             else -> " "
                                         },
                                         style = MaterialTheme.typography.labelSmall
@@ -616,5 +650,6 @@ private fun dayKindText(kind: CalendarDayKind): String = stringResource(
         CalendarDayKind.APPROXIMATE -> R.string.calendar_approximate
         CalendarDayKind.ESTIMATED_PERIOD -> R.string.calendar_estimated_period
         CalendarDayKind.NONE -> R.string.calendar_empty
+        CalendarDayKind.FERTILE_ESTIMATE -> R.string.fertile_estimate
     }
 )

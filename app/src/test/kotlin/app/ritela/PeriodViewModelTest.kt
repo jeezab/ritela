@@ -135,7 +135,7 @@ class PeriodViewModelTest {
         assertEquals(date.plusDays(28), updated.analysis.forecasts.first().predictedStartDate)
         assertEquals(5, updated.analysis.periodDuration)
         assertEquals(record, updated.periods.single())
-        assertEquals(PredictionDefaults(), SettingsRepository(preferences).values.value)
+        assertEquals(PredictionDefaults(28, 5), SettingsRepository(preferences).values.value)
     }
 
     @Test fun invalidDateShowsAnErrorWithoutWriting() = runBlocking {

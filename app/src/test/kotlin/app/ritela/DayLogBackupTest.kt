@@ -144,7 +144,7 @@ class DayLogBackupTest {
                 repository.preview(ByteArray(BackupRepository.MAX_FILE_BYTES + 1), password)
             }.isFailure
         )
-        assertTrue(runCatching { repository.export("short".toCharArray()) }.isFailure)
+        assertTrue(repository.export("x".toCharArray()).isNotEmpty())
         assertTrue(database.periods().snapshot().isEmpty())
     }
 
@@ -209,7 +209,7 @@ class DayLogBackupTest {
             old.version = 1
         }
         val upgraded = Room.databaseBuilder(context, RitelaDatabase::class.java, name)
-            .addMigrations(RitelaDatabase.MIGRATION_1_2).build()
+            .addMigrations(RitelaDatabase.MIGRATION_1_2, RitelaDatabase.MIGRATION_2_3).build()
         try {
             assertEquals(id, upgraded.periods().snapshot().single().id)
             assertTrue(upgraded.dayLogs().snapshot().isEmpty())
@@ -219,5 +219,115 @@ class DayLogBackupTest {
             upgraded.close()
             context.deleteDatabase(name)
         }
+    }
+
+    @Test fun optionalPasswordAndCustomJournalRoundTripWithoutChangingOldRecords() = runBlocking {
+        val layout = app.ritela.domain.JournalLayout(
+            title = "My journal",
+            sections = listOf(
+                app.ritela.domain.JournalSection(
+                    "custom-section",
+                    "Sleep",
+                    app.ritela.domain.JournalIcon.STAR,
+                    listOf(app.ritela.domain.JournalTag("custom-tag", "Rested"))
+                )
+            )
+        )
+        app.ritela.data.JournalRepository(database.journal()).save(layout)
+        val log =
+            DayLog(
+                today,
+                note = "synthetic",
+                custom = mapOf("custom-section" to setOf("custom-tag")),
+                calendarIcon = app.ritela.domain.JournalIcon.STAR
+            )
+        database.dayLogs().save(DayLogEntity.from(log))
+        val backup = BackupRepository(database, clock)
+        for (text in listOf("", "x", "x".repeat(300))) {
+            val exportedPassword = text.toCharArray()
+            val bytes = backup.export(exportedPassword)
+            assertTrue(exportedPassword.all { it == '\u0000' })
+            val envelope = org.json.JSONObject(bytes.toString(Charsets.UTF_8))
+            assertEquals(
+                if (text.isEmpty()) "ritela.backup.plain" else "ritela.backup",
+                envelope.getString("format")
+            )
+            val restored = backup.preview(bytes, text.toCharArray())
+            assertEquals(layout, restored.layout)
+            assertEquals(log, restored.logs.single().toLog())
+            val target = Room.inMemoryDatabaseBuilder(context, RitelaDatabase::class.java).build()
+            try {
+                BackupRepository(target, clock).import(restored)
+                assertEquals(
+                    layout,
+                    app.ritela.data.JournalRepository(target.journal()).layout.first()
+                )
+                assertEquals(log, target.dayLogs().snapshot().single().toLog())
+            } finally {
+                target.close()
+            }
+        }
+        val plain = org.json.JSONObject(backup.export(charArrayOf()).toString(Charsets.UTF_8))
+        plain.getJSONObject(
+            "data"
+        ).getJSONArray("days").getJSONObject(0).put("day", today.plusDays(1).toEpochDay())
+        assertTrue(
+            runCatching {
+                backup.preview(plain.toString().toByteArray(), charArrayOf())
+            }.isFailure
+        )
+    }
+
+    @Test fun migrationFromV2KeepsDayLogsAndStartsWithDefaultJournal() = runBlocking {
+        val name = "migration-v2-test.db"
+        context.deleteDatabase(name)
+        val path = context.getDatabasePath(name)
+        path.parentFile?.mkdirs()
+        SQLiteDatabase.openOrCreateDatabase(path, null).use { old ->
+            old.execSQL(
+                "CREATE TABLE periods (id TEXT NOT NULL PRIMARY KEY, startDay INTEGER NOT NULL, endDay INTEGER, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)"
+            )
+            old.execSQL("CREATE UNIQUE INDEX index_periods_startDay ON periods(startDay)")
+            old.execSQL(
+                "CREATE TABLE day_logs (day INTEGER NOT NULL PRIMARY KEY, headache TEXT, cramps TEXT, backache TEXT, flow TEXT, mood TEXT, energy TEXT, sex TEXT NOT NULL, note TEXT NOT NULL)"
+            )
+            old.execSQL(
+                "INSERT INTO day_logs VALUES (?, 'NONE', NULL, NULL, NULL, NULL, NULL, 'CONDOM', 'synthetic')",
+                arrayOf<Any>(today.toEpochDay())
+            )
+            old.version = 2
+        }
+        val upgraded = Room.databaseBuilder(context, RitelaDatabase::class.java, name)
+            .addMigrations(RitelaDatabase.MIGRATION_2_3).build()
+        try {
+            val log = upgraded.dayLogs().snapshot().single().toLog()
+            assertEquals(Pain.NONE, log.headache)
+            assertEquals(setOf(Sex.CONDOM), log.sex)
+            assertEquals("synthetic", log.note)
+            assertTrue(log.custom.isEmpty())
+            assertNull(log.calendarIcon)
+            assertEquals(
+                app.ritela.domain.JournalLayout(),
+                app.ritela.data.JournalRepository(upgraded.journal()).layout.first()
+            )
+        } finally {
+            upgraded.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test fun legacyPayloadStillImportsWithoutCustomFields() = runBlocking {
+        val original = DayLog(today, headache = Pain.NONE, sex = setOf(Sex.CONDOM), note = "legacy")
+        database.dayLogs().save(DayLogEntity.from(original))
+        val backup = BackupRepository(database, clock)
+        val envelope = org.json.JSONObject(backup.export(charArrayOf()).toString(Charsets.UTF_8))
+        val payload = envelope.getJSONObject("data")
+        payload.put("version", 1).remove("journal")
+        val day = payload.getJSONArray("days").getJSONObject(0)
+        day.remove("custom")
+        day.remove("calendarIcon")
+        val restored = backup.preview(envelope.toString().toByteArray(), charArrayOf())
+        assertNull(restored.layout)
+        assertEquals(original, restored.logs.single().toLog())
     }
 }

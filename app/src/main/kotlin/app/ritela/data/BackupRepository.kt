@@ -18,21 +18,35 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class BackupData(val periods: List<PeriodEntity>, val logs: List<DayLogEntity>)
+data class BackupData(
+    val periods: List<PeriodEntity>,
+    val logs: List<DayLogEntity>,
+    val layout: app.ritela.domain.JournalLayout? = null
+)
 
-/** Portable password-protected backup. Import only merges; conflicting records are never overwritten. */
+/** Portable backup with optional encryption. Conflicting records are never overwritten. */
 class BackupRepository(
     private val database: RitelaDatabase,
     private val clock: Clock = Clock.systemDefaultZone()
 ) {
     suspend fun export(password: CharArray): ByteArray = withContext(Dispatchers.IO) {
         try {
-            require(password.size >= 12)
             val data = database.withTransaction {
-                BackupData(database.periods().snapshot(), database.dayLogs().snapshot())
+                BackupData(
+                    database.periods().snapshot(),
+                    database.dayLogs().snapshot(),
+                    database.journal().snapshot()?.let {
+                        JournalCodec.decode(it.config)
+                    }
+                )
             }
             val plain = encode(data).toByteArray(Charsets.UTF_8)
             require(plain.size <= MAX_BYTES)
+            if (password.isEmpty()) {
+                return@withContext JSONObject().put("format", "ritela.backup.plain")
+                    .put("version", 1).put("data", JSONObject(plain.toString(Charsets.UTF_8)))
+                    .toString().toByteArray(Charsets.UTF_8).also { plain.fill(0) }
+            }
             val random = SecureRandom()
             val salt = ByteArray(16).also(random::nextBytes)
             val iv = ByteArray(12).also(random::nextBytes)
@@ -53,6 +67,12 @@ class BackupRepository(
             try {
                 require(bytes.size <= MAX_FILE_BYTES)
                 val envelope = JSONObject(bytes.toString(Charsets.UTF_8))
+                if (envelope.optString("format") == "ritela.backup.plain") {
+                    require(integer(envelope, "version") == 1L)
+                    val text = envelope.getJSONObject("data").toString()
+                    require(text.toByteArray(Charsets.UTF_8).size <= MAX_BYTES)
+                    return@withContext decode(text).also(::validate)
+                }
                 require(
                     envelope.getString("format") == "ritela.backup" &&
                         integer(envelope, "version") == 1L
@@ -79,6 +99,17 @@ class BackupRepository(
     suspend fun import(data: BackupData) = withContext(Dispatchers.IO) {
         validate(data)
         database.withTransaction {
+            data.layout?.let { layout ->
+                val previous = database.journal().snapshot()?.let { JournalCodec.decode(it.config) }
+                require(previous == null || previous == layout)
+                if (previous ==
+                    null
+                ) {
+                    database.journal().save(
+                        JournalLayoutEntity(config = JournalCodec.encode(layout))
+                    )
+                }
+            }
             val existing = database.periods().snapshot().associateBy { it.id }
             for (record in data.periods.sortedBy { it.startDay }) {
                 val previous = existing[record.id]
@@ -98,6 +129,7 @@ class BackupRepository(
     }
 
     private fun validate(data: BackupData) {
+        data.layout?.let { require(app.ritela.domain.validateJournalLayout(it)) }
         require(data.periods.size <= 10000 && data.logs.size <= 10000)
         val today = LocalDate.now(clock)
         val periods = data.periods.map { entity ->
@@ -135,15 +167,22 @@ class BackupRepository(
                     .put(
                         "energy",
                         it.energy ?: JSONObject.NULL
-                    ).put("sex", it.sex).put("note", it.note)
+                    ).put("sex", it.sex).put("note", it.note).put("custom", JSONObject(it.custom))
+                    .put("calendarIcon", it.calendarIcon ?: JSONObject.NULL)
             )
         }
-        return JSONObject().put("version", 1).put("periods", periods).put("days", logs).toString()
+        return JSONObject().put("version", 2).put("periods", periods).put("days", logs)
+            .put(
+                "journal",
+                data.layout?.let {
+                    JSONObject(JournalCodec.encode(it))
+                } ?: JSONObject.NULL
+            ).toString()
     }
 
     private fun decode(text: String): BackupData {
         val root = JSONObject(text)
-        require(integer(root, "version") == 1L)
+        require(integer(root, "version") in 1L..2L)
         val periods = root.getJSONArray("periods")
         val logs = root.getJSONArray("days")
         require(periods.length() <= 10000 && logs.length() <= 10000)
@@ -164,8 +203,18 @@ class BackupRepository(
                 DayLogEntity(
                     integer(d, "day"), nullable("headache"), nullable("cramps"),
                     nullable("backache"), nullable("flow"), nullable("mood"), nullable("energy"),
-                    d.getString("sex"), d.getString("note")
+                    d.getString("sex"), d.getString("note"),
+                    d.optJSONObject("custom")?.toString() ?: "{}",
+                    if (d.isNull("calendarIcon")) null else d.getString("calendarIcon")
                 )
+            },
+            if (root.isNull(
+                    "journal"
+                )
+            ) {
+                null
+            } else {
+                JournalCodec.decode(root.getJSONObject("journal").toString())
             }
         )
     }

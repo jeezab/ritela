@@ -5,8 +5,7 @@
     <string name="history_empty">No periods recorded yet</string>
     <string name="entry_existing_hint">Filled days are already recorded. Edit or delete them in the calendar.</string>
     <string name="pregnancy_title">Chance of pregnancy</string>
-    <string name="pregnancy_unknown">Not enough information to estimate</string>
-    <string name="pregnancy_explanation">Period dates alone cannot identify fertile or safe days. Sex tags do not describe all contraception methods.</string>
+    <string name="pregnancy_explanation">Calendar estimate. Ovulation can shift; this does not identify safe days.</string>
     <string name="today_empty">How are you today? Add a note about how you feel.</string>
     <plurals name="stable_values">
         <item quantity="one">Last record: %2$s</item>
@@ -16,10 +15,5 @@
         <item quantity="one">Last record: %2$s</item>
         <item quantity="other">Last %1$d records: %2$s</item>
     </plurals>
-    <string name="pain_empty_title">Not enough entries yet</string>
-    <string name="pain_empty_body">Log how you feel for a few days to compare your entries.</string>
-    <string name="pain_logged_days">Pain logged on %d of the last 7 days</string>
-    <string name="no_pain_logged">No pain in the recorded entries</string>
     <string name="chart_selected">%1$s · %2$s</string>
-    <string name="pain_series_key">Headache / cramps · — means not logged</string>
 </resources>

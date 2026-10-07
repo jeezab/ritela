@@ -5,8 +5,7 @@
     <string name="history_empty">Месячные пока не отмечены</string>
     <string name="entry_existing_hint">Закрашенные дни уже отмечены. Изменить или удалить запись можно в календаре.</string>
     <string name="pregnancy_title">Вероятность беременности</string>
-    <string name="pregnancy_unknown">Недостаточно данных для оценки</string>
-    <string name="pregnancy_explanation">Одни даты месячных не определяют фертильные или безопасные дни. Отметки секса не описывают все способы контрацепции.</string>
+    <string name="pregnancy_explanation">Календарная оценка. Овуляция может сместиться; это не определяет безопасные дни.</string>
     <string name="today_empty">Как вы сегодня? Можно отметить самочувствие.</string>
     <plurals name="stable_values">
         <item quantity="one">Последняя запись: %2$s</item>
@@ -20,10 +19,5 @@
         <item quantity="many">Последние %1$d записей: %2$s</item>
         <item quantity="other">Последние %1$d записи: %2$s</item>
     </plurals>
-    <string name="pain_empty_title">Пока недостаточно записей</string>
-    <string name="pain_empty_body">Отмечайте самочувствие несколько дней, чтобы сравнивать записи.</string>
-    <string name="pain_logged_days">Боль отмечена в %d из последних 7 дней</string>
-    <string name="no_pain_logged">В сохранённых отметках боли нет</string>
     <string name="chart_selected">%1$s · %2$s</string>
-    <string name="pain_series_key">Голова / живот · — не отмечено</string>
 </resources>

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.core.net.toUri
@@ -41,10 +44,15 @@ import app.ritela.data.ThemeMode
 fun SettingsScreen(
     padding: PaddingValues,
     state: PeriodUiState,
-    onThemeChange: (ThemeMode) -> Unit
+    onThemeChange: (ThemeMode) -> Unit,
+    onDurationChange: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
     var choosingTheme by rememberSaveable { mutableStateOf(false) }
+    var choosingDuration by rememberSaveable { mutableStateOf(false) }
+    var duration by rememberSaveable(state.defaults.periodDuration) {
+        mutableStateOf(state.defaults.periodDuration.toString())
+    }
     Column(
         Modifier.fillMaxSize().padding(padding)
             .verticalScroll(rememberScrollState()).padding(Spacing.large),
@@ -99,7 +107,72 @@ fun SettingsScreen(
         }
         HorizontalDivider()
         state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
+        TextButton(
+            onClick = { choosingDuration = true },
+            modifier = Modifier.fillMaxWidth()
+                .testTag("forecast-duration")
+        ) {
+            Text(
+                pluralStringResource(
+                    R.plurals.forecast_duration_value,
+                    state.defaults.periodDuration,
+                    state.defaults.periodDuration
+                )
+            )
+        }
         BackupActions()
+    }
+    if (choosingDuration) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { if (!state.saving) choosingDuration = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            androidx.compose.material3.Surface(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier.padding(Spacing.large).imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.medium)
+                ) {
+                    Text(
+                        stringResource(R.string.forecast_duration),
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.medium)
+                    ) {
+                        Text(stringResource(R.string.forecast_duration_hint))
+                        OutlinedTextField(
+                            value = duration,
+                            onValueChange = { duration = it },
+                            singleLine = true,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                            ),
+                            label = { Text(stringResource(R.string.days_label)) },
+                            modifier = Modifier.fillMaxWidth().testTag("forecast-duration-input")
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        TextButton(onClick = {
+                            choosingDuration = false
+                        }, enabled = !state.saving) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            enabled = duration.toIntOrNull() in 1..60 && !state.saving,
+                            onClick = {
+                                onDurationChange(duration.toInt())
+                                choosingDuration = false
+                            }
+                        ) {
+                            Text(stringResource(R.string.save))
+                        }
+                    }
+                }
+            }
+        }
     }
     if (choosingTheme) {
         AlertDialog(

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import app.ritela.R
 import app.ritela.domain.DayLog
 import app.ritela.domain.Period
+import app.ritela.domain.journalSelections
 import java.time.LocalDate
 
 @Composable
@@ -57,7 +58,12 @@ fun CycleDayBadge(day: Long) {
 }
 
 @Composable
-fun DaySummary(log: DayLog?, onEdit: () -> Unit, enabled: Boolean = true) {
+fun DaySummary(
+    log: DayLog?,
+    onEdit: () -> Unit,
+    enabled: Boolean = true,
+    layout: app.ritela.domain.JournalLayout = app.ritela.domain.JournalLayout()
+) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
         FlowRow(
             Modifier.fillMaxWidth(),
@@ -81,42 +87,30 @@ fun DaySummary(log: DayLog?, onEdit: () -> Unit, enabled: Boolean = true) {
             )
         }
         log?.let {
-            listOf(
-                Triple(R.string.headache, R.drawable.ic_head, it.headache),
-                Triple(R.string.cramps, R.drawable.ic_drop, it.cramps),
-                Triple(R.string.backache, R.drawable.ic_drop, it.backache),
-                Triple(R.string.flow_title, R.drawable.ic_drop, it.flow),
-                Triple(R.string.mood_title, R.drawable.ic_heart, it.mood),
-                Triple(R.string.energy_title, R.drawable.ic_energy, it.energy)
-            ).forEach { (label, icon, value) ->
-                if (value != null) {
+            val selections = it.journalSelections()
+            layout.sections.forEach { section ->
+                val chosen = section.tags.filter { tag ->
+                    tag.id in selections[section.id].orEmpty()
+                }
+                if (chosen.isNotEmpty()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                     ) {
                         Icon(
-                            painterResource(icon),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.height(20.dp)
+                            painterResource(journalIcon(section.icon)),
+                            null,
+                            Modifier.height(20.dp)
                         )
+                        val labels = chosen.map { tag -> journalTagLabel(section, tag) }
                         Text(
                             stringResource(
                                 R.string.day_summary,
-                                stringResource(label),
-                                eventLabel(value)
+                                journalSectionLabel(section),
+                                labels.joinToString()
                             )
                         )
                     }
-                }
-            }
-            if (it.sex.isNotEmpty()) {
-                Text(
-                    stringResource(R.string.sex_title),
-                    style = MaterialTheme.typography.labelLarge
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                    it.sex.forEach { sex -> Text(eventLabel(sex)) }
                 }
             }
             if (it.note.isNotBlank()) Text(it.note)
@@ -192,61 +186,14 @@ fun CycleInsights(
             Text(stringResource(R.string.period_chart_empty))
         } else {
             Text(
-                pluralStringResource(R.plurals.days_value, durations.median!!, durations.median!!),
+                pluralStringResource(
+                    R.plurals.days_value,
+                    kotlin.math.round(durations.values.map { it.second }.average()).toInt(),
+                    kotlin.math.round(durations.values.map { it.second }.average()).toInt()
+                ),
                 style = MaterialTheme.typography.headlineMedium
             )
             SeriesInsight(durations.values.takeLast(6))
-        }
-        androidx.compose.material3.HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-        Text(stringResource(R.string.symptom_chart), style = MaterialTheme.typography.titleLarge)
-        val recent = (6 downTo 0).map { today.minusDays(it.toLong()) }
-        val data = recent.map { date -> date to logs.firstOrNull { it.date == date } }
-        val measured = data.filter { it.second?.headache != null || it.second?.cramps != null }
-        if (measured.isEmpty()) {
-            Text(
-                stringResource(R.string.pain_empty_title),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                stringResource(R.string.pain_empty_body),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            TextButton(onClick = onLogDay) { Text(stringResource(R.string.log_day)) }
-        } else {
-            val withPain = measured.count { (_, log) ->
-                (log?.headache?.ordinal ?: 0) > 0 ||
-                    (log?.cramps?.ordinal ?: 0) > 0
-            }
-            Text(
-                stringResource(
-                    if (withPain ==
-                        0
-                    ) {
-                        R.string.no_pain_logged
-                    } else {
-                        R.string.pain_logged_days
-                    },
-                    withPain
-                )
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                measured.forEach { (date, log) ->
-                    Text(
-                        "${date.dayOfMonth}: ${log?.headache?.let {
-                            eventLabel(it)
-                        } ?: "\u2014"} / " +
-                            (log?.cramps?.let { eventLabel(it) } ?: "\u2014"),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-            Text(
-                stringResource(R.string.pain_series_key),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

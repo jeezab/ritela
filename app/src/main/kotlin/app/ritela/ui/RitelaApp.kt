@@ -77,7 +77,9 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     RitelaTheme(darkTheme = darkTheme) {
         Scaffold(bottomBar = { AppNavigation(page) { page = it } }) { contentPadding ->
             if (page == 2) {
-                SettingsScreen(contentPadding, state, model::setTheme)
+                SettingsScreen(contentPadding, state, model::setTheme) { duration ->
+                    model.updateDefaults(state.defaults.copy(periodDuration = duration))
+                }
             } else if (page == 1) {
                 CalendarScreen(
                     contentPadding,
@@ -135,7 +137,8 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                     loggingDay = null
                     model.clearResult()
                 },
-                onSave = model::saveDay
+                onSave = model::saveDay,
+                onLayoutChange = model::saveJournalLayout
             )
         }
         state.periods.firstOrNull { it.id.toString() == editingId }?.let { period ->
@@ -331,7 +334,8 @@ fun HomeScreen(
         DaySummary(
             state.dayLogs.firstOrNull { it.date == today },
             onLogDay,
-            !state.loading && !state.saving
+            !state.loading && !state.saving,
+            layout = state.journalLayout
         )
         CycleInsights(state.periods, today, state.dayLogs, onLogDay)
         HelpCards(state.dayLogs.firstOrNull { it.date == today }, state.analysis, today)
