@@ -401,6 +401,8 @@ class HomeScreenTest {
         renderForecastHome()
         compose.onNodeWithText("Ritela").performScrollTo()
         compose.onNodeWithText("Oct 19").assertIsDisplayed()
+        compose.onNodeWithText("Based on 6 completed cycles").assertDoesNotExist()
+        compose.onNodeWithTag("forecast-info").performClick()
         compose.onNodeWithText("Based on 6 completed cycles").assertIsDisplayed()
     }
 

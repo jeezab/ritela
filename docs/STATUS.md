@@ -83,3 +83,7 @@ Format/checkKotlin/assembleDebug/lintDebug — PASS. 5 необходимых т
 ## Выпуск v0.2.4
 
 2026-10-07: пользователь явно запросил push и новый тег 0.2.4. Git fetch подтвердил master впереди origin/master на 3 коммита без входящих изменений; тег v0.2.4 отсутствует. GitHub API подтвердил опубликованные стабильные v0.2.1/v0.2.2/v0.2.3. version.properties обновлён до 0.2.4, code 2004. release.py check --tag v0.2.4 --release-pages — PASS; 7 release tests — PASS. CheckKotlin/assembleDebug/lintDebug после смены версии — PASS; verify-apk/workspace/diff — PASS. Новый debug APK: 12 968 048 байт, SHA-256 5322bd79ac983a6ba998a4b407e055770278ba64217117935bb135a779ae513e. UI и полный screenshot-набор не запускались. Предыдущие 5 целевых Android-тестов уже прошли; полный набор запустит CI. Следующий шаг — отправить master/новый v0.2.4, проверить remote SHA и Release APK run. Существующие теги не менять; production secrets локально не читаются.
+
+## Исправление CI после v0.2.4
+
+2026-10-07: Release APK упал на единственном englishForecastKeepsDatesAndHistoryLocalized (69 остальных тестов прошли по приложенному логу). Проверка ожидала Based on 6 completed cycles на главной после переноса этой подписи в info-dialog. Тест теперь проверяет отсутствие подписи на hero, нажимает forecast-info и проверяет английский текст в диалоге. Код приложения не менялся. CheckKotlin/compileDebugUnitTestKotlin — PASS; тесты и PNG не запускались по запросу пользователя, полный повтор остаётся CI. Следующий шаг — подготовить 0.2.5 и дать команды push/нового тега, самостоятельно не отправлять.
