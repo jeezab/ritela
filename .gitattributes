@@ -3,7 +3,7 @@
 *.ps1 text eol=lf
 *.json text eol=lf
 .agent-skills.lock text eol=lf
-docs/prompts/* -text
+docs/prompts/* -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary

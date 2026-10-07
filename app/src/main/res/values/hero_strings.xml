@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hero_cycle_day">Cycle day %1$d</string>
+    <string name="forecast_info">About this forecast</string>
+    <string name="hero_phase_info">Cycle phases are estimated from the dates you log.</string>
+    <string name="phase_early_estimate">Early cycle · estimated</string>
+    <string name="phase_follicular_estimate">Follicular phase · estimated</string>
+    <string name="phase_ovulation_estimate">Ovulation window · estimated</string>
+    <string name="phase_luteal_estimate">Luteal phase · estimated</string>
+</resources>
