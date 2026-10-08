@@ -27,6 +27,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
@@ -1255,6 +1256,86 @@ class HomeScreenTest {
         compose.onNodeWithText(
             compose.activity.getString(app.ritela.R.string.cancel)
         ).performClick()
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "ru-rRU-w390dp-h844dp")
+    fun flatOrbitLandmarksExplainPhasesAndDraggingOnlyChangesFocus() {
+        renderHomeReferenceFixture("home-flat-orbit", false, 1f)
+        for (marker in app.ritela.ui.OrbitMarker.entries) {
+            compose.onNodeWithTag("orbit-marker-${marker.name}").performClick()
+            compose.onNodeWithTag("orbit-phase-info").assertIsDisplayed()
+            if (marker ==
+                app.ritela.ui.OrbitMarker.OVULATION
+            ) {
+                saveRendering("orbit-phase-info", dialog = true)
+            }
+            compose.onNodeWithTag("orbit-phase-close").performClick()
+        }
+        compose.onNodeWithTag("orbit-current").performClick()
+        compose.onNodeWithTag("orbit-detail").assertIsDisplayed()
+        saveRendering("orbit-detail", dialog = true)
+        compose.onNodeWithTag("orbit-scrub").performScrollTo()
+        val bounds = compose.onNodeWithTag("orbit-scrub").fetchSemanticsNode().boundsInRoot
+        val geometry = app.ritela.ui.OrbitGeometry.inViewport(
+            androidx.compose.ui.geometry.Size(bounds.width, bounds.height),
+            32f * compose.activity.resources.displayMetrics.density
+        )
+        compose.onNodeWithTag("orbit-scrub").performTouchInput {
+            down(geometry.position(0.3f))
+            moveTo(geometry.position(0.5f))
+            moveTo(geometry.position(0.75f))
+            up()
+        }
+        compose.onNodeWithTag("orbit-focus-day").performScrollTo().assertTextEquals(
+            compose.activity.getString(app.ritela.R.string.orbit_focus_day, 23)
+        )
+        compose.onNodeWithTag("orbit-focus-phase").assertTextEquals(
+            compose.activity.getString(app.ritela.R.string.phase_luteal_estimate)
+        )
+        saveRendering("orbit-detail-scrubbed", dialog = true)
+        compose.onNodeWithTag(
+            "orbit-day-slider"
+        ).performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) {
+            it(14f)
+        }
+        compose.onNodeWithTag("orbit-focus-day").performScrollTo().assertTextEquals(
+            compose.activity.getString(app.ritela.R.string.orbit_focus_day, 14)
+        )
+        compose.onNodeWithTag("orbit-reset").performScrollTo().performClick()
+        compose.onNodeWithTag("orbit-focus-day").performScrollTo().assertTextEquals(
+            compose.activity.getString(app.ritela.R.string.orbit_focus_day, 8)
+        )
+        compose.onNodeWithTag("orbit-detail-close").performClick()
+        compose.onNodeWithTag(
+            "forecast-date"
+        ).assertTextEquals("2 \u043d\u043e\u044f\u0431\u0440\u044f")
+        compose.onNodeWithTag("forecast-info").performClick()
+        compose.onNodeWithText(
+            compose.activity.getString(app.ritela.R.string.forecast_info)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    fun expandedOrbitRemainsAccessibleWhenCompactSceneIsHiddenAtLargeText() {
+        renderHomeReferenceFixture("home-flat-orbit-large", true, 2f)
+        compose.onNodeWithTag("cycle-orbit-8").assertDoesNotExist()
+        compose.onNodeWithTag("orbit-open").performScrollTo().performClick()
+        compose.onNodeWithTag(
+            "orbit-day-slider"
+        ).performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) {
+            it(22f)
+        }
+        compose.onNodeWithTag("orbit-focus-day").performScrollTo().assertTextEquals(
+            compose.activity.getString(app.ritela.R.string.orbit_focus_day, 22)
+        )
+        saveRendering("orbit-detail-large", dialog = true)
+        compose.onNodeWithTag("orbit-legend-END").performScrollTo().performClick()
+        compose.onNodeWithTag("orbit-phase-info").assertIsDisplayed()
+        compose.onNodeWithTag("orbit-phase-close").performClick()
+        compose.onNodeWithTag("orbit-detail-close").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("forecast-date").assertIsDisplayed()
     }
 
     private fun assertHomeGradientBackground() {

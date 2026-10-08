@@ -1,15 +1,27 @@
 package app.ritela.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
@@ -17,196 +29,285 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlin.math.min
+import app.ritela.R
+import kotlin.math.roundToInt
 
 data class OrbitColors(val ink: Color, val rose: Color, val peach: Color, val surface: Color)
 
-/** One analytic ellipse. All geometry and brushes are cached; animation only invalidates drawing. */
+/** A flat path, five landmarks, a separate current marker. No rotation or perspective. */
 @Composable
 fun CycleOrbitScene(
     cycleDay: Long,
     progress: Float,
     reducedMotion: Boolean,
     colors: OrbitColors,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onMarker: ((OrbitMarker) -> Unit)? = null,
+    onOpen: (() -> Unit)? = null,
+    onScrub: ((Float) -> Unit)? = null,
+    focusProgress: Float? = null
 ) {
-    val breath =
-        orbitPulse(
-            reducedMotion,
-            0.93f,
-            1f,
-            RitelaMotion.ORBIT_HALF_BREATH_MILLIS,
-            "orbit breathing"
-        )
-    val currentPulse =
-        orbitPulse(
-            reducedMotion,
-            0.98f,
-            1.04f,
-            RitelaMotion.MARKER_HALF_BREATH_MILLIS,
-            "current point"
-        )
-    Canvas(
-        modifier.testTag("cycle-orbit-$cycleDay").clearAndSetSemantics {}.drawWithCache {
-            // Reserve space for the tilted ellipse and the largest halo at every width.
-            val unit = min(size.width / 300f, size.height / 220f)
-            val center = Offset(size.width / 2, size.height / 2)
-            val geometry = OrbitGeometry(center, 112f * unit, 96f * unit, 0f)
-            val orbitSize = Size(geometry.horizontalRadius * 2, geometry.verticalRadius * 2)
-            val orbitTopLeft = center - Offset(geometry.horizontalRadius, geometry.verticalRadius)
-            val stroke = Stroke(1.1.dp.toPx())
-            val sun = geometry.pointOnOrbit(OrbitPhaseMarkers.START.angleDegrees)
-            val follicular = geometry.pointOnOrbit(OrbitPhaseMarkers.FOLLICULAR.angleDegrees)
-            val ovulation = geometry.pointOnOrbit(OrbitPhaseMarkers.OVULATION.angleDegrees)
-            val luteal = geometry.pointOnOrbit(OrbitPhaseMarkers.LUTEAL.angleDegrees)
-            val moon = geometry.pointOnOrbit(OrbitPhaseMarkers.END.angleDegrees)
-            val active = geometry.pointOnOrbit(currentOrbitAngle(progress))
-            fun halo(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
-                listOf(color.copy(alpha = 0.65f), color.copy(alpha = 0.19f), Color.Transparent),
-                point,
-                radius * unit
-            )
-            val sunHalo = halo(colors.peach, sun, 24f)
-            val focusSun = center + Offset(-5f * unit, -76f * unit)
-            val focusHalo = halo(colors.peach, focusSun, 38f)
-            val innerOrbit =
-                OrbitGeometry(center + Offset(0f, -7f * unit), 105f * unit, 62f * unit, -25f)
-            val pearl = androidx.compose.ui.graphics.lerp(colors.peach, Color(0xFFFFF4E5), 0.65f)
-            val moonColor = androidx.compose.ui.graphics.lerp(
-                colors.ink,
-                colors.surface,
-                if (colors.surface.luminance() < 0.4f) 0.25f else 0.65f
-            )
-            val ovulationHalo = halo(colors.rose, ovulation, 24f)
-            val activeHalo = halo(colors.rose, active, 16f)
-            val mist = Brush.radialGradient(
-                listOf(colors.rose.copy(alpha = 0.07f), Color.Transparent),
-                center,
-                85f * unit
-            )
-            fun planet(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
-                listOf(androidx.compose.ui.graphics.lerp(color, Color.White, 0.4f), color),
-                point - Offset(radius * unit * 0.3f, radius * unit * 0.4f),
-                radius * unit * 1.5f
-            )
-            val sunBody = planet(colors.peach, sun, 6.5f)
-            val pearlBody = planet(pearl, ovulation, 8.5f)
-            // A true vector crescent: its transparent cutout preserves the underlying ellipse.
-            val moonRadius = 15f * unit
-            val moonDisc = Path().apply {
-                addOval(
-                    androidx.compose.ui.geometry.Rect(
-                        moon - Offset(moonRadius, moonRadius),
-                        Size(moonRadius * 2, moonRadius * 2)
-                    )
-                )
-            }
-            val cutoutCenter = moon + Offset(8f * unit, -4.8f * unit)
-            val moonCutout = Path().apply {
-                addOval(
-                    androidx.compose.ui.geometry.Rect(
-                        cutoutCenter - Offset(moonRadius, moonRadius),
-                        Size(
-                            moonRadius * 2,
-                            moonRadius * 2
-                        )
-                    )
-                )
-            }
-            val crescent = Path.combine(PathOperation.Difference, moonDisc, moonCutout)
-            val leaves = (0..2).map { index ->
-                val origin =
-                    center + Offset((-95f + index * 15f) * unit, (55f + index * 15f) * unit)
-                Path().apply {
-                    moveTo(origin.x, origin.y)
-                    quadraticTo(
-                        origin.x + 3f * unit,
-                        origin.y - 23f * unit,
-                        origin.x + 28f * unit,
-                        origin.y - 35f * unit
-                    )
-                    quadraticTo(
-                        origin.x + 16f * unit,
-                        origin.y - 10f * unit,
-                        origin.x + 12f * unit,
-                        origin.y + 5f * unit
-                    )
-                    close()
+    val breath = orbitPulse(reducedMotion, 0.9f, 1f, RitelaMotion.ORBIT_HALF_BREATH_MILLIS)
+    val pulse = orbitPulse(reducedMotion, 0.98f, 1.04f, RitelaMotion.MARKER_HALF_BREATH_MILLIS)
+    var viewport by remember { mutableStateOf(IntSize.Zero) }
+    val density = LocalDensity.current
+    val inset = with(density) { 32.dp.toPx() }
+    val hitRadius = with(density) { 24.dp.toPx() }
+    val geometry = remember(viewport, inset) {
+        OrbitGeometry.inViewport(Size(viewport.width.toFloat(), viewport.height.toFloat()), inset)
+    }
+    val scrub by rememberUpdatedState(onScrub)
+    val openLabel = stringResource(R.string.orbit_open)
+    val orbitHint = stringResource(R.string.orbit_hint)
+    val scrubbing = if (onScrub == null) {
+        Modifier
+    } else {
+        Modifier.pointerInput(geometry) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val nearest = geometry.position(geometry.progressAt(down.position))
+                if ((down.position - nearest).getDistance() >
+                    hitRadius * 1.5f
+                ) {
+                    return@awaitEachGesture
                 }
-            }
-            onDrawBehind {
-                val light = breath.value
-                drawCircle(mist, 85f * unit, center)
-                rotate(geometry.tiltDegrees, center) {
-                    drawOval(
-                        colors.rose.copy(alpha = 0.75f * light),
-                        orbitTopLeft,
-                        orbitSize,
-                        style = stroke
-                    )
+                val start = awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                    change.consume()
+                    scrub?.invoke(geometry.progressAt(change.position))
                 }
-                rotate(innerOrbit.tiltDegrees, innerOrbit.center) {
-                    drawOval(
-                        colors.rose.copy(alpha = 0.4f * light),
-                        innerOrbit.center -
-                            Offset(innerOrbit.horizontalRadius, innerOrbit.verticalRadius),
-                        Size(innerOrbit.horizontalRadius * 2, innerOrbit.verticalRadius * 2),
-                        style = Stroke(0.8.dp.toPx())
-                    )
+                if (start != null) {
+                    drag(start.id) { change ->
+                        change.consume()
+                        scrub?.invoke(geometry.progressAt(change.position))
+                    }
                 }
-                drawCircle(focusHalo, 38f * unit, focusSun, alpha = light)
-                drawCircle(colors.peach, 14f * unit, focusSun)
-                drawCircle(sunHalo, 24f * unit, sun, alpha = light)
-                drawCircle(sunBody, 6.5f * unit, sun)
-                drawCircle(colors.surface, 4.2f * unit, follicular)
-                drawCircle(
-                    colors.rose.copy(alpha = 0.55f),
-                    4.2f * unit,
-                    follicular,
-                    style = Stroke(0.8.dp.toPx())
-                )
-                drawCircle(ovulationHalo, 24f * unit, ovulation, alpha = light)
-                drawCircle(pearlBody, 8.5f * unit, ovulation)
-                drawCircle(
-                    colors.rose.copy(alpha = 0.30f),
-                    8.5f * unit,
-                    ovulation,
-                    style = Stroke(0.7.dp.toPx())
-                )
-                drawCircle(colors.rose.copy(alpha = 0.65f), 4.5f * unit, luteal)
-                drawPath(crescent, moonColor)
-                // Three abstract leaves; decoration carries no health information.
-                for (leaf in leaves) drawPath(leaf, colors.rose.copy(alpha = 0.6f))
-                drawCircle(
-                    colors.peach.copy(alpha = 0.65f),
-                    1.2f * unit,
-                    center + Offset(80f * unit, (-65f + currentPulse.value * 2f) * unit)
-                )
-                drawCircle(
-                    colors.rose.copy(alpha = 0.6f),
-                    1f * unit,
-                    center + Offset(-65f * unit, -82f * unit)
-                )
-                val scale = currentPulse.value
-                drawCircle(activeHalo, 16f * unit * scale, active)
-                drawCircle(colors.surface, 6f * unit * scale, active)
-                drawCircle(
-                    colors.rose.copy(alpha = 0.8f),
-                    6f * unit * scale,
-                    active,
-                    style = stroke
-                )
-                drawCircle(colors.ink.copy(alpha = 0.8f), 2.4f * unit, active)
             }
         }
-    ) {}
+    }
+    Box(
+        modifier.onSizeChanged { viewport = it }.testTag("cycle-orbit-$cycleDay")
+            .then(
+                if (onOpen ==
+                    null
+                ) {
+                    Modifier
+                } else {
+                    Modifier.semantics { contentDescription = "$openLabel. $orbitHint" }
+                        .clickable(role = Role.Button, onClickLabel = openLabel, onClick = onOpen)
+                }
+            )
+            .then(scrubbing)
+    ) {
+        Canvas(
+            Modifier.fillMaxSize().testTag("orbit-canvas").clearAndSetSemantics {}.drawWithCache {
+                val path = geometry.path
+                val active = geometry.position(progress)
+                val sun = geometry.position(OrbitMarker.START.progress)
+                val moon = geometry.position(OrbitMarker.END.progress)
+                val focus = focusProgress?.let(geometry::position)
+                val unit = 1.dp.toPx()
+                fun halo(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
+                    listOf(color.copy(alpha = 0.35f), Color.Transparent),
+                    point,
+                    radius * unit
+                )
+                val activeHalo = halo(colors.ink, active, 28f)
+                val sunHalo = halo(colors.peach, sun, 22f)
+                val pathMeasure = PathMeasure().apply { setPath(path, true) }
+                val travelled = Path().also {
+                    pathMeasure.getSegment(0f, pathMeasure.length * progress.coerceIn(0f, 1f), it)
+                }
+                val markers = OrbitMarker.entries.associateWith { geometry.position(it.progress) }
+                val activeOverLandmark = markers.values.any {
+                    (it - active).getDistance() < 14f * unit
+                }
+                val moonRadius = 8f * unit
+                val moonDisc = Path().apply {
+                    addOval(
+                        androidx.compose.ui.geometry.Rect(
+                            moon - Offset(moonRadius, moonRadius),
+                            Size(moonRadius * 2, moonRadius * 2)
+                        )
+                    )
+                }
+                val cutout = Path().apply {
+                    val center = moon + Offset(4f * unit, -3f * unit)
+                    addOval(
+                        androidx.compose.ui.geometry.Rect(
+                            center - Offset(moonRadius, moonRadius),
+                            Size(moonRadius * 2, moonRadius * 2)
+                        )
+                    )
+                }
+                val crescent = Path.combine(PathOperation.Difference, moonDisc, cutout)
+                val arrow = geometry.position(0.08f)
+                val tangent = geometry.position(0.085f) - geometry.position(0.075f)
+                val direction = tangent / tangent.getDistance().coerceAtLeast(1f)
+                val normal = Offset(-direction.y, direction.x)
+                val leaves = (0..1).map { index ->
+                    val origin = Offset(12f * unit + index * 12f * unit, size.height - 28f * unit)
+                    Path().apply {
+                        moveTo(origin.x, origin.y)
+                        quadraticTo(
+                            origin.x - 3f * unit,
+                            origin.y - 18f * unit,
+                            origin.x + 16f * unit,
+                            origin.y - 28f * unit
+                        )
+                        quadraticTo(origin.x + 14f * unit, origin.y - 8f * unit, origin.x, origin.y)
+                        close()
+                    }
+                }
+                onDrawBehind {
+                    val light = breath.value
+                    drawPath(
+                        path,
+                        colors.rose.copy(alpha = 0.07f * light),
+                        style = Stroke(5f * unit)
+                    )
+                    drawPath(
+                        path,
+                        colors.rose.copy(alpha = 0.6f * light),
+                        style = Stroke(1.1f * unit)
+                    )
+                    drawPath(
+                        travelled,
+                        colors.peach.copy(alpha = 0.8f),
+                        style = Stroke(1.5f * unit)
+                    )
+                    drawLine(
+                        colors.peach.copy(alpha = 0.8f),
+                        arrow - direction * 5f * unit + normal * 3f * unit,
+                        arrow,
+                        1.2f * unit
+                    )
+                    drawLine(
+                        colors.peach.copy(alpha = 0.8f),
+                        arrow - direction * 5f * unit - normal * 3f * unit,
+                        arrow,
+                        1.2f * unit
+                    )
+                    drawCircle(sunHalo, 22f * unit, sun, alpha = light)
+                    for (marker in OrbitMarker.entries) {
+                        val point = markers.getValue(marker)
+                        when (marker) {
+                            OrbitMarker.START -> drawCircle(colors.peach, 7f * unit, point)
+
+                            OrbitMarker.FOLLICULAR -> {
+                                drawCircle(colors.surface, 4.5f * unit, point)
+                                drawCircle(
+                                    colors.rose,
+                                    4.5f * unit,
+                                    point,
+                                    style = Stroke(1.2f * unit)
+                                )
+                            }
+
+                            OrbitMarker.OVULATION -> drawCircle(
+                                colors.ink.copy(alpha = 0.85f),
+                                5.5f * unit,
+                                point
+                            )
+
+                            OrbitMarker.LUTEAL -> drawCircle(colors.rose, 4.5f * unit, point)
+
+                            OrbitMarker.END -> drawPath(crescent, colors.peach.copy(alpha = 0.85f))
+                        }
+                    }
+                    for (leaf in leaves) drawPath(leaf, colors.rose.copy(alpha = 0.22f))
+                    drawCircle(
+                        colors.peach.copy(alpha = 0.4f),
+                        unit,
+                        Offset(
+                            size.width - 12f * unit,
+                            size.height * 0.3f
+                        )
+                    )
+                    drawCircle(
+                        colors.rose.copy(alpha = 0.4f),
+                        unit,
+                        Offset(
+                            14f * unit,
+                            size.height * 0.2f
+                        )
+                    )
+                    if (focus != null && (focus - active).getDistance() > unit) {
+                        drawCircle(colors.surface, 8f * unit, focus)
+                        drawCircle(colors.peach, 8f * unit, focus, style = Stroke(2f * unit))
+                    }
+                    drawCircle(activeHalo, 28f * unit * pulse.value, active)
+                    if (!activeOverLandmark) {
+                        drawCircle(colors.surface, 11f * unit * pulse.value, active)
+                    }
+                    drawCircle(
+                        colors.ink,
+                        11f * unit * pulse.value,
+                        active,
+                        style = Stroke(2.3f * unit)
+                    )
+                    if (!activeOverLandmark) drawCircle(colors.ink, 3.5f * unit, active)
+                }
+            }
+        ) {}
+        if (viewport != IntSize.Zero && onMarker != null) {
+            for (marker in OrbitMarker.entries) {
+                val label = stringResource(orbitMarkerTitle(marker))
+                OrbitTouchTarget(
+                    geometry.position(marker.progress),
+                    hitRadius,
+                    "orbit-marker-${marker.name}",
+                    label
+                ) {
+                    onMarker(marker)
+                }
+            }
+        }
+        if (viewport != IntSize.Zero && onOpen != null && OrbitMarker.entries.none {
+                (geometry.position(it.progress) - geometry.position(progress)).getDistance() <
+                    hitRadius
+            }
+        ) {
+            OrbitTouchTarget(
+                geometry.position(progress),
+                hitRadius,
+                "orbit-current",
+                stringResource(R.string.orbit_current_day, cycleDay),
+                onOpen
+            )
+        }
+    }
+}
+
+@Composable
+private fun OrbitTouchTarget(
+    point: Offset,
+    radius: Float,
+    tag: String,
+    label: String,
+    onClick: () -> Unit
+) {
+    Box(
+        Modifier.offset {
+            IntOffset((point.x - radius).roundToInt(), (point.y - radius).roundToInt())
+        }
+            .size(48.dp).testTag(tag).semantics { contentDescription = label }
+            .clickable(role = Role.Button, onClick = onClick)
+    )
 }
 
 @Composable
@@ -214,17 +315,13 @@ private fun orbitPulse(
     reducedMotion: Boolean,
     from: Float,
     to: Float,
-    halfPeriod: Int,
-    label: String
+    halfPeriod: Int
 ): State<Float> {
     if (reducedMotion) return rememberUpdatedState(1f)
-    return rememberInfiniteTransition(label = label).animateFloat(
-        initialValue = from,
-        targetValue = to,
-        animationSpec = infiniteRepeatable(
-            tween(halfPeriod, easing = FastOutSlowInEasing),
-            RepeatMode.Reverse
-        ),
-        label = label
+    return rememberInfiniteTransition(label = "orbit light").animateFloat(
+        from,
+        to,
+        infiniteRepeatable(tween(halfPeriod), RepeatMode.Reverse),
+        label = "orbit pulse"
     )
 }
