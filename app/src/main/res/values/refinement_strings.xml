@@ -1,0 +1,22 @@
+<resources>
+    <string name="calendar_expand">Show cycle details</string>
+    <string name="calendar_collapse">Hide cycle details</string>
+    <string name="current_cycle_phase">Current cycle phase</string>
+    <string name="phase_early_name">Early cycle</string>
+    <string name="phase_follicular_name">Follicular phase</string>
+    <string name="phase_ovulation_name">Ovulation window</string>
+    <string name="phase_luteal_name">Luteal phase</string>
+    <string name="countdown_in">~ in</string>
+    <string name="countdown_ago">~ ago</string>
+    <plurals name="countdown_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <string name="discharge_title">Discharge</string>
+    <string name="discharge_dry">Dry</string>
+    <string name="discharge_sticky">Sticky</string>
+    <string name="discharge_creamy">Creamy</string>
+    <string name="discharge_watery">Watery</string>
+    <string name="discharge_clear_stretchy">Clear, stretchy</string>
+    <string name="discharge_unusual">Unusual</string>
+</resources>

@@ -6,9 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,6 +35,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,6 +71,7 @@ fun ForecastCard(
     val heroSurface = HomeColors.card.copy(alpha = 0.68f)
     val locale = LocalConfiguration.current.locales[0]
     val fontScale = LocalDensity.current.fontScale
+    val openLabel = stringResource(R.string.orbit_open)
     HomeTheme {
         Column(Modifier.fillMaxWidth().testTag("forecast-hero")) {
             if (next != null && fontScale <= 1.5f) {
@@ -79,30 +85,21 @@ fun ForecastCard(
                         HomeColors.peach,
                         HomeColors.top
                     ),
-                    Modifier.fillMaxWidth().height(
-                        if (fontScale > 1.2f) HomeSpacing.compactOrbit else HomeSpacing.orbit
-                    ),
+                    Modifier.fillMaxWidth().aspectRatio(350f / 228f),
                     onMarker = { selectedMarker = it },
                     onOpen = { showOrbit = true }
                 )
             }
-            if (next != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.orbit_direction),
-                        Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = HomeColors.muted
-                    )
-                    TextButton(onClick = {
-                        showOrbit = true
-                    }, modifier = Modifier.testTag("orbit-open")) {
-                        Text(stringResource(R.string.orbit_more))
-                    }
-                }
-            }
             Card(
-                modifier = Modifier.fillMaxWidth().pointerInput(next) {
+                modifier = Modifier.fillMaxWidth().testTag("orbit-open").semantics {
+                    if (next != null) {
+                        role = Role.Button
+                        onClick(openLabel) {
+                            showOrbit = true
+                            true
+                        }
+                    }
+                }.pointerInput(next) {
                     detectTapGestures(onTap = { if (next != null) showOrbit = true })
                 },
                 border = androidx.compose.foundation.BorderStroke(1.dp, HomeColors.border),
@@ -125,7 +122,7 @@ fun ForecastCard(
                             }
                             if (scene.phase != EstimatedCyclePhase.UNKNOWN) {
                                 Text(
-                                    stringResource(phaseLabel(scene.phase)),
+                                    stringResource(phaseName(scene.phase)),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.muted
                                 )
@@ -159,55 +156,74 @@ fun ForecastCard(
                         )
                     } else {
                         val pattern = if (locale.language == "ru") "d MMMM" else "MMM d"
-                        Text(
-                            next.predictedStartDate.format(
-                                DateTimeFormatter.ofPattern(pattern, locale)
-                            ),
-                            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 36.sp),
-                            color = colors.text,
-                            modifier = Modifier.testTag("forecast-date")
-                        )
                         FlowRow(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                compactForecastRange(next.lowerBound, next.upperBound),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.muted,
-                                modifier = Modifier.testTag("forecast-window")
+                                next.predictedStartDate.format(
+                                    DateTimeFormatter.ofPattern(pattern, locale)
+                                ),
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontSize = 36.sp
+                                ),
+                                color = colors.text,
+                                modifier = Modifier.testTag("forecast-date")
                             )
+                            val days = ChronoUnit.DAYS.between(
+                                today,
+                                next.predictedStartDate
+                            ).toInt()
                             Surface(
                                 color = colors.border.copy(alpha = 0.38f),
-                                shape = MaterialTheme.shapes.medium
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.sizeIn(minWidth = 76.dp, minHeight = 76.dp)
+                                    .testTag("forecast-countdown")
                             ) {
-                                Text(
-                                    when (
-                                        val days = ChronoUnit.DAYS.between(
-                                            today,
-                                            next.predictedStartDate
-                                        ).toInt()
-                                    ) {
-                                        0 -> stringResource(R.string.period_expected_today)
-
-                                        in 1..Int.MAX_VALUE -> pluralStringResource(
-                                            R.plurals.period_countdown,
-                                            days,
-                                            days
+                                Column(
+                                    Modifier.padding(10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    when {
+                                        days == 0 -> Text(
+                                            stringResource(R.string.period_expected_today),
+                                            style = MaterialTheme.typography.labelSmall
                                         )
 
-                                        else -> pluralStringResource(
-                                            R.plurals.period_expected_ago,
-                                            -days,
-                                            -days
-                                        )
-                                    },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                                )
+                                        else -> {
+                                            if (days > 0) {
+                                                Text(
+                                                    stringResource(R.string.countdown_in),
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                            Text(
+                                                pluralStringResource(
+                                                    R.plurals.countdown_days,
+                                                    kotlin.math.abs(days),
+                                                    kotlin.math.abs(days)
+                                                ),
+                                                style = MaterialTheme.typography.labelLarge
+                                            )
+                                            if (days < 0) {
+                                                Text(
+                                                    stringResource(R.string.countdown_ago),
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
+                        Text(
+                            compactForecastRange(next.lowerBound, next.upperBound),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.muted,
+                            modifier = Modifier.testTag("forecast-window")
+                        )
                     }
                 }
             }
@@ -254,11 +270,11 @@ fun ForecastCard(
     selectedMarker?.let { OrbitPhaseInfo(it) { selectedMarker = null } }
 }
 
-private fun phaseLabel(phase: EstimatedCyclePhase): Int = when (phase) {
-    EstimatedCyclePhase.EARLY -> R.string.phase_early_estimate
-    EstimatedCyclePhase.FOLLICULAR -> R.string.phase_follicular_estimate
-    EstimatedCyclePhase.OVULATION -> R.string.phase_ovulation_estimate
-    EstimatedCyclePhase.LUTEAL -> R.string.phase_luteal_estimate
+fun phaseName(phase: EstimatedCyclePhase): Int = when (phase) {
+    EstimatedCyclePhase.EARLY -> R.string.phase_early_name
+    EstimatedCyclePhase.FOLLICULAR -> R.string.phase_follicular_name
+    EstimatedCyclePhase.OVULATION -> R.string.phase_ovulation_name
+    EstimatedCyclePhase.LUTEAL -> R.string.phase_luteal_name
     EstimatedCyclePhase.UNKNOWN -> R.string.hero_phase_info
 }
 

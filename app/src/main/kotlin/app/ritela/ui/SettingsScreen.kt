@@ -10,17 +10,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,31 +30,26 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import app.ritela.R
-import app.ritela.data.ThemeMode
 
 @Composable
 fun SettingsScreen(
     padding: PaddingValues,
     state: PeriodUiState,
-    onThemeChange: (ThemeMode) -> Unit,
     onDurationChange: (Int) -> Unit = {}
 ) {
-    HomeTheme { SettingsContent(padding, state, onThemeChange, onDurationChange) }
+    HomeTheme { SettingsContent(padding, state, onDurationChange) }
 }
 
 @Composable
 private fun SettingsContent(
     padding: PaddingValues,
     state: PeriodUiState,
-    onThemeChange: (ThemeMode) -> Unit,
     onDurationChange: (Int) -> Unit
 ) {
     val context = LocalContext.current
-    var choosingTheme by rememberSaveable { mutableStateOf(false) }
     var choosingDuration by rememberSaveable { mutableStateOf(false) }
     var duration by rememberSaveable(state.defaults.periodDuration) {
         mutableStateOf(state.defaults.periodDuration.toString())
@@ -101,19 +91,6 @@ private fun SettingsContent(
                 }
                 context.startActivity(intent)
             }
-            SettingsRow(
-                stringResource(R.string.theme_title),
-                R.drawable.ic_star,
-                modifier = Modifier.testTag("theme-selector"),
-                value = stringResource(
-                    when (state.themeMode) {
-                        ThemeMode.SYSTEM -> R.string.theme_system
-                        ThemeMode.LIGHT -> R.string.theme_light
-                        ThemeMode.DARK -> R.string.theme_dark
-                    }
-                ),
-                enabled = !state.saving
-            ) { choosingTheme = true }
         }
         state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
         SettingsGroup {
@@ -186,48 +163,5 @@ private fun SettingsContent(
                 }
             }
         }
-    }
-    if (choosingTheme) {
-        AlertDialog(
-            onDismissRequest = { choosingTheme = false },
-            title = { Text(stringResource(R.string.theme_title)) },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    ThemeMode.entries.forEach { theme ->
-                        Row(
-                            Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight)
-                                .testTag("theme-${theme.name.lowercase()}")
-                                .selectable(
-                                    selected = state.themeMode == theme,
-                                    enabled = !state.saving,
-                                    role = Role.RadioButton,
-                                    onClick = {
-                                        onThemeChange(theme)
-                                        choosingTheme = false
-                                    }
-                                )
-                                .padding(horizontal = Spacing.small),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(selected = state.themeMode == theme, onClick = null)
-                            Text(
-                                stringResource(
-                                    when (theme) {
-                                        ThemeMode.SYSTEM -> R.string.theme_system
-                                        ThemeMode.LIGHT -> R.string.theme_light
-                                        ThemeMode.DARK -> R.string.theme_dark
-                                    }
-                                )
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    choosingTheme = false
-                }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
     }
 }

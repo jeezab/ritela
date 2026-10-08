@@ -1,0 +1,24 @@
+<resources>
+    <string name="calendar_expand">Развернуть подробности цикла</string>
+    <string name="calendar_collapse">Свернуть подробности цикла</string>
+    <string name="current_cycle_phase">Текущая фаза цикла</string>
+    <string name="phase_early_name">Начало цикла</string>
+    <string name="phase_follicular_name">Фолликулярная фаза</string>
+    <string name="phase_ovulation_name">Овуляция</string>
+    <string name="phase_luteal_name">Лютеиновая фаза</string>
+    <string name="countdown_in">~ через</string>
+    <string name="countdown_ago">~ назад</string>
+    <plurals name="countdown_days">
+        <item quantity="one">%d день</item>
+        <item quantity="few">%d дня</item>
+        <item quantity="many">%d дней</item>
+        <item quantity="other">%d дня</item>
+    </plurals>
+    <string name="discharge_title">Выделения</string>
+    <string name="discharge_dry">Сухо</string>
+    <string name="discharge_sticky">Липкие</string>
+    <string name="discharge_creamy">Кремообразные</string>
+    <string name="discharge_watery">Водянистые</string>
+    <string name="discharge_clear_stretchy">Прозрачные, тянущиеся</string>
+    <string name="discharge_unusual">Необычные</string>
+</resources>

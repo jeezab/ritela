@@ -48,8 +48,7 @@
     <string name="year_basis">Медиана · последние 12 месяцев</string>
     <string name="chart_empty">Отметьте два начала месячных — появится первая длина цикла.</string>
     <string name="chart_values">Длина циклов в днях: %s</string>
-    <string name="period_chart">Средняя длительность по записям</string>
-    <string name="period_chart_empty">Отметьте дату окончания — появится длительность.</string>
+    <string name="period_chart">Ожидаемая длительность месячных</string>
     <string name="calendar_history">История месячных</string>
     <string name="day_has_log">Есть отметки дня</string>
     <string name="help_title">Для вас</string>

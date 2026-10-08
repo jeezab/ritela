@@ -46,8 +46,7 @@
     <string name="year_basis">Median · last 12 months</string>
     <string name="chart_empty">Log two period starts to see your first cycle length.</string>
     <string name="chart_values">Cycle lengths in days: %s</string>
-    <string name="period_chart">Average recorded period duration</string>
-    <string name="period_chart_empty">Log an end date to see duration.</string>
+    <string name="period_chart">Expected period duration</string>
     <string name="calendar_history">Period history</string>
     <string name="day_has_log">Day logged</string>
     <string name="help_title">For you</string>

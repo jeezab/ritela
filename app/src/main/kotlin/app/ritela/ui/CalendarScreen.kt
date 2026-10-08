@@ -22,6 +22,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -96,7 +98,7 @@ private fun CalendarContent(
     var selectedDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var choosingMonth by rememberSaveable { mutableStateOf(false) }
     var historyOpen by rememberSaveable { mutableStateOf(false) }
-    var legendOpen by rememberSaveable { mutableStateOf(false) }
+    var summariesExpanded by rememberSaveable { mutableStateOf(true) }
     val visibleIndex by remember { derivedStateOf { list.firstVisibleItemIndex } }
     val month = base.plusMonths((visibleIndex - 1200).toLong())
     val cellHeight = maxOf(56.dp, (40 * LocalDensity.current.fontScale).dp)
@@ -107,7 +109,6 @@ private fun CalendarContent(
         Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
             .padding(horizontal = HomeSpacing.gutter)
     ) {
-        CalendarAtmosphericHeader { legendOpen = true }
         TextButton(
             onClick = { choosingMonth = true },
             modifier = Modifier.fillMaxWidth().testTag("month-selector")
@@ -197,22 +198,14 @@ private fun CalendarContent(
                         },
                         onDay = { selectedDay = it.toEpochDay() }
                     )
-                    if (index == 1200) CalendarSummaries(state)
+                    if (index == 1200) {
+                        CalendarSummaries(state, summariesExpanded) {
+                            summariesExpanded = !summariesExpanded
+                        }
+                    }
                 }
             }
         }
-    }
-    if (legendOpen) {
-        AlertDialog(
-            onDismissRequest = { legendOpen = false },
-            title = { Text(stringResource(R.string.calendar_key)) },
-            text = { Text(stringResource(R.string.calendar_legend)) },
-            confirmButton = {
-                TextButton(onClick = { legendOpen = false }) {
-                    Text(stringResource(R.string.done))
-                }
-            }
-        )
     }
     if (choosingMonth) {
         MonthYearPicker(month, (base.year - 100)..(base.year + 100), { choosingMonth = false }) {
@@ -261,29 +254,53 @@ private fun CalendarContent(
                         verticalArrangement = Arrangement.spacedBy(Spacing.medium)
                     ) {
                         if (state.periods.isEmpty()) Text(stringResource(R.string.history_empty))
-                        state.periods.forEach { period ->
-                            Text(periodDates(period), style = MaterialTheme.typography.titleMedium)
-                            if (period.end == null) Text(stringResource(R.string.ongoing))
-                            Row {
-                                TextButton(
-                                    onClick = {
-                                        historyOpen = false
-                                        onEdit(period)
-                                    },
-                                    enabled = !state.saving,
-                                    modifier = Modifier.testTag("edit-period-${period.id}")
-                                ) {
-                                    Text(stringResource(R.string.edit))
-                                }
-                                TextButton(
-                                    onClick = {
-                                        historyOpen = false
-                                        onDelete(period)
-                                    },
-                                    enabled = !state.saving,
-                                    modifier = Modifier.testTag("delete-period-${period.id}")
-                                ) {
-                                    Text(stringResource(R.string.delete))
+                        state.periods.sortedByDescending { it.start }.forEach { period ->
+                            Card(
+                                onClick = {
+                                    historyOpen = false
+                                    val startMonth = YearMonth.from(period.start)
+                                    showMonth(
+                                        1200 + (startMonth.year - base.year) * 12 +
+                                            startMonth.monthValue - base.monthValue
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth().testTag(
+                                    "history-period-${period.id}"
+                                ),
+                                colors = CardDefaults.cardColors(containerColor = HomeColors.card),
+                                border = BorderStroke(1.dp, HomeColors.border),
+                                shape = MaterialTheme.shapes.large
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text(
+                                        periodDates(period),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    if (period.end == null) Text(stringResource(R.string.ongoing))
+                                    Row {
+                                        TextButton(
+                                            onClick = {
+                                                historyOpen = false
+                                                onEdit(period)
+                                            },
+                                            enabled = !state.saving,
+                                            modifier = Modifier.testTag("edit-period-${period.id}")
+                                        ) {
+                                            Text(stringResource(R.string.edit))
+                                        }
+                                        TextButton(
+                                            onClick = {
+                                                historyOpen = false
+                                                onDelete(period)
+                                            },
+                                            enabled = !state.saving,
+                                            modifier = Modifier.testTag(
+                                                "delete-period-${period.id}"
+                                            )
+                                        ) {
+                                            Text(stringResource(R.string.delete))
+                                        }
+                                    }
                                 }
                             }
                         }

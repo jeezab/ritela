@@ -19,12 +19,14 @@ data class JournalLayout(
         copy(sections = sections.map { if (it.id == section.id) section else it })
 
     fun removeTag(sectionId: String, tagId: String): JournalLayout {
+        require(sectionId != "discharge")
         val section = sections.first { it.id == sectionId }
         require(section.tags.size > 1)
         return replace(section.copy(tags = section.tags.filterNot { it.id == tagId }))
     }
 
     fun moveTag(sectionId: String, tagId: String, targetId: String): JournalLayout {
+        require(sectionId != "discharge")
         val section = sections.first { it.id == sectionId }
         val tags = section.tags.toMutableList()
         val index = tags.indexOfFirst { it.id == targetId }
@@ -36,7 +38,8 @@ data class JournalLayout(
     }
 }
 
-fun defaultJournalSections(): List<JournalSection> {
+/** All historic built-ins remain available for decoding records and custom layouts. */
+fun builtInJournalSections(): List<JournalSection> {
     fun section(id: String, icon: JournalIcon, values: List<Enum<*>>, multiple: Boolean = false) =
         JournalSection(
             id,
@@ -57,6 +60,25 @@ fun defaultJournalSections(): List<JournalSection> {
     )
 }
 
+fun dischargeTags(): List<JournalTag> = listOf(
+    "DRY",
+    "STICKY",
+    "CREAMY",
+    "WATERY",
+    "CLEAR_STRETCHY",
+    "UNUSUAL"
+).map(::JournalTag)
+
+fun defaultJournalSections(): List<JournalSection> {
+    val builtins = builtInJournalSections().associateBy { it.id }
+    return listOf(
+        builtins.getValue("mood"),
+        JournalSection("discharge", icon = JournalIcon.DROP, tags = dischargeTags()),
+        builtins.getValue("sex"),
+        builtins.getValue("energy")
+    )
+}
+
 fun validJournalId(id: String): Boolean = id.matches(Regex("[A-Za-z0-9_-]{1,80}"))
 
 fun validateJournalLayout(layout: JournalLayout): Boolean =
@@ -64,6 +86,10 @@ fun validateJournalLayout(layout: JournalLayout): Boolean =
         layout.sections.map { it.id }.distinct().size == layout.sections.size &&
         layout.sections.all { section ->
             validJournalId(section.id) && section.title.length <= 200 &&
+                (
+                    section.id != "discharge" ||
+                        (section.tags == dischargeTags() && !section.multiple)
+                    ) &&
                 section.tags.size in 1..64 &&
                 section.tags.map { it.id }.distinct().size == section.tags.size &&
                 section.tags.all { validJournalId(it.id) && it.title.length <= 200 }
@@ -83,7 +109,7 @@ fun DayLog.journalSelections(): Map<String, Set<String>> = custom + mapOf(
 fun DayLog.withJournalSelections(selections: Map<String, Set<String>>): DayLog {
     fun <T : Enum<T>> selected(id: String, values: List<T>): T? =
         values.firstOrNull { it.name in selections[id].orEmpty() }
-    val builtins = defaultJournalSections().associate {
+    val builtins = builtInJournalSections().associate {
         it.id to
             it.tags.map { tag -> tag.id }.toSet()
     }

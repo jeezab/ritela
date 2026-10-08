@@ -6,7 +6,7 @@
     <string name="orbit_hint">Tap a landmark to learn about it</string>
     <string name="orbit_scrub_hint">Move along the orbit to explore days. The slider also works.</string>
     <string name="orbit_current_day">Today · cycle day %1$d</string>
-    <string name="orbit_focus_day">Exploring day %1$d</string>
+    <string name="orbit_focus_day">Cycle day %1$d</string>
     <string name="orbit_start">Cycle start</string>
     <string name="orbit_follicular">Follicular phase</string>
     <string name="orbit_ovulation">Ovulation</string>
@@ -19,5 +19,4 @@
     <string name="orbit_focus_control">Day to explore</string>
     <string name="orbit_previous_day">Previous day</string>
     <string name="orbit_next_day">Next day</string>
-    <string name="orbit_focus_legend">Ivory ring — today · peach ring — day being explored</string>
 </resources>

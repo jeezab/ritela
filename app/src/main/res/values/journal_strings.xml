@@ -23,7 +23,5 @@
     <string name="conception_peak">Peak · estimated</string>
     <string name="ovulation_estimate">Estimated ovulation</string>
     <string name="period_expected_today">Expected today</string>
-    <plurals name="period_countdown"><item quantity="one">In about %1$d day</item><item quantity="other">In about %1$d days</item></plurals>
-    <plurals name="period_expected_ago"><item quantity="one">Expected %1$d day ago</item><item quantity="other">Expected %1$d days ago</item></plurals>
     <string name="journal_move_after">Move later</string>
 </resources>

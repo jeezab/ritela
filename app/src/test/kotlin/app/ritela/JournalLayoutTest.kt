@@ -16,8 +16,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JournalLayoutTest {
-    @Test fun removingAndReorderingTagsKeepsTheirIdentityAndRequiresOneTag() {
+    @Test fun newDefaultsHaveFixedDischargeTagsAndPreserveHiddenHistoricSymptoms() {
         val layout = JournalLayout()
+        assertEquals(listOf("mood", "discharge", "sex", "energy"), layout.sections.map { it.id })
+        assertTrue(validateJournalLayout(layout))
+        assertTrue(runCatching { layout.removeTag("discharge", "DRY") }.isFailure)
+        assertTrue(runCatching { layout.moveTag("discharge", "DRY", "STICKY") }.isFailure)
+        val discharge = layout.sections.first { it.id == "discharge" }
+        assertEquals(6, discharge.tags.size)
+        assertFalse(
+            validateJournalLayout(layout.replace(discharge.copy(tags = listOf(JournalTag("x")))))
+        )
+        val historic = DayLog(
+            LocalDate.of(2026, 10, 8),
+            headache = Pain.MILD,
+            custom = mapOf("discharge" to setOf("WATERY"))
+        )
+        val saved = historic.withJournalSelections(historic.journalSelections())
+        assertEquals(historic, saved)
+        assertFalse(saved.custom.containsKey("headache"))
+    }
+
+    @Test fun removingAndReorderingTagsKeepsTheirIdentityAndRequiresOneTag() {
+        val layout = JournalLayout(sections = app.ritela.domain.builtInJournalSections())
         val reordered = layout.moveTag("headache", "SEVERE", "NONE")
         assertEquals("SEVERE", reordered.sections.first().tags.first().id)
         assertEquals(layout.sections.first().tags.toSet(), reordered.sections.first().tags.toSet())

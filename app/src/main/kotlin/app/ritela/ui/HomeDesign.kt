@@ -94,14 +94,9 @@ fun HomeInsightTiles(analysis: CycleAnalysis) {
         Modifier.fillMaxWidth().testTag("home-insight-tiles"),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        maxItemsInEachRow = 3
+        maxItemsInEachRow = 2
     ) {
         val tiles = listOf(
-            Triple(
-                R.drawable.ic_flower,
-                R.string.home_phase_tile,
-                stringResource(R.string.home_phase_estimated)
-            ),
             Triple(
                 R.drawable.ic_chart,
                 R.string.home_cycle_tile,
@@ -146,14 +141,14 @@ fun HomeInsightTiles(analysis: CycleAnalysis) {
 
 @Composable
 fun HomeTodayActions(layout: JournalLayout, enabled: Boolean, onEdit: () -> Unit) {
-    val ordered = listOf("mood", "energy", "headache", "sex").mapNotNull { id ->
+    val ordered = listOf("mood", "discharge", "sex").mapNotNull { id ->
         layout.sections.firstOrNull { it.id == id }
     }
     FlowRow(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        maxItemsInEachRow = if (LocalDensity.current.fontScale > 1.3f) 2 else 5
+        maxItemsInEachRow = if (LocalDensity.current.fontScale > 1.3f) 2 else 4
     ) {
         ordered.forEachIndexed { index, section ->
             TodayAction(

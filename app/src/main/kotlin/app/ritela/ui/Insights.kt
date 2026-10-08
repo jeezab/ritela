@@ -197,10 +197,10 @@ fun CycleInsights(
     periods: List<Period>,
     today: LocalDate,
     logs: List<DayLog>,
-    onLogDay: () -> Unit = {}
+    onLogDay: () -> Unit = {},
+    expectedDuration: Int = 7
 ) {
     val cycles = app.ritela.domain.measuredCycles(periods, today)
-    val durations = app.ritela.domain.measuredDurations(periods, today)
     Column(
         verticalArrangement = Arrangement.spacedBy(Spacing.medium),
         modifier = Modifier.testTag("cycle-insights")
@@ -264,19 +264,11 @@ fun CycleInsights(
                     stringResource(R.string.period_chart),
                     style = MaterialTheme.typography.titleLarge
                 )
-                if (durations.values.isEmpty()) {
-                    Text(stringResource(R.string.period_chart_empty))
-                } else {
-                    Text(
-                        pluralStringResource(
-                            R.plurals.days_value,
-                            kotlin.math.round(durations.values.map { it.second }.average()).toInt(),
-                            kotlin.math.round(durations.values.map { it.second }.average()).toInt()
-                        ),
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                    SeriesInsight(durations.values.takeLast(6))
-                }
+                Text(
+                    pluralStringResource(R.plurals.days_value, expectedDuration, expectedDuration),
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.testTag("expected-period-duration")
+                )
             }
         }
     }

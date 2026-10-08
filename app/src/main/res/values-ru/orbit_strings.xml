@@ -6,7 +6,7 @@
     <string name="orbit_hint">Нажмите на веху, чтобы узнать о ней</string>
     <string name="orbit_scrub_hint">Ведите по орбите, чтобы посмотреть дни. Можно использовать ползунок.</string>
     <string name="orbit_current_day">Сегодня · день %1$d цикла</string>
-    <string name="orbit_focus_day">Просмотр дня %1$d</string>
+    <string name="orbit_focus_day">День цикла %1$d</string>
     <string name="orbit_start">Начало цикла</string>
     <string name="orbit_follicular">Фолликулярная фаза</string>
     <string name="orbit_ovulation">Овуляция</string>
@@ -19,5 +19,4 @@
     <string name="orbit_focus_control">День для просмотра</string>
     <string name="orbit_previous_day">Предыдущий день</string>
     <string name="orbit_next_day">Следующий день</string>
-    <string name="orbit_focus_legend">Светлое кольцо — сегодня · персиковое — просматриваемый день</string>
 </resources>

@@ -4,27 +4,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /** One closed clockwise path starting at the top; drawing and hit testing share it. */
 internal class OrbitGeometry(
     val center: Offset,
     val horizontalRadius: Float,
-    val verticalRadius: Float,
-    val tiltDegrees: Float = 0f
+    val verticalRadius: Float
 ) {
-    private fun local(x: Float, y: Float): Offset {
-        val tilt = tiltDegrees * (PI / 180).toFloat()
-        return center + Offset(x * cos(tilt) - y * sin(tilt), x * sin(tilt) + y * cos(tilt))
-    }
-
-    // Retained for the independent Calendar ornament.
-    fun pointOnOrbit(angleDeg: Float): Offset {
-        val angle = angleDeg * (PI / 180).toFloat()
-        return local(horizontalRadius * cos(angle), verticalRadius * sin(angle))
-    }
+    private fun local(x: Float, y: Float): Offset = center + Offset(x, y)
 
     val path = Path().apply {
         val k = 0.55228475f
