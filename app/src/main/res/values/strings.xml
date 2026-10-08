@@ -1,4 +1,6 @@
 <resources>
+    <string name="calendar_single_month">Show one month</string>
+    <string name="calendar_month_stream">Browse months</string>
     <string name="app_name">Ritela</string>
     <string name="home_title">Today</string>
     <string name="empty_title">Start with a date</string>
@@ -40,7 +42,7 @@
     <string name="forecast_invalid">Check your recorded dates before we can show an estimate.</string>
     <string name="forecast_ongoing">Log the end of this period to see the next estimate.</string>
     <string name="forecast_past_due">The estimated range has passed. If your period started, log the new dates.</string>
-    <string name="calendar_legend">Red — recorded periods · pink — expected periods · green — estimated fertile window</string>
+    <string name="calendar_legend">Red — recorded periods · pink — expected periods · peach — estimated fertile window · deeper peach — estimated ovulation</string>
     <string name="calendar_observed">Period recorded</string>
     <string name="calendar_predicted">Estimated period start</string>
     <string name="calendar_uncertain">Possible start date</string>

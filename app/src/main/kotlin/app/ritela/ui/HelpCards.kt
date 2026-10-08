@@ -3,6 +3,7 @@ package app.ritela.ui
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -234,7 +235,7 @@ fun HelpCards(log: DayLog?, analysis: CycleAnalysis, date: LocalDate) {
         modifier = Modifier.testTag("help-cards"),
         verticalArrangement = Arrangement.spacedBy(Spacing.small)
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(stringResource(R.string.help_title), style = MaterialTheme.typography.titleLarge)
             TextButton(onClick = { libraryOpen = true }, modifier = Modifier.testTag("help-all")) {
                 Text(stringResource(R.string.help_all))
@@ -242,7 +243,7 @@ fun HelpCards(log: DayLog?, analysis: CycleAnalysis, date: LocalDate) {
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.medium)) {
             items(relevantArticles(log, analysis), key = { it.id }) { item ->
-                ArticleTile(item, { article = item }, Modifier.width(228.dp))
+                ArticleTile(item, { article = item }, Modifier.width(Spacing.articleWidth))
             }
         }
     }
@@ -278,7 +279,7 @@ private fun ArticleTile(article: HelpArticle, onClick: () -> Unit, modifier: Mod
         onClick = onClick,
         modifier = modifier.testTag("help-${article.id}"),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(

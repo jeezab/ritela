@@ -25,24 +25,28 @@ object Spacing {
     val calendarMinimumWidth = 336.dp
     val calendarCellHeight = 64.dp
     val calendarBorder = 2.dp
+    val heroOrbitHeight = 132.dp
+    val heroCompactOrbitHeight = 112.dp
+    val articleWidth = 228.dp
+    val tileWidth = 140.dp
 }
 
 object CalendarColors {
     val period = Color(0xFFD38A92)
     val estimatedPeriod = Color(0xFFF5D8DC)
-    val ovulation = Color(0xFFBBD39F)
-    val fertile = Color(0xFFDDECCF)
+    val ovulation = Color(0xFFE6BC9A)
+    val fertile = Color(0xFFF3E5D4)
     val ink = Color(0xFF352E32)
 }
 
-private val AppShapes = Shapes(
+val RitelaShapes = Shapes(
     small = RoundedCornerShape(12.dp),
     medium = RoundedCornerShape(16.dp),
     large = RoundedCornerShape(20.dp),
     extraLarge = RoundedCornerShape(32.dp)
 )
 
-private val AppTypography = Typography().let {
+val RitelaTypography = Typography().let {
     it.copy(
         displayLarge = it.displayLarge.copy(fontFamily = FontFamily.SansSerif),
         displayMedium = it.displayMedium.copy(fontFamily = FontFamily.SansSerif),
@@ -62,51 +66,58 @@ private val AppTypography = Typography().let {
     )
 }
 
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF685067),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFEBDCE8),
-    onPrimaryContainer = Color(0xFF392B3B),
-    secondary = Color(0xFF975463),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFF3E2E4),
-    onSecondaryContainer = Color(0xFF522C36),
-    tertiary = Color(0xFF59664F),
-    tertiaryContainer = Color(0xFFE5E9DE),
-    onTertiaryContainer = Color(0xFF303C28),
-    background = Color(0xFFF8F4EF),
-    surface = Color(0xFFF8F4EF),
-    surfaceContainer = Color(0xFFF0E9E5),
-    surfaceContainerLow = Color(0xFFFCF9F5),
-    surfaceContainerHigh = Color(0xFFEDE3E7),
-    onSurface = Color(0xFF2D2231),
-    onSurfaceVariant = Color(0xFF6B626B),
-    outline = Color(0xFF897A85),
-    outlineVariant = Color(0xFFDFD4DA)
-)
+object RitelaMotion {
+    const val ORBIT_HALF_BREATH_MILLIS = 2600
+    const val MARKER_HALF_BREATH_MILLIS = 2100
+}
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFFDCC0D6),
-    onPrimary = Color(0xFF392B3B),
-    primaryContainer = Color(0xFF513C50),
-    onPrimaryContainer = Color(0xFFF0DDED),
-    secondary = Color(0xFFE5A8B5),
-    onSecondary = Color(0xFF492731),
-    secondaryContainer = Color(0xFF452F38),
-    onSecondaryContainer = Color(0xFFF6DEE3),
-    tertiary = Color(0xFFBBC8AA),
-    tertiaryContainer = Color(0xFF37412F),
-    onTertiaryContainer = Color(0xFFE5E9DE),
-    background = Color(0xFF1E191F),
-    surface = Color(0xFF1E191F),
-    surfaceContainer = Color(0xFF302730),
-    surfaceContainerLow = Color(0xFF282128),
-    surfaceContainerHigh = Color(0xFF3B303A),
-    onSurface = Color(0xFFF2E8EE),
-    onSurfaceVariant = Color(0xFFCDBFC9),
-    outline = Color(0xFF9B8795),
-    outlineVariant = Color(0xFF554450)
-)
+object RitelaColors {
+    val light = lightColorScheme(
+        primary = Color(0xFF685067),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFEBDCE8),
+        onPrimaryContainer = Color(0xFF392B3B),
+        secondary = Color(0xFF975463),
+        onSecondary = Color.White,
+        secondaryContainer = Color(0xFFF3E2E4),
+        onSecondaryContainer = Color(0xFF522C36),
+        tertiary = Color(0xFF59664F),
+        tertiaryContainer = Color(0xFFE5E9DE),
+        onTertiaryContainer = Color(0xFF303C28),
+        background = Color(0xFFF8F4EF),
+        surface = Color(0xFFF8F4EF),
+        surfaceContainer = Color(0xFFF0E9E5),
+        surfaceContainerLow = Color(0xFFFCF9F5),
+        surfaceContainerHigh = Color(0xFFEDE3E7),
+        onSurface = Color(0xFF2D2231),
+        onSurfaceVariant = Color(0xFF6B626B),
+        outline = Color(0xFF897A85),
+        outlineVariant = Color(0xFFDFD4DA)
+    )
+
+    val dark = darkColorScheme(
+        primary = Color(0xFFDCC0D6),
+        onPrimary = Color(0xFF392B3B),
+        primaryContainer = Color(0xFF513C50),
+        onPrimaryContainer = Color(0xFFF0DDED),
+        secondary = Color(0xFFE5A8B5),
+        onSecondary = Color(0xFF492731),
+        secondaryContainer = Color(0xFF452F38),
+        onSecondaryContainer = Color(0xFFF6DEE3),
+        tertiary = Color(0xFFBBC8AA),
+        tertiaryContainer = Color(0xFF37412F),
+        onTertiaryContainer = Color(0xFFE5E9DE),
+        background = Color(0xFF1E191F),
+        surface = Color(0xFF1E191F),
+        surfaceContainer = Color(0xFF302730),
+        surfaceContainerLow = Color(0xFF282128),
+        surfaceContainerHigh = Color(0xFF3B303A),
+        onSurface = Color(0xFFF2E8EE),
+        onSurfaceVariant = Color(0xFFCDBFC9),
+        outline = Color(0xFF9B8795),
+        outlineVariant = Color(0xFF554450)
+    )
+}
 
 @Composable
 fun RitelaTheme(
@@ -120,14 +131,14 @@ fun RitelaTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        darkTheme -> DarkColors
+        darkTheme -> RitelaColors.dark
 
-        else -> LightColors
+        else -> RitelaColors.light
     }
     MaterialTheme(
         colorScheme = colors,
-        shapes = AppShapes,
-        typography = AppTypography,
+        shapes = RitelaShapes,
+        typography = RitelaTypography,
         content = content
     )
 }

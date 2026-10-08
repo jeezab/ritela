@@ -1,4 +1,4 @@
-﻿package app.ritela.ui
+package app.ritela.ui
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -37,8 +37,22 @@ fun CycleOrbitScene(
     colors: OrbitColors,
     modifier: Modifier = Modifier
 ) {
-    val breath = orbitPulse(reducedMotion, 0.93f, 1f, 2600, "orbit breathing")
-    val currentPulse = orbitPulse(reducedMotion, 0.98f, 1.04f, 2100, "current point")
+    val breath =
+        orbitPulse(
+            reducedMotion,
+            0.93f,
+            1f,
+            RitelaMotion.ORBIT_HALF_BREATH_MILLIS,
+            "orbit breathing"
+        )
+    val currentPulse =
+        orbitPulse(
+            reducedMotion,
+            0.98f,
+            1.04f,
+            RitelaMotion.MARKER_HALF_BREATH_MILLIS,
+            "current point"
+        )
     Canvas(
         modifier.testTag("cycle-orbit-$cycleDay").clearAndSetSemantics {}.drawWithCache {
             // Reserve space for the tilted ellipse and the largest halo at every width.

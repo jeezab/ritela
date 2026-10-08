@@ -5,7 +5,6 @@
     <string name="history_empty">Месячные пока не отмечены</string>
     <string name="entry_existing_hint">Закрашенные дни уже отмечены. Изменить или удалить запись можно в календаре.</string>
     <string name="pregnancy_title">Вероятность беременности</string>
-    <string name="today_empty">Как вы сегодня? Можно отметить самочувствие.</string>
     <plurals name="stable_values">
         <item quantity="one">Последняя запись: %2$s</item>
         <item quantity="few">Последние %1$d записи одинаковой длительности: %2$s</item>

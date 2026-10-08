@@ -248,7 +248,7 @@ fun HomeScreen(
             .padding(contentPadding)
             .verticalScroll(rememberScrollState())
             .padding(Spacing.large),
-        verticalArrangement = Arrangement.spacedBy(Spacing.section)
+        verticalArrangement = Arrangement.spacedBy(Spacing.large)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
             Text(
@@ -261,7 +261,8 @@ fun HomeScreen(
                     DateTimeFormatter.ofPattern("EEEE, d MMMM")
                         .withLocale(LocalConfiguration.current.locales[0])
                 ),
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         val active = state.periods.firstOrNull { it.end == null }
