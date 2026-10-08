@@ -1,5 +1,9 @@
 # Карточки помощи
 
+## 2026-10-08: уточнение статьи о фолликулярной фазе
+
+EN/RU явно поясняют: дни кровотечения — менструация, или месячные — входят в фолликулярную фазу. Проверены актуальные [Cleveland Clinic: follicular phase](https://my.clevelandclinic.org/health/body/23953-follicular-phase) (начало в первый день месячных, конец при овуляции) и [OWH: your menstrual cycle](https://womenshealth.gov/menstrual-cycle/your-menstrual-cycle) (menstruation = period). Смысл/подбор карточки и дозировки не меняются; это проверка первичных страниц, не клиническая валидация. Диапазоны/семидневный ориентир остаются оценкой, краткая общая справка не обещает безопасных дней.
+
 ## Прогноз и наблюдения выделений, 2026-10-08
 
 Вне каталога статей добавлена общая справка EN/RU `prediction_method_info`, доступная по (i) Home/Calendar. Проверены [NHS: цикл и фертильность](https://www.nhs.uk/conditions/periods/fertility-in-the-menstrual-cycle/) (10–16 дней от овуляции до следующего начала, тянущаяся слизь), [NHS: выделения](https://www.nhs.uk/symptoms/vaginal-discharge/) (влажная/прозрачная слизь вблизи овуляции, изменения могут иметь другие причины), [NICHD: conception](https://www.nichd.nih.gov/newsroom/digital-media/infographics/conception-textalt) (сперматозоиды могут оставаться функциональными пять дней). Это просмотр актуальных первичных страниц, не клиническая валидация приложения.
