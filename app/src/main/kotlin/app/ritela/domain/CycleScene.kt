@@ -1,7 +1,6 @@
 package app.ritela.domain
 
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 /** Presentation only: these calendar phases are estimates, not measured hormone states. */
 enum class EstimatedCyclePhase { EARLY, FOLLICULAR, OVULATION, LUTEAL, UNKNOWN }
@@ -15,11 +14,11 @@ fun cycleSceneState(analysis: CycleAnalysis, today: LocalDate): CycleSceneState 
     if (day == null || next == null || analysis.unavailable != null) {
         return CycleSceneState(EstimatedCyclePhase.UNKNOWN, 0f, length)
     }
-    val remaining = ChronoUnit.DAYS.between(today, next.predictedStartDate)
+    val window = estimateFertileWindow(estimateOvulation(next)).likely
     val phase = when {
         day <= analysis.periodDuration -> EstimatedCyclePhase.EARLY
-        remaining in 13..19 -> EstimatedCyclePhase.OVULATION
-        remaining > 19 -> EstimatedCyclePhase.FOLLICULAR
+        today in window -> EstimatedCyclePhase.OVULATION
+        today < window.start -> EstimatedCyclePhase.FOLLICULAR
         else -> EstimatedCyclePhase.LUTEAL
     }
     return CycleSceneState(phase, ((day - 1).toFloat() / length).coerceIn(0f, 1f), length)

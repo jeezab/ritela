@@ -22,6 +22,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,10 +47,13 @@ object CalendarDesign {
     val estimatedPeriod = HomeColors.blush
     val fertile = Color(0xFFE3EED6)
     val ovulation = Color(0xFFAFCB8B)
+    val fertileLikely = Color(0xFFC9DEAE)
 }
 
 @Composable
 fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> Unit) {
+    var showInfo by rememberSaveable { mutableStateOf(false) }
+    if (showInfo) PredictionMethodInfo(state.analysis) { showInfo = false }
     val expandedLabel = stringResource(R.string.calendar_expand)
     val collapsedLabel = stringResource(R.string.calendar_collapse)
     val next = state.analysis.forecasts.firstOrNull()
@@ -122,6 +128,14 @@ fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> U
                         stringResource(R.string.calendar_key),
                         style = MaterialTheme.typography.labelLarge
                     )
+                    IconButton(onClick = {
+                        showInfo = true
+                    }, modifier = Modifier.testTag("calendar-forecast-info")) {
+                        Icon(
+                            painterResource(R.drawable.ic_info),
+                            stringResource(R.string.forecast_info)
+                        )
+                    }
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -141,6 +155,11 @@ fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> U
                                 R.drawable.ic_flower,
                                 CalendarDesign.fertile,
                                 R.string.fertile_estimate
+                            ),
+                            Triple(
+                                R.drawable.ic_flower,
+                                CalendarDesign.fertileLikely,
+                                R.string.fertile_likely
                             ),
                             Triple(
                                 R.drawable.ic_flower,

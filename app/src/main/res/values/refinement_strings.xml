@@ -4,7 +4,7 @@
     <string name="current_cycle_phase">Current cycle phase</string>
     <string name="phase_early_name">Early cycle</string>
     <string name="phase_follicular_name">Follicular phase</string>
-    <string name="phase_ovulation_name">Ovulation window</string>
+    <string name="phase_ovulation_name">Possible ovulation</string>
     <string name="phase_luteal_name">Luteal phase</string>
     <string name="countdown_in">~ in</string>
     <string name="countdown_ago">~ ago</string>

@@ -83,9 +83,7 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
             HomeTheme { AppNavigation(page) { page = it } }
         }) { contentPadding ->
             if (page == 2) {
-                SettingsScreen(contentPadding, state, onDurationChange = { duration ->
-                    model.updateDefaults(state.defaults.copy(periodDuration = duration))
-                })
+                SettingsScreen(contentPadding, state)
             } else if (page == 1) {
                 pageStates.SaveableStateProvider("calendar") {
                     CalendarScreen(

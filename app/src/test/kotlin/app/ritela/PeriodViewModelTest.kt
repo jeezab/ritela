@@ -3,9 +3,12 @@ package app.ritela
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import app.ritela.data.DayLogRepository
 import app.ritela.data.PeriodRepository
 import app.ritela.data.RitelaDatabase
 import app.ritela.data.SettingsRepository
+import app.ritela.domain.CervicalMucus
+import app.ritela.domain.DayLog
 import app.ritela.domain.PeriodProblem
 import app.ritela.domain.PredictionDefaults
 import app.ritela.ui.PeriodUiState
@@ -99,7 +102,7 @@ class PeriodViewModelTest {
         model.delete(edited.periods.last().id)
         val deleted = awaitPersistedState { it.periods.size == 3 }
         assertTrue(deleted.analysis.usesDefaults)
-        assertEquals(28, deleted.analysis.forecasts.first().cycleMedian)
+        assertEquals(29, deleted.analysis.forecasts.first().cycleMedian)
     }
 
     private suspend fun awaitPersistedState(predicate: (PeriodUiState) -> Boolean): PeriodUiState {
@@ -114,7 +117,7 @@ class PeriodViewModelTest {
         return state
     }
 
-    @Test fun settingsSurviveReopeningAndRecalculateWithoutChangingPeriods() = runBlocking {
+    @Test fun obsoleteSettingsCannotOverrideAutomaticForecastsOrChangeRecords() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val preferences = context.getSharedPreferences(
             "test-settings",
@@ -123,13 +126,13 @@ class PeriodViewModelTest {
         preferences.edit().clear().commit()
         val settings = SettingsRepository(preferences)
         settings.save(PredictionDefaults(30, 7))
-        assertEquals(PredictionDefaults(30, 7), SettingsRepository(preferences).values.value)
+        assertEquals(PredictionDefaults(), SettingsRepository(preferences).values.value)
         model.viewModelScope.cancel()
         model = PeriodViewModel(repository, settings)
         repository.add(date, null)
         val initial = withTimeout(5_000) { model.uiState.first { it.periods.size == 1 } }
         val record = initial.periods.single()
-        assertEquals(date.plusDays(30), initial.analysis.forecasts.first().predictedStartDate)
+        assertEquals(date.plusDays(28), initial.analysis.forecasts.first().predictedStartDate)
         model.updateDefaults(PredictionDefaults(28, 5))
         val updated = withTimeout(5_000) { model.uiState.first { it.defaults.cycleLength == 28 } }
         assertEquals(date.plusDays(28), updated.analysis.forecasts.first().predictedStartDate)
@@ -143,5 +146,40 @@ class PeriodViewModelTest {
         val failed = model.uiState.first { it.problem != null }
         assertEquals(PeriodProblem.END_BEFORE_START, failed.problem)
         assertTrue(repository.periods.first().isEmpty())
+    }
+
+    @Test fun roomMucusChangesRecalculateFertilityWithoutMovingPeriods() = runBlocking {
+        model.viewModelScope.cancel()
+        val days = DayLogRepository(
+            database.dayLogs(),
+            Clock.fixed(
+                Instant.parse("2024-03-01T12:00:00Z"),
+                ZoneOffset.UTC
+            )
+        )
+        model = PeriodViewModel(repository, days = days)
+        repository.add(date.minusDays(8), date.minusDays(4))
+        val initial = withTimeout(5_000) { model.uiState.first { it.periods.size == 1 } }
+        val log = DayLog(date, custom = mapOf("discharge" to setOf("WATERY")))
+        model.saveDay(log)
+        val observed = withTimeout(5_000) {
+            model.uiState.first { it.analysis.mucusObservations[date] == CervicalMucus.WATERY }
+        }
+        assertEquals(initial.analysis.forecasts, observed.analysis.forecasts)
+        assertEquals(initial.periods, observed.periods)
+        model.clearResult()
+        withTimeout(5_000) { model.uiState.first { !it.saving } }
+        model.saveDay(log.copy(custom = mapOf("discharge" to setOf("UNUSUAL"))))
+        val changed = withTimeout(5_000) {
+            model.uiState.first { it.analysis.mucusObservations[date] == CervicalMucus.UNUSUAL }
+        }
+        assertEquals(initial.analysis.forecasts, changed.analysis.forecasts)
+        model.clearResult()
+        withTimeout(5_000) { model.uiState.first { !it.saving } }
+        model.saveDay(DayLog(date))
+        val deleted = withTimeout(5_000) {
+            model.uiState.first { date !in it.analysis.mucusObservations }
+        }
+        assertEquals(initial.analysis.forecasts, deleted.analysis.forecasts)
     }
 }

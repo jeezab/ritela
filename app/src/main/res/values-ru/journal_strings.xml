@@ -1,11 +1,5 @@
 <resources>
-    <string name="fertile_estimate">Предполагаемое фертильное окно</string>
-    <string name="conception_higher">Выше по прогнозу</string>
-    <string name="conception_outside">Ниже по прогнозу</string>
-    <string name="forecast_duration">Длительность месячных для прогноза</string>
-    <plurals name="forecast_duration_value"><item quantity="one">Прогноз месячных: %1$d день</item><item quantity="few">Прогноз месячных: %1$d дня</item><item quantity="many">Прогноз месячных: %1$d дней</item><item quantity="other">Прогноз месячных: %1$d дня</item></plurals>
-    <string name="forecast_duration_hint">Используется для ожидаемых дней в календаре. Длительность по записям показывается отдельно.</string>
-    <string name="days_label">Дни (1–60)</string>
+    <string name="fertile_estimate">Возможное фертильное окно</string>
     <string name="journal_section">Раздел</string>
     <string name="journal_add_section">+ Добавить раздел</string>
     <string name="journal_section_settings">Название и иконка</string>
@@ -19,9 +13,7 @@
     <string name="journal_star">Звезда</string>
     <string name="journal_delete_tag">Удалить тег</string>
     <string name="journal_move_before">Раньше</string>
-    <string name="conception_unconfirmed">Овуляция не подтверждена</string>
-    <string name="conception_peak">Пик по прогнозу</string>
-    <string name="ovulation_estimate">Предполагаемая овуляция</string>
+    <string name="ovulation_estimate">Возможная овуляция</string>
     <string name="period_expected_today">Ожидаются сегодня</string>
     <string name="journal_move_after">Позже</string>
 </resources>

@@ -19,8 +19,8 @@ class CycleSceneTest {
         val periods =
             listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
         for ((day, phase) in listOf(
-            7L to EstimatedCyclePhase.EARLY,
-            8L to EstimatedCyclePhase.FOLLICULAR,
+            5L to EstimatedCyclePhase.EARLY,
+            6L to EstimatedCyclePhase.FOLLICULAR,
             10L to EstimatedCyclePhase.OVULATION,
             16L to EstimatedCyclePhase.OVULATION,
             17L to EstimatedCyclePhase.LUTEAL,
