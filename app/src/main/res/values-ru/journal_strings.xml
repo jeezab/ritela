@@ -1,5 +1,4 @@
 <resources>
-    <string name="fertile_estimate">Возможное фертильное окно</string>
     <string name="journal_section">Раздел</string>
     <string name="journal_add_section">+ Добавить раздел</string>
     <string name="journal_section_settings">Название и иконка</string>

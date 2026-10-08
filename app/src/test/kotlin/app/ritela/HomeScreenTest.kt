@@ -233,7 +233,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("nav-calendar").performClick()
         compose.onNodeWithTag("month-grid").performScrollToNode(hasTestTag("calendar-day-$today"))
         compose.onNodeWithTag("calendar-day-$today").performClick()
-        compose.onNodeWithText("Изменить").performScrollTo().performClick()
+        compose.onNodeWithText("Изменить даты").performScrollTo().performClick()
         compose.onNodeWithText("Изменить даты").assertIsDisplayed()
         compose.onNodeWithText("Отмена").performClick()
         compose.onNodeWithTag("month-grid").performScrollToIndex(1199)
@@ -283,13 +283,10 @@ class HomeScreenTest {
             saveRendering(if (dark) "calendar-dark" else "calendar-forecast")
             compose.onNodeWithTag("calendar-day-$predicted").performClick()
             val forecast = state.analysis.forecasts.first()
-            val formatter = DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)
-                .withLocale(Locale.forLanguageTag("ru-RU"))
-            val range = compose.activity.getString(
-                R.string.forecast_range,
-                forecast.lowerBound.format(formatter),
-                forecast.upperBound.format(formatter)
-            )
+            val range = app.ritela.ui.CalendarDayFormatter(
+                compose.activity.resources,
+                Locale.forLanguageTag("ru-RU")
+            ).expected(forecast)
             compose.onNode(hasAnyAncestor(hasTestTag("day-details")) and hasText(range))
                 .performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("Ниже по прогнозу").assertDoesNotExist()
@@ -1265,6 +1262,7 @@ class HomeScreenTest {
             compose.onNodeWithTag("calendar-day-$today").assertIsDisplayed()
             saveRendering("$prefix-${if (dark) "dark" else "light"}")
             compose.onNodeWithTag("calendar-day-2026-10-19").performClick()
+            compose.onNodeWithTag("day-ranges-toggle").performScrollTo().performClick()
             compose.onNodeWithTag("fertility-window-range").performScrollTo().assertIsDisplayed()
             saveRendering("$prefix-details", dialog = true)
             compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
@@ -1444,6 +1442,7 @@ class HomeScreenTest {
         }
         compose.onNodeWithTag("calendar-day-$today").performClick()
         compose.onNodeWithTag("mucus-fertility-signal").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("day-ranges-toggle").performScrollTo().performClick()
         compose.onNodeWithTag("fertility-window-range").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Вероятность беременности").assertDoesNotExist()
         compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
@@ -1557,6 +1556,88 @@ class HomeScreenTest {
         compose.onNodeWithTag("quick-discharge")
             .performScrollTo().assertIsEnabled().performClick()
         compose.onNodeWithTag("journal-edit-discharge").assertExists()
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "ru-rRU-w320dp-h740dp")
+    fun selectedFutureDaySheetWrapsContentInsteadOfFillingScreen() {
+        val today = LocalDate.of(2026, 10, 8)
+        val start = today.minusDays(8)
+        val periods =
+            listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
+        val state = PeriodUiState(
+            loading = false,
+            today = today,
+            periods = periods,
+            analysis = analyzeCycles(periods, today)
+        )
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                RitelaTheme {
+                    CalendarScreen(androidx.compose.foundation.layout.PaddingValues(), state, {
+                    }, {}, {})
+                }
+            }
+        }
+        compose.onNodeWithTag("calendar-day-${today.plusDays(1)}").performClick()
+        compose.onNodeWithTag("selected-day-status").assertTextEquals("Обычный день")
+        compose.onNodeWithTag("log-day").assertDoesNotExist()
+        compose.onNodeWithTag("fertility-window-range").assertDoesNotExist()
+        val frame = compose.onNodeWithTag("day-details-frame").fetchSemanticsNode().boundsInRoot
+        val screenHeight =
+            with(compose.activity.resources.displayMetrics) { heightPixels.toFloat() }
+        assertTrue(frame.height < screenHeight * 0.7f)
+        compose.onNodeWithTag("day-details-close").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    fun selectedDayKeepsHiddenJournalSectionsAndScrollsAtLargeText() {
+        val today = LocalDate.of(2026, 10, 8)
+        val date = today.minusDays(2)
+        val log = app.ritela.domain.DayLog(
+            date,
+            mood = app.ritela.domain.Mood.HAPPY,
+            sex = setOf(app.ritela.domain.Sex.CONDOM),
+            note = "Saved note. ".repeat(60),
+            custom = mapOf("archived" to setOf("saved-tag"))
+        )
+        val state = PeriodUiState(
+            loading = false,
+            today = today,
+            dayLogs = listOf(log),
+            journalLayout = app.ritela.domain.JournalLayout(sections = emptyList())
+        )
+        var opened: LocalDate? = null
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                    RitelaTheme {
+                        CalendarScreen(
+                            androidx.compose.foundation.layout.PaddingValues(),
+                            state,
+                            {},
+                            {},
+                            {},
+                            onLogDay = { opened = it }
+                        )
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("calendar-day-$date").performScrollTo().performClick()
+        compose.onNodeWithText("Day records").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Mood: Happy").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("archived: saved-tag").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(log.note).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("day-details-close").performScrollTo().assertIsDisplayed()
+        val frame = compose.onNodeWithTag("day-details-frame").fetchSemanticsNode().boundsInRoot
+        val close = compose.onNodeWithTag("day-details-close").fetchSemanticsNode().boundsInRoot
+        assertTrue(close.bottom <= frame.bottom + 1f)
+        assertEquals(1, compose.onAllNodesWithTag("selected-day-status").fetchSemanticsNodes().size)
+        compose.onNodeWithTag("log-day").performScrollTo().performClick()
+        assertEquals(date, opened)
     }
 
     private fun assertHomeGradientBackground() {

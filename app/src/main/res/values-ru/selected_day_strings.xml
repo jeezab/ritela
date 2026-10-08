@@ -1,0 +1,15 @@
+<resources>
+    <string name="selected_day_period">Месячные</string>
+    <string name="selected_day_expected">Ожидаемые месячные</string>
+    <string name="selected_day_fertile">Фертильный период</string>
+    <string name="selected_day_ordinary">Обычный день</string>
+    <string name="selected_day_since">С %s</string>
+    <string name="selected_day_start_range">Ожидаемое начало: %s</string>
+    <string name="selected_day_possible_range">Возможный фертильный период: %s</string>
+    <string name="selected_day_records">Записи за день</string>
+    <string name="selected_day_no_records">Записей пока нет</string>
+    <string name="selected_day_ranges">Возможные даты</string>
+    <string name="selected_day_fertility_guide">Зелёные дни — компактный ориентир вокруг расчётной даты, а не весь возможный фертильный период. Отсутствие подсветки не означает безопасные дни.</string>
+    <string name="selected_day_add_record">Добавить</string>
+    <string name="selected_day_delete_period">Удалить месячные</string>
+</resources>

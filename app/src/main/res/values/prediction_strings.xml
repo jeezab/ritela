@@ -1,7 +1,5 @@
 <resources>
     <string name="prediction_method_info">Your recent cycle lengths and completed periods shape these estimates, starting from 28 and 5 days when history is sparse. Date ranges reflect past prediction errors and widen further ahead. Ovulation may occur 10–16 days before the next period; the central estimate is 14 days before. Wet or clear, stretchy mucus, like egg white, can suggest fertility but cannot confirm ovulation. These estimates cannot identify safe days or guide contraception.</string>
-    <string name="fertile_likely">Most likely fertile days</string>
-    <string name="likely_dates">Likely window: %1$s — %2$s</string>
     <string name="ovulation_dates">Possible ovulation: %1$s — %2$s</string>
-    <string name="mucus_fertility_signal">Wet or stretchy discharge: fertility may be higher today.</string>
+    <string name="mucus_fertility_signal">Wet or stretchy discharge: fertility may be higher on this day.</string>
 </resources>

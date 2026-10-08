@@ -43,7 +43,6 @@
     <string name="days_range">%1$d–%2$d d</string>
     <string name="chart_empty">Log two period starts to see your first cycle length.</string>
     <string name="chart_values">Cycle lengths in days: %s</string>
-    <string name="period_chart">Expected period duration</string>
     <string name="calendar_history">Record history</string>
     <string name="day_has_log">Day logged</string>
     <string name="help_title">For you</string>

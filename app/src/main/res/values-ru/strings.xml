@@ -42,9 +42,6 @@
     <string name="forecast_past_due">Ожидаемый диапазон уже прошёл. Если месячные начались, отметьте новые даты.</string>
     <string name="calendar_observed">Менструация отмечена</string>
     <string name="calendar_predicted">Прогноз начала месячных</string>
-    <string name="calendar_uncertain">Возможная дата начала</string>
-    <string name="calendar_approximate">Дальний прогноз начала</string>
-    <string name="calendar_empty">Нет записи</string>
     <plurals name="cycles_used">
         <item quantity="one">По %d завершённому циклу</item>
         <item quantity="few">По %d завершённым циклам</item>
@@ -54,7 +51,6 @@
     <string name="settings_title">Настройки</string>
     <string name="language_title">Язык</string>
     <string name="default_forecast_basis">На основе цикла в %d дней</string>
-    <string name="calendar_estimated_period">Предполагаемый день месячных</string>
     <string name="choose_month">Месяц и год</string>
     <string name="year">Год</string>
     <string name="range_entry_hint">Нажмите на первый день, затем на последний. Выбранные дни выделятся.</string>

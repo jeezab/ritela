@@ -2,5 +2,5 @@
     <string name="home_symptoms">Симптомы</string>
     <string name="home_intimacy">Близость</string>
     <string name="home_cycle_tile">Расчётный цикл</string>
-    <string name="home_duration_tile">Ожидаемые месячные</string>
+    <string name="home_duration_tile">Длительность месячных</string>
 </resources>

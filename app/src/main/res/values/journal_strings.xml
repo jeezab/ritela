@@ -1,5 +1,4 @@
 <resources>
-    <string name="fertile_estimate">Possible fertile window</string>
     <string name="journal_section">Section</string>
     <string name="journal_add_section">+ Add section</string>
     <string name="journal_section_settings">Name and icon</string>
