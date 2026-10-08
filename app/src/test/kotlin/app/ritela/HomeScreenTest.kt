@@ -19,6 +19,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -280,9 +281,17 @@ class HomeScreenTest {
             ).performScrollToNode(hasTestTag("calendar-day-$predicted"))
             saveRendering(if (dark) "calendar-dark" else "calendar-forecast")
             compose.onNodeWithTag("calendar-day-$predicted").performClick()
-            compose.onNodeWithText(
-                "Ниже по прогнозу"
-            ).performScrollTo().assertIsDisplayed()
+            val forecast = state.analysis.forecasts.first()
+            val formatter = DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)
+                .withLocale(Locale.forLanguageTag("ru-RU"))
+            val range = compose.activity.getString(
+                R.string.forecast_range,
+                forecast.lowerBound.format(formatter),
+                forecast.upperBound.format(formatter)
+            )
+            compose.onNode(hasAnyAncestor(hasTestTag("day-details")) and hasText(range))
+                .performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Ниже по прогнозу").assertDoesNotExist()
             saveRendering(
                 if (dark) "calendar-day-details-dark" else "calendar-day-forecast-details",
                 dialog = true
