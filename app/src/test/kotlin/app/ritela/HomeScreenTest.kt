@@ -288,7 +288,6 @@ class HomeScreenTest {
         }
         assertTrue(compose.onAllNodesWithText("Отметить месячные").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
-        compose.onNodeWithTag("calendar-mode").performClick()
         val before = compose.onNodeWithTag("month-grid").fetchSemanticsNode()
             .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
             .value()
@@ -305,6 +304,17 @@ class HomeScreenTest {
     @Test
     @Config(sdk = [35], qualifiers = "ru-rRU-w320dp-h740dp")
     fun narrowCalendarKeepsDaysAndActionsAccessibleAtLargeFonts() {
+        checkNarrowCalendar()
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    fun narrowEnglishCalendarKeepsDaysAndActionsAccessibleAtLargeFonts() {
+        checkNarrowCalendar()
+    }
+
+    private fun checkNarrowCalendar() {
+        val english = compose.activity.resources.configuration.locales[0].language == "en"
         val today = LocalDate.of(2026, 10, 5)
         for (scale in listOf(1.3f, 2f)) {
             compose.activity.runOnUiThread {
@@ -333,9 +343,13 @@ class HomeScreenTest {
                 "month-grid"
             ).performScrollToNode(hasTestTag("calendar-day-$today"))
             compose.onNodeWithTag("calendar-day-$today").assertIsDisplayed()
-            saveRendering("calendar-narrow-${if (scale == 2f) "large" else "medium"}-text")
+            saveRendering(
+                "calendar-narrow-${if (english) "english-" else ""}${if (scale == 2f) "large" else "medium"}-text"
+            )
             compose.onNodeWithTag("calendar-day-$today").performClick()
-            compose.onNodeWithText("Отметить месячные").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText(
+                compose.activity.getString(app.ritela.R.string.add_period)
+            ).performScrollTo().assertIsDisplayed()
             compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
             compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
             compose.onNodeWithTag(
@@ -350,7 +364,7 @@ class HomeScreenTest {
             ).fetchSemanticsNode().boundsInRoot
             val viewport = compose.onRoot().fetchSemanticsNode().boundsInRoot
             assertTrue(first.left >= viewport.left && last.right <= viewport.right)
-            compose.onNodeWithTag("next-month").performClick()
+            compose.onNodeWithTag("month-grid").performScrollToIndex(1201)
             compose.onNodeWithTag("month-selector").assertIsDisplayed()
         }
     }
@@ -457,10 +471,7 @@ class HomeScreenTest {
                 app.ritela.data.ThemeMode.DARK
         }
         compose.waitForIdle()
-        assertEquals(
-            0xFF1E191F.toInt(),
-            compose.onRoot().captureToImage().asAndroidBitmap().getPixel(0, 0)
-        )
+        assertHomeGradientBackground()
         saveRendering("settings-dark")
         compose.activityRule.scenario.recreate()
         compose.onNodeWithTag("theme-selector").performClick()
@@ -473,10 +484,7 @@ class HomeScreenTest {
                 app.ritela.data.ThemeMode.LIGHT
         }
         compose.waitForIdle()
-        assertEquals(
-            0xFFF8F4EF.toInt(),
-            compose.onRoot().captureToImage().asAndroidBitmap().getPixel(0, 0)
-        )
+        assertHomeGradientBackground()
         compose.onNodeWithTag("theme-selector").performClick()
         compose.onNodeWithTag("theme-system").performClick()
         compose.waitUntil(10_000) {
@@ -490,10 +498,12 @@ class HomeScreenTest {
         compose.onNodeWithTag("select-year-2024").performClick()
         compose.onNodeWithTag("select-month-2").performClick()
         compose.onNodeWithTag("month-selector").assertIsDisplayed()
-        compose.onNodeWithTag("next-month").performClick()
-        compose.onNodeWithTag("month-selector").assertIsDisplayed()
-        compose.onNodeWithTag("previous-month").performClick()
-        compose.onNodeWithTag("month-selector").assertIsDisplayed()
+        compose.onNodeWithTag(
+            "month-grid"
+        ).performScrollToNode(hasTestTag("calendar-day-2024-02-29"))
+        compose.onNodeWithTag("calendar-day-2024-02-29").assertIsDisplayed()
+        compose.onNodeWithTag("next-month").assertDoesNotExist()
+        compose.onNodeWithTag("previous-month").assertDoesNotExist()
     }
 
     @Test
@@ -600,7 +610,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun calendarSwitchesBetweenSingleMonthAndStreamAtTheChosenMonth() {
+    fun calendarAlwaysUsesVerticalMonthStream() {
         val today = LocalDate.of(2026, 10, 8)
         compose.activity.runOnUiThread {
             compose.activity.setContent {
@@ -612,14 +622,15 @@ class HomeScreenTest {
                 }
             }
         }
-        compose.onNodeWithTag("calendar-month-2026-11").assertDoesNotExist()
-        compose.onNodeWithTag("next-month").performClick()
-        compose.onNodeWithTag("calendar-month-2026-10").assertDoesNotExist()
+        compose.onNodeWithTag("calendar-mode").assertDoesNotExist()
+        compose.onNodeWithTag("next-month").assertDoesNotExist()
+        compose.onNodeWithTag("previous-month").assertDoesNotExist()
+        compose.onNodeWithTag("month-grid").performScrollToIndex(1201)
         compose.onNodeWithTag("calendar-day-2026-11-08").assertIsDisplayed()
-        compose.onNodeWithTag("calendar-mode").performClick()
         compose.onNodeWithTag("month-grid").performScrollToIndex(1202)
-        compose.onNodeWithTag("calendar-mode").performClick()
         compose.onNodeWithTag("calendar-day-2026-12-08").assertIsDisplayed()
+        compose.onNodeWithTag("month-grid").performScrollToIndex(1199)
+        compose.onNodeWithTag("calendar-day-2026-09-08").assertIsDisplayed()
         compose.onNodeWithTag("calendar-today").performClick()
         compose.onNodeWithTag("calendar-day-2026-10-08").assertIsDisplayed()
     }
@@ -1158,7 +1169,7 @@ class HomeScreenTest {
     }
 
     @Test
-    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    @Config(sdk = [35], qualifiers = "en-rUS-w390dp-h844dp")
     fun renderCalendarWithHomeDesignSystemInEnglish() {
         renderCalendarHomeFixture("calendar-home-system-english")
     }
@@ -1194,6 +1205,66 @@ class HomeScreenTest {
             ).performScrollTo().assertIsDisplayed()
             saveRendering("$prefix-details", dialog = true)
             compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
+        }
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "ru-rRU-w390dp-h844dp")
+    fun renderSettingsWithHomeDesignSystem() {
+        renderSettingsHomeFixture("settings-home-system")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w390dp-h844dp")
+    fun renderSettingsWithHomeDesignSystemInEnglish() {
+        renderSettingsHomeFixture("settings-home-system-english")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    fun settingsKeepActionsAccessibleAtLargeText() {
+        renderSettingsHomeFixture("settings-home-system-large", 2f)
+    }
+
+    private fun renderSettingsHomeFixture(prefix: String, scale: Float = 1f) {
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, scale)) {
+                    RitelaTheme {
+                        Scaffold(bottomBar = { app.ritela.ui.HomeTheme { AppNavigation(2) {} } }) {
+                            app.ritela.ui.SettingsScreen(it, PeriodUiState(loading = false), {})
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("settings-heading").assertIsDisplayed()
+        saveRendering(prefix)
+        compose.onNodeWithTag("backup-export").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("backup-import").performScrollTo().assertIsDisplayed()
+        saveRendering("$prefix-data")
+        compose.onNodeWithTag("theme-selector").performScrollTo().performClick()
+        compose.onNodeWithTag("theme-system").assertIsSelected()
+        saveRendering("$prefix-theme", dialog = true)
+        compose.onNodeWithText(
+            compose.activity.getString(app.ritela.R.string.cancel)
+        ).performClick()
+        compose.onNodeWithTag("forecast-duration").performScrollTo().performClick()
+        saveRendering("$prefix-duration", dialog = true)
+        compose.onNodeWithText(
+            compose.activity.getString(app.ritela.R.string.cancel)
+        ).performClick()
+    }
+
+    private fun assertHomeGradientBackground() {
+        val actual = compose.onRoot().captureToImage().asAndroidBitmap().getPixel(0, 0)
+        val expected = 0xFF523243.toInt()
+        // Shader interpolation can round each RGB channel down by one.
+        for (shift in listOf(0, 8, 16)) {
+            assertTrue(
+                kotlin.math.abs(((actual shr shift) and 255) - ((expected shr shift) and 255)) <= 1
+            )
         }
     }
 

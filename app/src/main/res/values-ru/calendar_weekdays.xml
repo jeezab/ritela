@@ -1,0 +1,6 @@
+<resources>
+    <string-array name="calendar_weekdays">
+        <item>пн</item><item>вт</item><item>ср</item><item>чт</item>
+        <item>пт</item><item>сб</item><item>вс</item>
+    </string-array>
+</resources>

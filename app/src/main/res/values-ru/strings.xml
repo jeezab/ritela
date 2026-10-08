@@ -1,6 +1,4 @@
 <resources>
-    <string name="calendar_single_month">Показать один месяц</string>
-    <string name="calendar_month_stream">Лента месяцев</string>
     <string name="app_name">Ritela</string>
     <string name="home_title">Сегодня</string>
     <string name="empty_title">Начнём с даты</string>
