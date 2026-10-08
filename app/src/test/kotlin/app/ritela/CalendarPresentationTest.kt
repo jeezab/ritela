@@ -124,17 +124,17 @@ class CalendarPresentationTest {
         }
     }
 
-    @Test fun sparseHistoryDoesNotPaintPreciseGuideButKeepsPossibleRange() {
+    @Test fun sparseHistoryKeepsSevenDayGuideAndSeparatePossibleRange() {
         val value = forecast(
             today.plusDays(14)
         ).copy(confidence = HistoryConfidence.LOW, cyclesUsed = 2)
         val selected = calendarSelection(history.takeLast(2), analysis(value), today, today)
-        assertEquals(CalendarDayKind.NONE, selected.day.kind)
+        assertEquals(CalendarDayKind.OVULATION_ESTIMATE, selected.day.kind)
         assertNotNull(selected.possibleWindow)
-        assertTrue(compactFertilityWindows(history.takeLast(2), analysis(value)).isEmpty())
+        assertEquals(2, compactFertilityWindows(history.takeLast(2), analysis(value)).size)
     }
 
-    @Test fun irregularOrDistantOrWideForecastDoesNotPaintGuide() {
+    @Test fun irregularDistantAndWideForecastsKeepExactlySevenHighlightedDays() {
         val base = forecast(today.plusDays(14))
         for (value in listOf(
             base.copy(cycleVariation = 5.0),
@@ -142,10 +142,22 @@ class CalendarPresentationTest {
             base.copy(horizon = 4),
             base.copy(lowerBound = base.predictedStartDate.minusDays(9))
         )) {
-            assertEquals(
-                CalendarDayKind.NONE,
-                calendarDisplayDay(history.takeLast(1), analysis(value), today, today).kind
-            )
+            for (offset in -7L..3L) {
+                val kind = calendarDisplayDay(
+                    listOf(period(today.minusDays(28))),
+                    analysis(value),
+                    today.plusDays(offset),
+                    today
+                ).kind
+                assertEquals(
+                    when (offset) {
+                        0L -> CalendarDayKind.OVULATION_ESTIMATE
+                        in -5L..1L -> CalendarDayKind.FERTILE_LIKELY
+                        else -> CalendarDayKind.NONE
+                    },
+                    kind
+                )
+            }
         }
     }
 
@@ -175,7 +187,7 @@ class CalendarPresentationTest {
                     firstAnchor.minusDays(14)
             }
         )
-        assertTrue(compactFertilityWindows(history.take(3), CycleAnalysis()).isEmpty())
+        assertEquals(2, compactFertilityWindows(history.take(3), CycleAnalysis()).size)
     }
 
     @Test fun invalidHistoryDoesNotExposeAnyFertilityGuideOrRange() {

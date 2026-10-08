@@ -53,7 +53,7 @@ object CalendarDesign {
 @Composable
 fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> Unit) {
     var showInfo by rememberSaveable { mutableStateOf(false) }
-    if (showInfo) PredictionMethodInfo(state.analysis) { showInfo = false }
+    if (showInfo) PredictionMethodInfo(state.analysis, includeOrbit = false) { showInfo = false }
     val expandedLabel = stringResource(R.string.calendar_expand)
     val collapsedLabel = stringResource(R.string.calendar_collapse)
     val next = state.analysis.forecasts.firstOrNull()

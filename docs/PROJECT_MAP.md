@@ -1,5 +1,7 @@
 # Карта проекта
 
+Уточнение Calendar 0.3.3: compactFertilityWindows больше не фильтрует ориентир по объёму/устойчивости истории — возвращает оценки fertilityWindows, сетка использует исключительно их центральное семидневное likely. PredictionMethodInfo принимает includeOrbit; Calendar передаёт false, Home сохраняет default true.
+
 Calendar day UX 2026-10-08: domain/CalendarPresentation.kt — компактная семидневная подсветка/ограничения определённости и CalendarSelection с единым приоритетом. PredictionEngine не изменён. ui/CalendarDayFormatter.kt — локализованные даты/статусы/краткие описания вне composables, переиспользуется общим formattedDate/periodDates и сеткой. CalendarDayDetails — bottom sheet по содержимому с max-height, safeDrawing/IME insets, раскрываемыми диапазонами и скроллом; CalendarDayRecords в Insights сохраняет видимость архивных разделов. На Home длительность месячных только в малой плитке. Новые CalendarPresentationTest/CalendarDayFormatterTest и целевые HomeScreenTest; selected_day_strings.xml EN/RU.
 
 UI 0.3.2: ForecastCard — дата/countdown в Row, увеличенный день цикла; HomeInsightTiles — две карточки общей высоты через IntrinsicSize; CycleOrbitDetail — центрированные кнопки дня. CalendarScreen окрашивает только месячные, сохраняя расчёт фертильности/цветок/подробности. CalendarDesign содержит соответствующую краткую легенду. Insights — последние интервалы/график и ожидаемая продолжительность месячных, без median/range summary. Данные/алгоритмы без изменений.
