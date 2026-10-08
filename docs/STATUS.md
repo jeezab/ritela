@@ -1,5 +1,14 @@
 # Точка продолжения
 
+Актуально 2026-10-08: подготовлена 0.3.1/code 3001 по явному запросу пользователя на push и новый тег. Код прогноза сохранён в a6bf34a, в выпуск также входит UI-коммит 4444509. Новая версия включает 62 разных проверенных теста рабочего пакета; после изменения только версии бизнес-тесты не повторялись. Следующий шаг — git push origin master, создать аннотированный v0.3.1 на release commit, отправить refs/tags/v0.3.1 и проверить новый Release APK workflow/публикацию.
+
+## Подготовка выпуска 0.3.1
+
+- `version.properties` → 0.3.1/code 3001, RELEASES обновлён для обычного нового выпуска. `git ls-remote origin refs/heads/master refs/tags/v0.3.1 refs/tags/v0.3.1^{}`: master 07098d7, новый тег отсутствует; локального v0.3.1 также нет. Прежние теги не меняются.
+- `python scripts/release.py check --tag v0.3.1` — PASS; проверка тем же check() с текущим authenticated GitHub Releases API — PASS: выше всех стабильных, последний v0.3.0. `python -m unittest discover -s scripts -p test_release.py` — 7 tests PASS.
+- `scripts/gradle.ps1 checkKotlin assembleDebug lintDebug` — BUILD SUCCESSFUL, без изменений Kotlin после 62 успешных тестов. `scripts/verify-apk.ps1` — PASS: debug signed app.ritela, API 26–37, no network permissions. Aapt2 подтверждает versionName 0.3.1/code 3001. APK 13 063 160 bytes, SHA256 `9215c2e3399de435924bef9b2e3d31792460cc1907f6b5a80283340d09a258b8`. `scripts/check-workspace.ps1` — PASS, diff/staged checks выполняются перед коммитом.
+- Пользователь явно разрешил отправку ветки и нового тега, а затем попросил продолжить. Production подпись/публикация должны быть подтверждены workflow после push. docs/ui остаются пользовательскими untracked файлами, вне коммитов/публикации. Результат push и remote CI фиксируется следующим checkpoint.
+
 Актуально 2026-10-08: завершён локальный статистический прогноз, без ИИ/сети. Взвешенная медиана последних максимум 12 интервалов годового окна с 0.86^age; первые четыре интервала плавно персонализируют 28 дней. Длительность месячных автоматически от 5, warmup три записи. Rolling-origin backtesting/MAE/две медианные ошибки, диапазоны по ошибкам с консервативным prior; 512 Monte Carlo траекторий с постоянным seed на 12 календарных месяцев. Овуляция/окно/слизь разделены; фиксированные теги уже существовали, WATERY/CLEAR_STRETCHY дают только дневной сигнал. Room v3/backup/записи не менялись. Ручной выбор длительности удалён, legacy preferences игнорируются без удаления. Пользователь явно запросил push и новый v0.3.1; следующий шаг — отдельный release commit версии 0.3.1/code 3001, проверка, отправка master/нового тега и контроль Release APK workflow.
 
 ## Персональный прогноз: проверки и ограничения
