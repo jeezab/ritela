@@ -60,7 +60,8 @@ fun CycleOrbitScene(
     onMarker: ((OrbitMarker) -> Unit)? = null,
     onOpen: (() -> Unit)? = null,
     onScrub: ((Float) -> Unit)? = null,
-    focusProgress: Float? = null
+    focusProgress: Float? = null,
+    centerDay: Long = cycleDay
 ) {
     val breath = orbitPulse(reducedMotion, 0.9f, 1f, RitelaMotion.ORBIT_HALF_BREATH_MILLIS)
     val pulse = orbitPulse(reducedMotion, 0.98f, 1.04f, RitelaMotion.MARKER_HALF_BREATH_MILLIS)
@@ -99,6 +100,7 @@ fun CycleOrbitScene(
             }
         }
     }
+    val dayLabel = stringResource(R.string.hero_cycle_day, centerDay)
     Box(
         modifier.onSizeChanged { viewport = it }.testTag("cycle-orbit-$cycleDay")
             .then(
@@ -220,11 +222,11 @@ fun CycleOrbitScene(
 
                             OrbitMarker.OVULATION -> drawCircle(
                                 colors.ink.copy(alpha = 0.85f),
-                                5.5f * unit,
+                                9.5f * unit,
                                 point
                             )
 
-                            OrbitMarker.LUTEAL -> drawCircle(colors.rose, 4.5f * unit, point)
+                            OrbitMarker.LUTEAL -> drawCircle(colors.rose, 8f * unit, point)
 
                             OrbitMarker.END -> drawPath(crescent, colors.peach.copy(alpha = 0.85f))
                         }
@@ -264,6 +266,13 @@ fun CycleOrbitScene(
                 }
             }
         ) {}
+        androidx.compose.material3.Text(
+            centerDay.toString(),
+            Modifier.align(androidx.compose.ui.Alignment.Center).testTag("orbit-center-day")
+                .semantics { contentDescription = dayLabel },
+            color = colors.ink,
+            style = androidx.compose.material3.MaterialTheme.typography.headlineLarge
+        )
         if (viewport != IntSize.Zero && onMarker != null) {
             for (marker in OrbitMarker.entries) {
                 val label = stringResource(orbitMarkerTitle(marker))

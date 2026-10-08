@@ -1,5 +1,11 @@
 package app.ritela.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,16 +21,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.ritela.R
 import app.ritela.domain.EstimatedCyclePhase
 import app.ritela.domain.cycleSceneState
@@ -39,124 +47,124 @@ object CalendarDesign {
 }
 
 @Composable
-fun CalendarAtmosphericHeader(onLegend: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(top = HomeSpacing.gap, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = 32.sp)
-            )
-            Text(
-                stringResource(R.string.calendar_title),
-                Modifier.testTag("calendar-heading"),
-                style = MaterialTheme.typography.bodyLarge,
-                color = HomeColors.muted
-            )
-        }
-        if (LocalDensity.current.fontScale <= 1.3f) {
-            CalendarOrbitDecoration(
-                1,
-                0.3f,
-                true,
-                OrbitColors(HomeColors.text, HomeColors.orbit, HomeColors.peach, HomeColors.top),
-                Modifier.size(96.dp, 80.dp)
-            )
-        }
-        IconButton(onClick = onLegend) {
-            Icon(painterResource(R.drawable.ic_info), stringResource(R.string.calendar_key))
-        }
-    }
-}
-
-@Composable
-fun CalendarSummaries(state: PeriodUiState) {
+fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> Unit) {
+    val expandedLabel = stringResource(R.string.calendar_expand)
+    val collapsedLabel = stringResource(R.string.calendar_collapse)
     val next = state.analysis.forecasts.firstOrNull()
     val phase = cycleSceneState(state.analysis, state.today).phase
+    val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "cycle details")
     Column(
-        Modifier.fillMaxWidth().padding(vertical = HomeSpacing.gap),
-        verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
+        Modifier.fillMaxWidth().padding(vertical = 4.dp)
     ) {
-        if (next != null && state.periods.none { it.end == null }) {
-            CalendarSummaryCard {
-                Text(
-                    stringResource(R.string.forecast_title),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeColors.muted
-                )
-                Text(
-                    next.predictedStartDate.format(
-                        DateTimeFormatter.ofPattern(
-                            "d MMMM yyyy",
-                            LocalConfiguration.current.locales[0]
-                        )
-                    ),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    stringResource(
-                        R.string.forecast_range,
-                        formattedDate(next.lowerBound),
-                        formattedDate(next.upperBound)
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeColors.muted
-                )
+        IconButton(
+            onClick = onToggle,
+            modifier = Modifier.fillMaxWidth().testTag("calendar-summaries-toggle").semantics {
+                stateDescription = if (expanded) expandedLabel else collapsedLabel
             }
+        ) {
+            Icon(
+                painterResource(R.drawable.ic_chevron_down),
+                if (expanded) collapsedLabel else expandedLabel,
+                Modifier.size(18.dp).graphicsLayer { rotationZ = angle }
+            )
         }
-        if (phase != EstimatedCyclePhase.UNKNOWN) {
-            CalendarSummaryCard {
-                Text(
-                    stringResource(R.string.home_phase_tile),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeColors.muted
-                )
-                Text(
-                    stringResource(
-                        when (phase) {
-                            EstimatedCyclePhase.EARLY -> R.string.phase_early_estimate
-                            EstimatedCyclePhase.FOLLICULAR -> R.string.phase_follicular_estimate
-                            EstimatedCyclePhase.OVULATION -> R.string.phase_ovulation_estimate
-                            EstimatedCyclePhase.LUTEAL -> R.string.phase_luteal_estimate
-                            EstimatedCyclePhase.UNKNOWN -> R.string.home_phase_estimated
-                        }
-                    ),
-                    style = MaterialTheme.typography.titleLarge
-                )
-            }
-        }
-        CalendarSummaryCard {
-            Text(stringResource(R.string.calendar_key), style = MaterialTheme.typography.labelLarge)
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        AnimatedVisibility(
+            expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(
+                Modifier.testTag("calendar-summaries"),
+                verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
             ) {
-                for ((icon, color, label) in listOf(
-                    Triple(R.drawable.ic_drop, CalendarDesign.period, R.string.calendar_observed),
-                    Triple(
-                        R.drawable.ic_calendar,
-                        CalendarDesign.estimatedPeriod,
-                        R.string.calendar_predicted
-                    ),
-                    Triple(R.drawable.ic_flower, CalendarDesign.fertile, R.string.fertile_estimate),
-                    Triple(
-                        R.drawable.ic_flower,
-                        CalendarDesign.ovulation,
-                        R.string.ovulation_estimate
-                    )
-                )) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(painterResource(icon), null, Modifier.size(14.dp), tint = color)
+                if (next != null && state.periods.none { it.end == null }) {
+                    CalendarSummaryCard {
                         Text(
-                            stringResource(label),
+                            stringResource(R.string.forecast_title),
                             style = MaterialTheme.typography.bodySmall,
                             color = HomeColors.muted
                         )
+                        Text(
+                            next.predictedStartDate.format(
+                                DateTimeFormatter.ofPattern(
+                                    "d MMMM yyyy",
+                                    LocalConfiguration.current.locales[0]
+                                )
+                            ),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            stringResource(
+                                R.string.forecast_range,
+                                formattedDate(next.lowerBound),
+                                formattedDate(next.upperBound)
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = HomeColors.muted
+                        )
+                    }
+                }
+                if (phase != EstimatedCyclePhase.UNKNOWN) {
+                    CalendarSummaryCard {
+                        Text(
+                            stringResource(R.string.current_cycle_phase),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = HomeColors.muted
+                        )
+                        Text(
+                            stringResource(phaseName(phase)),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                }
+                CalendarSummaryCard {
+                    Text(
+                        stringResource(R.string.calendar_key),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        for ((icon, color, label) in listOf(
+                            Triple(
+                                R.drawable.ic_drop,
+                                CalendarDesign.period,
+                                R.string.calendar_observed
+                            ),
+                            Triple(
+                                R.drawable.ic_calendar,
+                                CalendarDesign.estimatedPeriod,
+                                R.string.calendar_predicted
+                            ),
+                            Triple(
+                                R.drawable.ic_flower,
+                                CalendarDesign.fertile,
+                                R.string.fertile_estimate
+                            ),
+                            Triple(
+                                R.drawable.ic_flower,
+                                CalendarDesign.ovulation,
+                                R.string.ovulation_estimate
+                            )
+                        )) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    painterResource(icon),
+                                    null,
+                                    Modifier.size(14.dp),
+                                    tint = color
+                                )
+                                Text(
+                                    stringResource(label),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = HomeColors.muted
+                                )
+                            }
+                        }
                     }
                 }
             }

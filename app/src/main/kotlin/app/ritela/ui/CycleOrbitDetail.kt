@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -147,17 +147,13 @@ fun CycleOrbitDetail(
                                         HomeColors.peach,
                                         HomeColors.top
                                     ),
-                                    Modifier.fillMaxWidth().height(280.dp),
+                                    Modifier.fillMaxWidth().aspectRatio(350f / 228f),
                                     onMarker = { selectedMarker = it },
                                     onScrub = { focusDay = orbitDayAtProgress(it, state.length) },
-                                    focusProgress = state.focusProgress
+                                    focusProgress = state.focusProgress,
+                                    centerDay = state.focusDay
                                 )
                             }
-                            Text(
-                                stringResource(R.string.orbit_focus_legend),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = HomeColors.muted
-                            )
                             Text(
                                 stringResource(R.string.orbit_focus_day, state.focusDay),
                                 Modifier.testTag("orbit-focus-day"),
@@ -168,23 +164,7 @@ fun CycleOrbitDetail(
                                 Modifier.testTag("orbit-focus-date")
                             )
                             Text(
-                                stringResource(
-                                    when (state.phase) {
-                                        EstimatedCyclePhase.EARLY -> R.string.phase_early_estimate
-
-                                        EstimatedCyclePhase.FOLLICULAR -> {
-                                            R.string.phase_follicular_estimate
-                                        }
-
-                                        EstimatedCyclePhase.OVULATION -> {
-                                            R.string.phase_ovulation_estimate
-                                        }
-
-                                        EstimatedCyclePhase.LUTEAL -> R.string.phase_luteal_estimate
-
-                                        EstimatedCyclePhase.UNKNOWN -> R.string.hero_phase_info
-                                    }
-                                ),
+                                stringResource(phaseName(state.phase)),
                                 Modifier.testTag("orbit-focus-phase"),
                                 color = HomeColors.muted
                             )
@@ -214,7 +194,10 @@ fun CycleOrbitDetail(
                                     focusDay =
                                         (focusDay - 1).coerceIn(1, state.length.toLong())
                                 }, modifier = Modifier.testTag("orbit-previous")) {
-                                    Text(stringResource(R.string.orbit_previous_day))
+                                    Icon(
+                                        painterResource(R.drawable.ic_turn_previous),
+                                        stringResource(R.string.orbit_previous_day)
+                                    )
                                 }
                                 TextButton(onClick = {
                                     focusDay = state.currentDay
@@ -225,7 +208,10 @@ fun CycleOrbitDetail(
                                     focusDay =
                                         (focusDay + 1).coerceIn(1, state.length.toLong())
                                 }, modifier = Modifier.testTag("orbit-next")) {
-                                    Text(stringResource(R.string.orbit_next_day))
+                                    Icon(
+                                        painterResource(R.drawable.ic_turn_next),
+                                        stringResource(R.string.orbit_next_day)
+                                    )
                                 }
                             }
                             if (state.overdue) Text(stringResource(R.string.orbit_overdue))
@@ -234,16 +220,6 @@ fun CycleOrbitDetail(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = HomeColors.muted
                             )
-                            analysis.forecasts.firstOrNull()?.let {
-                                Text(
-                                    stringResource(
-                                        R.string.forecast_range,
-                                        formattedDate(it.lowerBound),
-                                        formattedDate(it.upperBound)
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
                             FlowRow {
                                 OrbitMarker.entries.forEach { marker ->
                                     TextButton(onClick = {

@@ -4,8 +4,4 @@
     <string name="hero_cycle_day">День %1$d цикла</string>
     <string name="forecast_info">О прогнозе</string>
     <string name="hero_phase_info">Фаза цикла предполагается по отмеченным датам.</string>
-    <string name="phase_early_estimate">Начало цикла · по прогнозу</string>
-    <string name="phase_follicular_estimate">Фолликулярная фаза · по прогнозу</string>
-    <string name="phase_ovulation_estimate">Овуляция · по прогнозу</string>
-    <string name="phase_luteal_estimate">Лютеиновая фаза · по прогнозу</string>
 </resources>

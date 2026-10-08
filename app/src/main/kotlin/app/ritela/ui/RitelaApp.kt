@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -60,6 +61,7 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     var loggingDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var page by rememberSaveable { mutableStateOf(0) }
     var addingDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
+    val pageStates = rememberSaveableStateHolder()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.refreshToday() }
     LaunchedEffect(state.saved) {
         if (state.saved) {
@@ -81,31 +83,33 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
             HomeTheme { AppNavigation(page) { page = it } }
         }) { contentPadding ->
             if (page == 2) {
-                SettingsScreen(contentPadding, state, model::setTheme) { duration ->
+                SettingsScreen(contentPadding, state, onDurationChange = { duration ->
                     model.updateDefaults(state.defaults.copy(periodDuration = duration))
-                }
+                })
             } else if (page == 1) {
-                CalendarScreen(
-                    contentPadding,
-                    state,
-                    onAdd = {
-                        addingDay = it.toEpochDay()
-                        model.clearResult()
-                        adding = true
-                    },
-                    onEdit = {
-                        editingId = it.id.toString()
-                        model.clearResult()
-                    },
-                    onDelete = {
-                        deletingId = it.id.toString()
-                        model.clearResult()
-                    },
-                    onLogDay = {
-                        model.clearResult()
-                        loggingDay = it.toEpochDay()
-                    }
-                )
+                pageStates.SaveableStateProvider("calendar") {
+                    CalendarScreen(
+                        contentPadding,
+                        state,
+                        onAdd = {
+                            addingDay = it.toEpochDay()
+                            model.clearResult()
+                            adding = true
+                        },
+                        onEdit = {
+                            editingId = it.id.toString()
+                            model.clearResult()
+                        },
+                        onDelete = {
+                            deletingId = it.id.toString()
+                            model.clearResult()
+                        },
+                        onLogDay = {
+                            model.clearResult()
+                            loggingDay = it.toEpochDay()
+                        }
+                    )
+                }
             } else {
                 HomeScreen(
                     contentPadding,
@@ -360,7 +364,13 @@ fun HomeScreen(
                 layout = state.journalLayout,
                 homeStyle = true
             )
-            CycleInsights(state.periods, today, state.dayLogs, onLogDay)
+            CycleInsights(
+                state.periods,
+                today,
+                state.dayLogs,
+                onLogDay,
+                state.analysis.periodDuration
+            )
             HelpCards(state.dayLogs.firstOrNull { it.date == today }, state.analysis, today)
             Text(
                 stringResource(R.string.privacy_description),

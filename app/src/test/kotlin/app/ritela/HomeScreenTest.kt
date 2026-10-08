@@ -17,6 +17,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -288,7 +289,7 @@ class HomeScreenTest {
             compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
         }
         assertTrue(compose.onAllNodesWithText("Отметить месячные").fetchSemanticsNodes().isEmpty())
-        compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
+        compose.onNodeWithTag("month-selector").assertIsDisplayed()
         val before = compose.onNodeWithTag("month-grid").fetchSemanticsNode()
             .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
             .value()
@@ -352,7 +353,7 @@ class HomeScreenTest {
                 compose.activity.getString(app.ritela.R.string.add_period)
             ).performScrollTo().assertIsDisplayed()
             compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
-            compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
+            compose.onNodeWithTag("month-selector").assertIsDisplayed()
             compose.onNodeWithTag(
                 "month-grid"
             ).performScrollToNode(hasTestTag("calendar-day-2026-10-05"))
@@ -406,7 +407,7 @@ class HomeScreenTest {
             compose.onAllNodesWithText("Start with a date").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("nav-calendar").performClick()
-        compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
+        compose.onNodeWithTag("month-selector").assertIsDisplayed()
         saveRendering("calendar-english")
     }
 
@@ -465,33 +466,14 @@ class HomeScreenTest {
         saveRendering("settings")
         compose.onNodeWithTag("cycle-plus").assertDoesNotExist()
         compose.onNodeWithTag("duration-plus").assertDoesNotExist()
-        compose.onNodeWithTag("theme-selector").performClick()
-        compose.onNodeWithTag("theme-dark").performClick()
-        compose.waitUntil(10_000) {
-            (compose.activity.application as RitelaApplication).settings.theme.value ==
-                app.ritela.data.ThemeMode.DARK
-        }
-        compose.waitForIdle()
+        compose.onNodeWithTag("theme-selector").assertDoesNotExist()
+        val settings = (compose.activity.application as RitelaApplication).settings
+        runBlocking { settings.saveTheme(app.ritela.data.ThemeMode.DARK) }
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("theme-selector").assertDoesNotExist()
+        assertEquals(app.ritela.data.ThemeMode.DARK, settings.theme.value)
         assertHomeGradientBackground()
         saveRendering("settings-dark")
-        compose.activityRule.scenario.recreate()
-        compose.onNodeWithTag("theme-selector").performClick()
-        compose.onNodeWithTag("theme-dark").assertIsSelected()
-        compose.onNodeWithText("Отмена").performClick()
-        compose.onNodeWithTag("theme-selector").performClick()
-        compose.onNodeWithTag("theme-light").performClick()
-        compose.waitUntil(10_000) {
-            (compose.activity.application as RitelaApplication).settings.theme.value ==
-                app.ritela.data.ThemeMode.LIGHT
-        }
-        compose.waitForIdle()
-        assertHomeGradientBackground()
-        compose.onNodeWithTag("theme-selector").performClick()
-        compose.onNodeWithTag("theme-system").performClick()
-        compose.waitUntil(10_000) {
-            (compose.activity.application as RitelaApplication).settings.theme.value ==
-                app.ritela.data.ThemeMode.SYSTEM
-        }
         compose.onNodeWithTag("nav-calendar").performClick()
         compose.onNodeWithTag("month-selector").performClick()
         saveRendering("calendar-month-picker", dialog = true)
@@ -543,18 +525,20 @@ class HomeScreenTest {
         compose.onNodeWithTag("settings-heading").assertIsDisplayed()
         compose.onNodeWithText("Language").assertIsDisplayed()
         saveRendering("settings-english")
-        compose.onNodeWithText("Theme").assertIsDisplayed()
-        compose.onNodeWithTag("theme-selector").performClick()
-        compose.onNodeWithTag("theme-dark").performClick()
-        compose.waitUntil(10_000) {
-            (compose.activity.application as RitelaApplication).settings.theme.value ==
+        compose.onNodeWithText("Theme").assertDoesNotExist()
+        compose.onNodeWithTag("theme-selector").assertDoesNotExist()
+        runBlocking {
+            (compose.activity.application as RitelaApplication).settings.saveTheme(
                 app.ritela.data.ThemeMode.DARK
+            )
         }
+        compose.waitForIdle()
         saveRendering("settings-dark-english")
     }
 
     @Test
     fun dayCanBeLoggedOnHomeAndEditedInCalendarAfterRecreation() {
+        useLegacyJournal()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
         }
@@ -606,7 +590,7 @@ class HomeScreenTest {
             compose.onAllNodesWithText(compose.activity.getString(R.string.empty_title))
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithTag("quick-energy").performScrollTo().performClick()
+        compose.onNodeWithTag("quick-discharge").performScrollTo().performClick()
         compose.onNodeWithTag("day-note").assertExists()
     }
 
@@ -652,7 +636,7 @@ class HomeScreenTest {
     fun englishDayFormAndBackupPasswordAreLocalized() {
         compose.onNodeWithTag("log-day").performScrollTo().performClick()
         compose.onNodeWithText("How was your day?").assertIsDisplayed()
-        compose.onNodeWithTag("headache-MILD").performClick()
+        compose.onNodeWithTag("mood-HAPPY").performClick()
         saveRendering("day-entry-english", dialog = true)
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithTag("nav-settings").performClick()
@@ -684,10 +668,10 @@ class HomeScreenTest {
             }
         }
         compose.onNodeWithTag("save-day").assertIsDisplayed()
-        compose.onNodeWithTag("cramps-MODERATE").performScrollTo().performClick()
+        compose.onNodeWithTag("energy-NORMAL").performScrollTo().performClick()
         saveRendering("day-entry-narrow-dark-english", dialog = true)
         compose.onNodeWithTag("save-day").performClick()
-        assertEquals(app.ritela.domain.Pain.MODERATE, saved?.cramps)
+        assertEquals(app.ritela.domain.Energy.NORMAL, saved?.energy)
     }
 
     @Test
@@ -812,6 +796,7 @@ class HomeScreenTest {
 
     @Test
     fun journalEditorPersistsTagsTitleIconsAndAllowsNoSections() {
+        useLegacyJournal()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
         }
@@ -957,6 +942,19 @@ class HomeScreenTest {
         compose.onNodeWithTag("forecast-duration").performScrollTo().assertTextEquals(
             "Прогноз месячных: 3 дня"
         )
+        val application = compose.activity.application as RitelaApplication
+        val start = LocalDate.now().minusDays(20)
+        runBlocking { application.periods.add(start, start.plusDays(6)) }
+        compose.onNodeWithTag("nav-today").performClick()
+        compose.onNodeWithTag(
+            "expected-period-duration"
+        ).performScrollTo().assertTextEquals("3 дн.")
+        assertEquals(
+            start.plusDays(6),
+            runBlocking {
+                application.periods.periods.first().single().end
+            }
+        )
     }
 
     @Test
@@ -1035,9 +1033,9 @@ class HomeScreenTest {
         val records =
             listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
         for ((today, expected) in listOf(
-            start.plusDays(25) to "Примерно через 3 дня",
+            start.plusDays(25) to "3 дня",
             start.plusDays(28) to "Ожидаются сегодня",
-            start.plusDays(30) to "Ожидались 2 дня назад"
+            start.plusDays(30) to "2 дня"
         )) {
             compose.activity.runOnUiThread {
                 compose.activity.setContent {
@@ -1095,7 +1093,7 @@ class HomeScreenTest {
                 }
             }
             compose.onNodeWithTag("forecast-date").assertTextEquals("2 ноября").assertIsDisplayed()
-            compose.onNodeWithText("Примерно через 26 дней").assertIsDisplayed()
+            compose.onNodeWithText("26 дней").assertIsDisplayed()
             compose.onNodeWithText("День 8 цикла").assertIsDisplayed()
             saveRendering(name)
         }
@@ -1245,12 +1243,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("backup-export").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("backup-import").performScrollTo().assertIsDisplayed()
         saveRendering("$prefix-data")
-        compose.onNodeWithTag("theme-selector").performScrollTo().performClick()
-        compose.onNodeWithTag("theme-system").assertIsSelected()
-        saveRendering("$prefix-theme", dialog = true)
-        compose.onNodeWithText(
-            compose.activity.getString(app.ritela.R.string.cancel)
-        ).performClick()
+        compose.onNodeWithTag("theme-selector").assertDoesNotExist()
         compose.onNodeWithTag("forecast-duration").performScrollTo().performClick()
         saveRendering("$prefix-duration", dialog = true)
         compose.onNodeWithText(
@@ -1262,6 +1255,15 @@ class HomeScreenTest {
     @Config(sdk = [35], qualifiers = "ru-rRU-w390dp-h844dp")
     fun flatOrbitLandmarksExplainPhasesAndDraggingOnlyChangesFocus() {
         renderHomeReferenceFixture("home-flat-orbit", false, 1f)
+        compose.onNodeWithTag("orbit-center-day", useUnmergedTree = true).assertTextEquals("8")
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.orbit_direction)
+        ).assertDoesNotExist()
+        compose.onNodeWithText(compose.activity.getString(R.string.orbit_more)).assertDoesNotExist()
+        val compactBounds = compose.onNodeWithTag(
+            "orbit-canvas",
+            useUnmergedTree = true
+        ).fetchSemanticsNode().boundsInRoot
         for (marker in app.ritela.ui.OrbitMarker.entries) {
             compose.onNodeWithTag("orbit-marker-${marker.name}").performClick()
             compose.onNodeWithTag("orbit-phase-info").assertIsDisplayed()
@@ -1274,6 +1276,15 @@ class HomeScreenTest {
         }
         compose.onNodeWithTag("orbit-current").performClick()
         compose.onNodeWithTag("orbit-detail").assertIsDisplayed()
+        val detailBounds = compose.onNode(
+            hasTestTag("orbit-canvas") and
+                hasAnyAncestor(hasTestTag("orbit-detail"))
+        ).fetchSemanticsNode().boundsInRoot
+        assertEquals(
+            compactBounds.width / compactBounds.height,
+            detailBounds.width / detailBounds.height,
+            0.01f
+        )
         saveRendering("orbit-detail", dialog = true)
         compose.onNodeWithTag("orbit-scrub").performScrollTo()
         val bounds = compose.onNodeWithTag("orbit-scrub").fetchSemanticsNode().boundsInRoot
@@ -1291,8 +1302,12 @@ class HomeScreenTest {
             compose.activity.getString(app.ritela.R.string.orbit_focus_day, 23)
         )
         compose.onNodeWithTag("orbit-focus-phase").assertTextEquals(
-            compose.activity.getString(app.ritela.R.string.phase_luteal_estimate)
+            compose.activity.getString(app.ritela.R.string.phase_luteal_name)
         )
+        compose.onNode(
+            hasTestTag("orbit-center-day") and
+                hasAnyAncestor(hasTestTag("orbit-detail"))
+        ).assertTextEquals("23")
         saveRendering("orbit-detail-scrubbed", dialog = true)
         compose.onNodeWithTag(
             "orbit-day-slider"
@@ -1306,6 +1321,11 @@ class HomeScreenTest {
         compose.onNodeWithTag("orbit-focus-day").performScrollTo().assertTextEquals(
             compose.activity.getString(app.ritela.R.string.orbit_focus_day, 8)
         )
+        compose.onNodeWithTag("orbit-next").performScrollTo().performClick()
+        compose.onNodeWithTag("orbit-focus-day").performScrollTo().assertTextEquals(
+            compose.activity.getString(app.ritela.R.string.orbit_focus_day, 9)
+        )
+        compose.onNodeWithTag("orbit-previous").performScrollTo().performClick()
         compose.onNodeWithTag("orbit-detail-close").performClick()
         compose.onNodeWithTag(
             "forecast-date"
@@ -1336,6 +1356,101 @@ class HomeScreenTest {
         compose.onNodeWithTag("orbit-phase-close").performClick()
         compose.onNodeWithTag("orbit-detail-close").assertIsDisplayed().performClick()
         compose.onNodeWithTag("forecast-date").assertIsDisplayed()
+    }
+
+    private fun useLegacyJournal() {
+        val application = compose.activity.application as RitelaApplication
+        runBlocking {
+            application.journal.save(
+                app.ritela.domain.JournalLayout(
+                    sections = app.ritela.domain.builtInJournalSections()
+                )
+            )
+        }
+        compose.waitForIdle()
+    }
+
+    @Test fun calendarSummaryCollapseSurvivesNavigationAndHistoryOpensStartMonth() {
+        val application = compose.activity.application as RitelaApplication
+        val today = LocalDate.now()
+        val start = YearMonth.from(today).minusMonths(3).atDay(10)
+        runBlocking {
+            application.periods.add(start, start.plusDays(4))
+            application.periods.add(today.minusDays(8), today.minusDays(4))
+        }
+        compose.onNodeWithTag("nav-calendar").performClick()
+        compose.onNodeWithTag("calendar-heading").assertDoesNotExist()
+        compose.onNodeWithTag(
+            "month-grid"
+        ).performScrollToNode(hasTestTag("calendar-summaries-toggle"))
+        compose.onNodeWithTag("calendar-summaries").assertExists()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.current_cycle_phase)
+        ).assertExists()
+        compose.onNodeWithTag("calendar-summaries-toggle").performClick()
+        compose.onNodeWithTag("calendar-summaries").assertDoesNotExist()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.current_cycle_phase)
+        ).assertDoesNotExist()
+        compose.onNodeWithTag("nav-today").performClick()
+        compose.onNodeWithTag("nav-calendar").performClick()
+        compose.onNodeWithTag("calendar-summaries").assertDoesNotExist()
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("calendar-summaries").assertDoesNotExist()
+        compose.onNodeWithTag(
+            "month-grid"
+        ).performScrollToNode(hasTestTag("calendar-summaries-toggle"))
+        compose.onNodeWithTag("calendar-summaries-toggle").performClick()
+        compose.onNodeWithTag("calendar-summaries").assertExists()
+        compose.onNodeWithTag("calendar-history").performClick()
+        val period = runBlocking { application.periods.periods.first().first { it.start == start } }
+        compose.onNodeWithTag("history-period-${period.id}").performClick()
+        compose.onNodeWithTag("month-grid").performScrollToNode(hasTestTag("calendar-day-$start"))
+        compose.onNodeWithTag("calendar-day-$start").assertIsDisplayed()
+        compose.onNodeWithTag("calendar-today").performClick()
+        compose.onNodeWithTag(
+            "month-grid"
+        ).performScrollToNode(hasTestTag("calendar-summaries-toggle"))
+        compose.onNodeWithTag("calendar-summaries").assertExists()
+    }
+
+    @Test fun dischargeTagsAreFixedAndSelectionsSurviveRecreation() {
+        val application = compose.activity.application as RitelaApplication
+        compose.onNodeWithTag("quick-discharge").performScrollTo().performClick()
+        assertEquals(
+            listOf("mood", "discharge", "sex", "energy"),
+            runBlocking { application.journal.layout.first().sections.map { it.id } }
+        )
+        compose.onNodeWithTag("journal-edit-discharge").performScrollTo().performClick()
+        compose.onNodeWithTag("journal-remove-discharge-DRY").assertDoesNotExist()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.journal_add_tag)
+        ).assertDoesNotExist()
+        compose.onNodeWithTag("discharge-WATERY").performScrollTo().performClick()
+        compose.onNodeWithTag("save-day").performClick()
+        compose.waitUntil(10_000) {
+            runBlocking {
+                application.days.logs.first().firstOrNull()?.custom?.get("discharge") ==
+                    setOf("WATERY")
+            }
+        }
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("quick-discharge").performScrollTo().performClick()
+        compose.onNodeWithTag("discharge-WATERY").performScrollTo().assertIsSelected()
+        compose.onNodeWithTag("mood-HAPPY").performScrollTo().performClick()
+        compose.onNodeWithTag("save-day").performClick()
+        compose.waitUntil(10_000) {
+            runBlocking {
+                application.days.logs.first().single().mood ==
+                    app.ritela.domain.Mood.HAPPY
+            }
+        }
+        assertEquals(
+            setOf("WATERY"),
+            runBlocking {
+                application.days.logs.first().single().custom["discharge"]
+            }
+        )
     }
 
     private fun assertHomeGradientBackground() {

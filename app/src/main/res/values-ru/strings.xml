@@ -40,7 +40,6 @@
     <string name="forecast_invalid">Проверьте даты записей — по этой истории пока нельзя построить прогноз.</string>
     <string name="forecast_ongoing">Укажите окончание текущей менструации, чтобы увидеть следующий прогноз.</string>
     <string name="forecast_past_due">Ожидаемый диапазон уже прошёл. Если месячные начались, отметьте новые даты.</string>
-    <string name="calendar_legend">Розовый — отмеченные месячные · светло-розовый — прогноз месячных · светло-зелёный — предполагаемое фертильное окно · шалфейный — предполагаемая овуляция</string>
     <string name="calendar_observed">Менструация отмечена</string>
     <string name="calendar_predicted">Прогноз начала месячных</string>
     <string name="calendar_uncertain">Возможная дата начала</string>
@@ -71,8 +70,4 @@
         <item quantity="many">Отметить %d дней</item>
         <item quantity="other">Отметить %d дней</item>
     </plurals>
-    <string name="theme_title">Тема</string>
-    <string name="theme_system">Системная</string>
-    <string name="theme_light">Светлая</string>
-    <string name="theme_dark">Тёмная</string>
 </resources>

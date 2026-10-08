@@ -1,5 +1,7 @@
 package app.ritela.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -113,6 +115,7 @@ fun journalSectionLabel(section: JournalSection): String = section.title.ifBlank
             "cramps" -> R.string.cramps
             "backache" -> R.string.backache
             "flow" -> R.string.flow_title
+            "discharge" -> R.string.discharge_title
             "mood" -> R.string.mood_title
             "energy" -> R.string.energy_title
             "sex" -> R.string.sex_title
@@ -123,6 +126,18 @@ fun journalSectionLabel(section: JournalSection): String = section.title.ifBlank
 
 @Composable
 fun journalTagLabel(section: JournalSection, tag: JournalTag): String {
+    if (section.id == "discharge") {
+        return stringResource(
+            when (tag.id) {
+                "DRY" -> R.string.discharge_dry
+                "STICKY" -> R.string.discharge_sticky
+                "CREAMY" -> R.string.discharge_creamy
+                "WATERY" -> R.string.discharge_watery
+                "CLEAR_STRETCHY" -> R.string.discharge_clear_stretchy
+                else -> R.string.discharge_unusual
+            }
+        )
+    }
     if (tag.title.isNotBlank()) return tag.title
     val values: List<Enum<*>> = when (section.id) {
         "headache", "cramps", "backache" -> Pain.entries
@@ -137,6 +152,17 @@ fun journalTagLabel(section: JournalSection, tag: JournalTag): String {
 
 @Composable
 fun DayLogEntry(
+    initial: DayLog,
+    state: PeriodUiState,
+    onDismiss: () -> Unit,
+    onSave: (DayLog) -> Unit,
+    onLayoutChange: (JournalLayout) -> Unit = {}
+) {
+    HomeTheme { DayLogContent(initial, state, onDismiss, onSave, onLayoutChange) }
+}
+
+@Composable
+private fun DayLogContent(
     initial: DayLog,
     state: PeriodUiState,
     onDismiss: () -> Unit,
@@ -168,13 +194,14 @@ fun DayLogEntry(
         sectionIcon = layout.sections.firstOrNull { it.id == key.substringAfter(':') }?.icon?.name
             ?: JournalIcon.NOTE.name
     }
-    Dialog(
+    JournalDialog(
         onDismissRequest = { if (!state.saving) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(Modifier.fillMaxSize()) {
+        Surface(Modifier.fillMaxSize(), color = HomeColors.bottom) {
             Column(
-                Modifier.padding(Spacing.medium).imePadding(),
+                Modifier.fillMaxSize().background(HomeColors.background)
+                    .padding(HomeSpacing.gutter).imePadding(),
                 verticalArrangement = Arrangement.spacedBy(Spacing.small)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -206,96 +233,104 @@ fun DayLogEntry(
                         Text(stringResource(R.string.journal_add_section))
                     }
                     layout.sections.forEach { section ->
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    painterResource(journalIcon(section.icon)),
-                                    null,
-                                    Modifier.size(20.dp)
-                                )
-                                Text(
-                                    journalSectionLabel(section),
-                                    Modifier.weight(1f).padding(start = Spacing.small),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                IconButton(
-                                    onClick = {
-                                        editing =
-                                            if (editing == section.id) null else section.id
-                                    },
-                                    enabled = !state.saving,
-                                    modifier = Modifier.testTag("journal-edit-${section.id}")
-                                ) {
+                        Surface(
+                            color = HomeColors.card.copy(alpha = 0.5f),
+                            shape = MaterialTheme.shapes.large,
+                            border = BorderStroke(1.dp, HomeColors.border)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        painterResource(R.drawable.ic_edit),
-                                        stringResource(R.string.edit)
+                                        painterResource(journalIcon(section.icon)),
+                                        null,
+                                        Modifier.size(20.dp)
                                     )
-                                }
-                            }
-                            JournalChips(
-                                section,
-                                selections[section.id].orEmpty(),
-                                editing == section.id,
-                                !state.saving,
-                                onSelect = { tag ->
-                                    val old = selections[section.id].orEmpty()
-                                    val next = when {
-                                        tag in old -> old - tag
-                                        section.id == "sex" && tag == "NONE" -> setOf(tag)
-                                        section.id == "sex" -> (old - "NONE") + tag
-                                        section.multiple -> old + tag
-                                        else -> setOf(tag)
-                                    }
-                                    selectionText =
-                                        JournalCodec.encodeSelections(
-                                            selections + (section.id to next)
-                                        )
-                                },
-                                onRemove = { update(layout.removeTag(section.id, it)) },
-                                onMove = { from, to ->
-                                    update(layout.moveTag(section.id, from, to))
-                                },
-                                onRename = { tag ->
-                                    editLabel("tag:${section.id}:${tag.id}", tag.title)
-                                }
-                            )
-                            if (editing == section.id) {
-                                TextButton(onClick = {
-                                    editLabel("section:${section.id}", section.title)
-                                }, enabled = !state.saving) {
-                                    Text(stringResource(R.string.journal_section_settings))
-                                }
-                                TextButton(
-                                    onClick = { editLabel("add-tag:${section.id}", "") },
-                                    enabled = !state.saving && section.tags.size < 64
-                                ) {
-                                    Text(stringResource(R.string.journal_add_tag))
-                                }
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End
-                                ) {
-                                    TextButton(
+                                    Text(
+                                        journalSectionLabel(section),
+                                        Modifier.weight(1f).padding(start = Spacing.small),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    IconButton(
                                         onClick = {
-                                            update(
-                                                layout.copy(
-                                                    sections = layout.sections.filterNot {
-                                                        it.id ==
-                                                            section.id
-                                                    }
-                                                )
-                                            )
-                                            editing = null
+                                            editing =
+                                                if (editing == section.id) null else section.id
                                         },
                                         enabled = !state.saving,
-                                        modifier = Modifier.testTag(
-                                            "journal-delete-${section.id}"
-                                        )
+                                        modifier = Modifier.testTag("journal-edit-${section.id}")
                                     ) {
-                                        Text(
-                                            stringResource(R.string.journal_delete_section),
-                                            color = MaterialTheme.colorScheme.error
+                                        Icon(
+                                            painterResource(R.drawable.ic_edit),
+                                            stringResource(R.string.edit)
                                         )
+                                    }
+                                }
+                                JournalChips(
+                                    section,
+                                    selections[section.id].orEmpty(),
+                                    editing == section.id && section.id != "discharge",
+                                    !state.saving,
+                                    onSelect = { tag ->
+                                        val old = selections[section.id].orEmpty()
+                                        val next = when {
+                                            tag in old -> old - tag
+                                            section.id == "sex" && tag == "NONE" -> setOf(tag)
+                                            section.id == "sex" -> (old - "NONE") + tag
+                                            section.multiple -> old + tag
+                                            else -> setOf(tag)
+                                        }
+                                        selectionText =
+                                            JournalCodec.encodeSelections(
+                                                selections + (section.id to next)
+                                            )
+                                    },
+                                    onRemove = { update(layout.removeTag(section.id, it)) },
+                                    onMove = { from, to ->
+                                        update(layout.moveTag(section.id, from, to))
+                                    },
+                                    onRename = { tag ->
+                                        editLabel("tag:${section.id}:${tag.id}", tag.title)
+                                    }
+                                )
+                                if (editing == section.id) {
+                                    TextButton(onClick = {
+                                        editLabel("section:${section.id}", section.title)
+                                    }, enabled = !state.saving) {
+                                        Text(stringResource(R.string.journal_section_settings))
+                                    }
+                                    if (section.id != "discharge") {
+                                        TextButton(
+                                            onClick = { editLabel("add-tag:${section.id}", "") },
+                                            enabled = !state.saving && section.tags.size < 64
+                                        ) {
+                                            Text(stringResource(R.string.journal_add_tag))
+                                        }
+                                    }
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                update(
+                                                    layout.copy(
+                                                        sections = layout.sections.filterNot {
+                                                            it.id ==
+                                                                section.id
+                                                        }
+                                                    )
+                                                )
+                                                editing = null
+                                            },
+                                            enabled = !state.saving,
+                                            modifier = Modifier.testTag(
+                                                "journal-delete-${section.id}"
+                                            )
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.journal_delete_section),
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -353,13 +388,14 @@ fun DayLogEntry(
     target?.let { key ->
         val sectionId = key.split(':').getOrNull(1)
         val section = layout.sections.firstOrNull { it.id == sectionId }
-        Dialog(
+        JournalDialog(
             onDismissRequest = { target = null },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            Surface(Modifier.fillMaxSize()) {
+            Surface(Modifier.fillMaxSize(), color = HomeColors.bottom) {
                 Column(
-                    Modifier.padding(Spacing.medium).imePadding(),
+                    Modifier.fillMaxSize().background(HomeColors.background)
+                        .padding(HomeSpacing.gutter).imePadding(),
                     verticalArrangement = Arrangement.spacedBy(Spacing.medium)
                 ) {
                     Text(
@@ -484,6 +520,20 @@ fun DayLogEntry(
 }
 
 @Composable
+private fun JournalDialog(
+    onDismissRequest: () -> Unit,
+    properties: DialogProperties,
+    content: @Composable () -> Unit
+) {
+    val density = LocalDensity.current
+    Dialog(onDismissRequest = onDismissRequest, properties = properties) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalDensity provides density) {
+            content()
+        }
+    }
+}
+
+@Composable
 private fun IconChoices(
     value: String?,
     enabled: Boolean,
@@ -592,7 +642,7 @@ private fun JournalChips(
                     onClick = { if (editing) onRename(tag) else onSelect(tag.id) },
                     enabled = enabled,
                     modifier = Modifier.padding(
-                        top = if (editing) 12.dp else 0.dp,
+                        top = 0.dp,
                         end = if (editing) 12.dp else 0.dp
                     )
                         .testTag("${section.id}-${tag.id}").semantics {
@@ -619,13 +669,18 @@ private fun JournalChips(
                                 }
                             }
                         },
-                    label = { Text(journalTagLabel(section, tag)) }
+                    label = {
+                        Text(
+                            journalTagLabel(section, tag),
+                            Modifier.padding(end = if (editing) 16.dp else 0.dp)
+                        )
+                    }
                 )
                 if (editing) {
                     IconButton(
                         onClick = { onRemove(tag.id) },
                         enabled = enabled && section.tags.size > 1,
-                        modifier = Modifier.align(Alignment.TopEnd).offset(y = (-8).dp).size(32.dp)
+                        modifier = Modifier.align(Alignment.TopEnd).offset(y = 4.dp).size(32.dp)
                             .testTag("journal-remove-${section.id}-${tag.id}")
                     ) {
                         Icon(
