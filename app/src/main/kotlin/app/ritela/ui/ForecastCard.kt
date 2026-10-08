@@ -3,6 +3,7 @@ package app.ritela.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,133 +57,134 @@ fun ForecastCard(
     var showInfo by rememberSaveable { mutableStateOf(false) }
     val next = analysis.forecasts.firstOrNull()
     val scene = cycleSceneState(analysis, today)
-    val colors = MaterialTheme.colorScheme
-    val heroSurface = androidx.compose.ui.graphics.lerp(
-        colors.surfaceContainerLow,
-        colors.secondaryContainer,
-        0.18f
-    )
+    val colors = HomeColors
+    val heroSurface = HomeColors.card.copy(alpha = 0.68f)
     val locale = LocalConfiguration.current.locales[0]
     val fontScale = LocalDensity.current.fontScale
-    Card(
-        modifier = Modifier.fillMaxWidth().testTag("forecast-hero"),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = heroSurface)
-    ) {
-        Column(
-            Modifier.padding(Spacing.large),
-            verticalArrangement = Arrangement.spacedBy(Spacing.small)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    analysis.cycleDay?.let {
-                        Text(
-                            stringResource(R.string.hero_cycle_day, it),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                    if (scene.phase != EstimatedCyclePhase.UNKNOWN) {
-                        Text(
-                            stringResource(phaseLabel(scene.phase)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.onSurfaceVariant
-                        )
-                    }
-                }
-                IconButton(onClick = { showInfo = true }, Modifier.testTag("forecast-info")) {
-                    Icon(
-                        painterResource(R.drawable.ic_info),
-                        stringResource(R.string.forecast_info)
-                    )
-                }
-            }
+    HomeTheme {
+        Column(Modifier.fillMaxWidth().testTag("forecast-hero")) {
             if (next != null && fontScale <= 1.5f) {
                 CycleOrbitScene(
                     analysis.cycleDay ?: 1,
                     scene.progress,
                     reducedMotion,
                     OrbitColors(
-                        colors.primary,
-                        colors.secondary,
-                        if (colors.surface.luminance() <
-                            0.4f
-                        ) {
-                            Color(0xFFBA9077)
-                        } else {
-                            Color(0xFFF3D4BA)
-                        },
-                        heroSurface
+                        HomeColors.text,
+                        HomeColors.orbit,
+                        HomeColors.peach,
+                        HomeColors.top
                     ),
                     Modifier.fillMaxWidth().height(
-                        if (fontScale >
-                            1.2f
-                        ) {
-                            Spacing.heroCompactOrbitHeight
-                        } else {
-                            Spacing.heroOrbitHeight
-                        }
+                        if (fontScale > 1.2f) HomeSpacing.compactOrbit else HomeSpacing.orbit
                     )
                 )
             }
-            Text(
-                stringResource(R.string.forecast_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = colors.onSurfaceVariant
-            )
-            if (next == null) {
-                Text(
-                    stringResource(
-                        when (analysis.unavailable) {
-                            ForecastUnavailable.INVALID_HISTORY -> R.string.forecast_invalid
-                            ForecastUnavailable.ONGOING -> R.string.forecast_ongoing
-                            ForecastUnavailable.PAST_DUE -> R.string.forecast_past_due
-                            else -> R.string.forecast_need_more
-                        }
-                    ),
-                    color = colors.onSurfaceVariant
-                )
-            } else {
-                val pattern = if (locale.language == "ru") "d MMMM" else "MMM d"
-                Text(
-                    next.predictedStartDate.format(DateTimeFormatter.ofPattern(pattern, locale)),
-                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 36.sp),
-                    color = colors.secondary,
-                    modifier = Modifier.testTag("forecast-date")
-                )
-                Text(
-                    compactForecastRange(next.lowerBound, next.upperBound),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.testTag("forecast-window")
-                )
-                Surface(
-                    color = colors.secondaryContainer.copy(alpha = 0.55f),
-                    shape = MaterialTheme.shapes.medium
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(1.dp, HomeColors.border),
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = CardDefaults.cardColors(containerColor = heroSurface)
+            ) {
+                Column(
+                    Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.small)
                 ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            analysis.cycleDay?.let {
+                                Text(
+                                    stringResource(R.string.hero_cycle_day, it),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
+                                    )
+                                )
+                            }
+                            if (scene.phase != EstimatedCyclePhase.UNKNOWN) {
+                                Text(
+                                    stringResource(phaseLabel(scene.phase)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.muted
+                                )
+                            }
+                        }
+                        IconButton(onClick = {
+                            showInfo = true
+                        }, Modifier.testTag("forecast-info")) {
+                            Icon(
+                                painterResource(R.drawable.ic_info),
+                                stringResource(R.string.forecast_info)
+                            )
+                        }
+                    }
                     Text(
-                        when (
-                            val days = ChronoUnit.DAYS.between(
-                                today,
-                                next.predictedStartDate
-                            ).toInt()
-                        ) {
-                            0 -> stringResource(R.string.period_expected_today)
-
-                            in 1..Int.MAX_VALUE -> pluralStringResource(
-                                R.plurals.period_countdown,
-                                days,
-                                days
-                            )
-
-                            else -> pluralStringResource(
-                                R.plurals.period_expected_ago,
-                                -days,
-                                -days
-                            )
-                        },
+                        stringResource(R.string.forecast_title),
                         style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        color = colors.muted
                     )
+                    if (next == null) {
+                        Text(
+                            stringResource(
+                                when (analysis.unavailable) {
+                                    ForecastUnavailable.INVALID_HISTORY -> R.string.forecast_invalid
+                                    ForecastUnavailable.ONGOING -> R.string.forecast_ongoing
+                                    ForecastUnavailable.PAST_DUE -> R.string.forecast_past_due
+                                    else -> R.string.forecast_need_more
+                                }
+                            ),
+                            color = colors.muted
+                        )
+                    } else {
+                        val pattern = if (locale.language == "ru") "d MMMM" else "MMM d"
+                        Text(
+                            next.predictedStartDate.format(
+                                DateTimeFormatter.ofPattern(pattern, locale)
+                            ),
+                            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 36.sp),
+                            color = colors.text,
+                            modifier = Modifier.testTag("forecast-date")
+                        )
+                        FlowRow(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                compactForecastRange(next.lowerBound, next.upperBound),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.muted,
+                                modifier = Modifier.testTag("forecast-window")
+                            )
+                            Surface(
+                                color = colors.border.copy(alpha = 0.38f),
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                Text(
+                                    when (
+                                        val days = ChronoUnit.DAYS.between(
+                                            today,
+                                            next.predictedStartDate
+                                        ).toInt()
+                                    ) {
+                                        0 -> stringResource(R.string.period_expected_today)
+
+                                        in 1..Int.MAX_VALUE -> pluralStringResource(
+                                            R.plurals.period_countdown,
+                                            days,
+                                            days
+                                        )
+
+                                        else -> pluralStringResource(
+                                            R.plurals.period_expected_ago,
+                                            -days,
+                                            -days
+                                        )
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

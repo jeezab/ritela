@@ -1,0 +1,8 @@
+<resources>
+    <string name="home_symptoms">Симптомы</string>
+    <string name="home_intimacy">Близость</string>
+    <string name="home_phase_tile">Фазы цикла</string>
+    <string name="home_phase_estimated">Прогноз по датам</string>
+    <string name="home_cycle_tile">Расчётный цикл</string>
+    <string name="home_duration_tile">Ожидаемые месячные</string>
+</resources>

@@ -56,12 +56,12 @@ fun CycleOrbitScene(
     Canvas(
         modifier.testTag("cycle-orbit-$cycleDay").clearAndSetSemantics {}.drawWithCache {
             // Reserve space for the tilted ellipse and the largest halo at every width.
-            val unit = min(size.width / 300f, size.height / 150f)
+            val unit = min(size.width / 300f, size.height / 220f)
             val center = Offset(size.width / 2, size.height / 2)
-            val geometry = OrbitGeometry(center, 115f * unit, 43f * unit)
+            val geometry = OrbitGeometry(center, 112f * unit, 96f * unit, 0f)
             val orbitSize = Size(geometry.horizontalRadius * 2, geometry.verticalRadius * 2)
             val orbitTopLeft = center - Offset(geometry.horizontalRadius, geometry.verticalRadius)
-            val stroke = Stroke(1.dp.toPx())
+            val stroke = Stroke(1.1.dp.toPx())
             val sun = geometry.pointOnOrbit(OrbitPhaseMarkers.START.angleDegrees)
             val follicular = geometry.pointOnOrbit(OrbitPhaseMarkers.FOLLICULAR.angleDegrees)
             val ovulation = geometry.pointOnOrbit(OrbitPhaseMarkers.OVULATION.angleDegrees)
@@ -69,11 +69,15 @@ fun CycleOrbitScene(
             val moon = geometry.pointOnOrbit(OrbitPhaseMarkers.END.angleDegrees)
             val active = geometry.pointOnOrbit(currentOrbitAngle(progress))
             fun halo(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
-                listOf(color.copy(alpha = 0.24f), color.copy(alpha = 0.07f), Color.Transparent),
+                listOf(color.copy(alpha = 0.65f), color.copy(alpha = 0.19f), Color.Transparent),
                 point,
                 radius * unit
             )
-            val sunHalo = halo(colors.peach, sun, 19f)
+            val sunHalo = halo(colors.peach, sun, 24f)
+            val focusSun = center + Offset(-5f * unit, -76f * unit)
+            val focusHalo = halo(colors.peach, focusSun, 38f)
+            val innerOrbit =
+                OrbitGeometry(center + Offset(0f, -7f * unit), 105f * unit, 62f * unit, -25f)
             val pearl = androidx.compose.ui.graphics.lerp(colors.peach, Color(0xFFFFF4E5), 0.65f)
             val moonColor = androidx.compose.ui.graphics.lerp(
                 colors.ink,
@@ -95,7 +99,7 @@ fun CycleOrbitScene(
             val sunBody = planet(colors.peach, sun, 6.5f)
             val pearlBody = planet(pearl, ovulation, 8.5f)
             // A true vector crescent: its transparent cutout preserves the underlying ellipse.
-            val moonRadius = 7.5f * unit
+            val moonRadius = 15f * unit
             val moonDisc = Path().apply {
                 addOval(
                     androidx.compose.ui.geometry.Rect(
@@ -104,7 +108,7 @@ fun CycleOrbitScene(
                     )
                 )
             }
-            val cutoutCenter = moon + Offset(3.8f * unit, -2.4f * unit)
+            val cutoutCenter = moon + Offset(8f * unit, -4.8f * unit)
             val moonCutout = Path().apply {
                 addOval(
                     androidx.compose.ui.geometry.Rect(
@@ -117,18 +121,49 @@ fun CycleOrbitScene(
                 )
             }
             val crescent = Path.combine(PathOperation.Difference, moonDisc, moonCutout)
+            val leaves = (0..2).map { index ->
+                val origin =
+                    center + Offset((-95f + index * 15f) * unit, (55f + index * 15f) * unit)
+                Path().apply {
+                    moveTo(origin.x, origin.y)
+                    quadraticTo(
+                        origin.x + 3f * unit,
+                        origin.y - 23f * unit,
+                        origin.x + 28f * unit,
+                        origin.y - 35f * unit
+                    )
+                    quadraticTo(
+                        origin.x + 16f * unit,
+                        origin.y - 10f * unit,
+                        origin.x + 12f * unit,
+                        origin.y + 5f * unit
+                    )
+                    close()
+                }
+            }
             onDrawBehind {
                 val light = breath.value
                 drawCircle(mist, 85f * unit, center)
                 rotate(geometry.tiltDegrees, center) {
                     drawOval(
-                        colors.rose.copy(alpha = 0.36f * light),
+                        colors.rose.copy(alpha = 0.75f * light),
                         orbitTopLeft,
                         orbitSize,
                         style = stroke
                     )
                 }
-                drawCircle(sunHalo, 19f * unit, sun, alpha = light)
+                rotate(innerOrbit.tiltDegrees, innerOrbit.center) {
+                    drawOval(
+                        colors.rose.copy(alpha = 0.4f * light),
+                        innerOrbit.center -
+                            Offset(innerOrbit.horizontalRadius, innerOrbit.verticalRadius),
+                        Size(innerOrbit.horizontalRadius * 2, innerOrbit.verticalRadius * 2),
+                        style = Stroke(0.8.dp.toPx())
+                    )
+                }
+                drawCircle(focusHalo, 38f * unit, focusSun, alpha = light)
+                drawCircle(colors.peach, 14f * unit, focusSun)
+                drawCircle(sunHalo, 24f * unit, sun, alpha = light)
                 drawCircle(sunBody, 6.5f * unit, sun)
                 drawCircle(colors.surface, 4.2f * unit, follicular)
                 drawCircle(
@@ -147,6 +182,18 @@ fun CycleOrbitScene(
                 )
                 drawCircle(colors.rose.copy(alpha = 0.65f), 4.5f * unit, luteal)
                 drawPath(crescent, moonColor)
+                // Three abstract leaves; decoration carries no health information.
+                for (leaf in leaves) drawPath(leaf, colors.rose.copy(alpha = 0.6f))
+                drawCircle(
+                    colors.peach.copy(alpha = 0.65f),
+                    1.2f * unit,
+                    center + Offset(80f * unit, (-65f + currentPulse.value * 2f) * unit)
+                )
+                drawCircle(
+                    colors.rose.copy(alpha = 0.6f),
+                    1f * unit,
+                    center + Offset(-65f * unit, -82f * unit)
+                )
                 val scale = currentPulse.value
                 drawCircle(activeHalo, 16f * unit * scale, active)
                 drawCircle(colors.surface, 6f * unit * scale, active)

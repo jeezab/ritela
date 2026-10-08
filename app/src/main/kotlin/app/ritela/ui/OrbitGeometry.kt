@@ -27,7 +27,7 @@ internal enum class OrbitPhaseMarkers(val angleDegrees: Float) {
     FOLLICULAR(255f),
     OVULATION(320f),
     LUTEAL(390f),
-    END(520f)
+    END(430f)
 }
 
 internal fun currentOrbitAngle(progress: Float): Float =

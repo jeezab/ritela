@@ -1,0 +1,8 @@
+<resources>
+    <string name="home_symptoms">Symptoms</string>
+    <string name="home_intimacy">Intimacy</string>
+    <string name="home_phase_tile">Cycle phases</string>
+    <string name="home_phase_estimated">Estimated from dates</string>
+    <string name="home_cycle_tile">Estimated cycle</string>
+    <string name="home_duration_tile">Expected period</string>
+</resources>
