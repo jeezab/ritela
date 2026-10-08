@@ -1,8 +1,6 @@
 <resources>
-    <string name="orbit_more">Подробнее</string>
     <string name="orbit_open">Посмотреть цикл подробнее</string>
     <string name="orbit_title">Ваш цикл</string>
-    <string name="orbit_direction">От солнца по часовой стрелке</string>
     <string name="orbit_hint">Нажмите на веху, чтобы узнать о ней</string>
     <string name="orbit_scrub_hint">Ведите по орбите, чтобы посмотреть дни. Можно использовать ползунок.</string>
     <string name="orbit_current_day">Сегодня · день %1$d цикла</string>
