@@ -1257,10 +1257,8 @@ class HomeScreenTest {
     fun flatOrbitLandmarksExplainPhasesAndDraggingOnlyChangesFocus() {
         renderHomeReferenceFixture("home-flat-orbit", false, 1f)
         compose.onNodeWithTag("orbit-center-day", useUnmergedTree = true).assertTextEquals("8")
-        compose.onNodeWithText(
-            compose.activity.getString(R.string.orbit_direction)
-        ).assertDoesNotExist()
-        compose.onNodeWithText(compose.activity.getString(R.string.orbit_more)).assertDoesNotExist()
+        compose.onNodeWithText("От солнца по часовой стрелке").assertDoesNotExist()
+        compose.onNodeWithText("Подробнее").assertDoesNotExist()
         val compactBounds = compose.onNodeWithTag(
             "orbit-canvas",
             useUnmergedTree = true
