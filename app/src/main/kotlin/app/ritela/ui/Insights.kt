@@ -66,7 +66,8 @@ fun DaySummary(
     log: DayLog?,
     onEdit: () -> Unit,
     enabled: Boolean = true,
-    layout: app.ritela.domain.JournalLayout = app.ritela.domain.JournalLayout()
+    layout: app.ritela.domain.JournalLayout = app.ritela.domain.JournalLayout(),
+    homeStyle: Boolean = false
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
         FlowRow(
@@ -81,10 +82,17 @@ fun DaySummary(
                 modifier = Modifier.testTag("log-day")
             ) {
                 Icon(painterResource(R.drawable.ic_note), contentDescription = null)
-                Text(stringResource(R.string.log_day), Modifier.padding(start = Spacing.small))
+                Text(
+                    stringResource(if (homeStyle) R.string.edit else R.string.log_day),
+                    Modifier.padding(start = Spacing.small)
+                )
             }
         }
-        JournalQuickActions(layout, onEdit, enabled)
+        if (homeStyle) {
+            HomeTodayActions(layout, enabled, onEdit)
+        } else {
+            JournalQuickActions(layout, onEdit, enabled)
+        }
         log?.let {
             val selections = it.journalSelections()
             layout.sections.forEach { section ->

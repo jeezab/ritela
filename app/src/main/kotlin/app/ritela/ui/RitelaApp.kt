@@ -1,5 +1,6 @@
 package app.ritela.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -76,7 +77,13 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
         ThemeMode.DARK -> true
     }
     RitelaTheme(darkTheme = darkTheme) {
-        Scaffold(bottomBar = { AppNavigation(page) { page = it } }) { contentPadding ->
+        Scaffold(bottomBar = {
+            if (page == 0) {
+                HomeTheme { AppNavigation(page) { page = it } }
+            } else {
+                AppNavigation(page) { page = it }
+            }
+        }) { contentPadding ->
             if (page == 2) {
                 SettingsScreen(contentPadding, state, model::setTheme) { duration ->
                     model.updateDefaults(state.defaults.copy(periodDuration = duration))
@@ -242,115 +249,129 @@ fun HomeScreen(
     onLogDay: () -> Unit = {},
     today: LocalDate = LocalDate.now()
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(contentPadding)
-            .verticalScroll(rememberScrollState())
-            .padding(Spacing.large),
-        verticalArrangement = Arrangement.spacedBy(Spacing.large)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-            Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                today.format(
-                    DateTimeFormatter.ofPattern("EEEE, d MMMM")
-                        .withLocale(LocalConfiguration.current.locales[0])
-                ),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        val active = state.periods.firstOrNull { it.end == null }
-        val latest = active ?: state.periods.firstOrNull()
-        val hasForecast = !state.loading && active == null && state.analysis.forecasts.isNotEmpty()
-        if (hasForecast) ForecastCard(state.analysis, state.today)
-        if (!hasForecast) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    HomeTheme {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HomeColors.background)
+                .padding(contentPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(HomeSpacing.gutter),
+            verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 32.sp),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-            ) {
-                Column(
-                    modifier = Modifier.padding(Spacing.large),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.large)
+                Text(
+                    today.format(
+                        DateTimeFormatter.ofPattern("EEEE, d MMMM")
+                            .withLocale(LocalConfiguration.current.locales[0])
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            val active = state.periods.firstOrNull { it.end == null }
+            val latest = active ?: state.periods.firstOrNull()
+            val hasForecast =
+                !state.loading && active == null && state.analysis.forecasts.isNotEmpty()
+            if (hasForecast) ForecastCard(state.analysis, state.today)
+            if (hasForecast) HomeInsightTiles(state.analysis)
+            if (!hasForecast) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                        state.analysis.cycleDay?.let {
-                            CycleDayBadge(it)
-                        }
-                        Text(
-                            stringResource(
-                                when {
-                                    state.loading -> R.string.loading
-                                    active != null -> R.string.active_title
-                                    latest != null -> R.string.latest_title
-                                    else -> R.string.empty_title
-                                }
-                            ),
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                        if (!state.loading) {
-                            if (active != null) Text(stringResource(R.string.ongoing))
+                    Column(
+                        modifier = Modifier.padding(Spacing.large),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.large)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
+                            state.analysis.cycleDay?.let {
+                                CycleDayBadge(it)
+                            }
                             Text(
-                                latest?.let { periodDates(it) }
-                                    ?: stringResource(R.string.empty_description),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                stringResource(
+                                    when {
+                                        state.loading -> R.string.loading
+                                        active != null -> R.string.active_title
+                                        latest != null -> R.string.latest_title
+                                        else -> R.string.empty_title
+                                    }
+                                ),
+                                style = MaterialTheme.typography.headlineMedium
                             )
+                            if (!state.loading) {
+                                if (active != null) Text(stringResource(R.string.ongoing))
+                                Text(
+                                    latest?.let { periodDates(it) }
+                                        ?: stringResource(R.string.empty_description),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
-        if (active == null) {
-            Button(
-                onClick = onAdd,
-                enabled = !state.loading && !state.saving,
-                modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.actionHeight),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
+            if (active == null) {
+                Button(
+                    onClick = onAdd,
+                    enabled = !state.loading && !state.saving,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = HomeSpacing.action)
+                        .background(
+                            HomeColors.action,
+                            androidx.compose.foundation.shape.CircleShape
+                        ),
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                        contentColor = HomeColors.bottom
+                    )
+                ) {
+                    Icon(painterResource(R.drawable.ic_drop), null)
+                    Text(
+                        stringResource(R.string.add_period),
+                        Modifier.padding(start = Spacing.small)
+                    )
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.medium)) {
+                    TextButton(onClick = { onEdit(active) }, enabled = !state.saving) {
+                        Text(stringResource(R.string.edit))
+                    }
+                    Button(onClick = { onFinish(active) }, enabled = !state.saving) {
+                        Text(stringResource(R.string.finish_period))
+                    }
+                }
+            }
+            state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
+            if (!state.loading && state.periods.isNotEmpty() &&
+                active == null && !hasForecast
             ) {
-                Icon(painterResource(R.drawable.ic_drop), null)
-                Text(stringResource(R.string.add_period), Modifier.padding(start = Spacing.small))
+                ForecastCard(state.analysis, state.today)
             }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.medium)) {
-                TextButton(onClick = { onEdit(active) }, enabled = !state.saving) {
-                    Text(stringResource(R.string.edit))
-                }
-                Button(onClick = { onFinish(active) }, enabled = !state.saving) {
-                    Text(stringResource(R.string.finish_period))
-                }
-            }
+            DaySummary(
+                state.dayLogs.firstOrNull { it.date == today },
+                onLogDay,
+                !state.loading && !state.saving,
+                layout = state.journalLayout,
+                homeStyle = true
+            )
+            CycleInsights(state.periods, today, state.dayLogs, onLogDay)
+            HelpCards(state.dayLogs.firstOrNull { it.date == today }, state.analysis, today)
+            Text(
+                stringResource(R.string.privacy_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
-        if (!state.loading && state.periods.isNotEmpty() &&
-            active == null && !hasForecast
-        ) {
-            ForecastCard(state.analysis, state.today)
-        }
-        if (hasForecast) ForecastDurationInsight(state.analysis.periodDuration)
-        DaySummary(
-            state.dayLogs.firstOrNull { it.date == today },
-            onLogDay,
-            !state.loading && !state.saving,
-            layout = state.journalLayout
-        )
-        CycleInsights(state.periods, today, state.dayLogs, onLogDay)
-        HelpCards(state.dayLogs.firstOrNull { it.date == today }, state.analysis, today)
-        Text(
-            stringResource(R.string.privacy_description),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

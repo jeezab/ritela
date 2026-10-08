@@ -1087,6 +1087,68 @@ class HomeScreenTest {
         }
     }
 
+    @Test
+    @Config(sdk = [35], qualifiers = "ru-rRU-w390dp-h844dp")
+    fun renderHomeReferenceComposition() {
+        renderHomeReferenceFixture("home-reference-light", false, 1f)
+        renderHomeReferenceFixture("home-reference-dark", true, 1f)
+        compose.onNodeWithTag("quick-note").performScrollTo().assertIsDisplayed()
+        saveRendering("home-reference-today")
+        compose.onNodeWithTag("help-cards").performScrollTo().assertIsDisplayed()
+        saveRendering("home-reference-articles")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    fun renderHomeReferenceAtLargeText() {
+        renderHomeReferenceFixture("home-reference-large-text", false, 2f)
+        compose.onNodeWithText("Log period").performScrollTo().assertIsDisplayed()
+        saveRendering("home-reference-large-text-action")
+        compose.onNodeWithTag("quick-note").performScrollTo().assertIsDisplayed()
+        saveRendering("home-reference-large-text-today")
+    }
+
+    private fun renderHomeReferenceFixture(name: String, dark: Boolean, scale: Float) {
+        val today = LocalDate.of(2026, 10, 7)
+        val records = (0L..3L).map {
+            val start = today.minusDays(7 + it * 29)
+            Period(UUID(0, it + 1), start, start.plusDays(6), Instant.EPOCH, Instant.EPOCH)
+        }
+        val basis = analyzeCycles(records, today)
+        val analysis = basis.copy(
+            forecasts = listOf(
+                basis.forecasts.first().copy(
+                    predictedStartDate = LocalDate.of(2026, 11, 2),
+                    lowerBound = LocalDate.of(2026, 10, 30),
+                    upperBound = LocalDate.of(2026, 11, 5)
+                )
+            )
+        )
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, scale)) {
+                    RitelaTheme(darkTheme = dark) {
+                        Scaffold(bottomBar = { app.ritela.ui.HomeTheme { AppNavigation(0) {} } }) {
+                            HomeScreen(
+                                it,
+                                PeriodUiState(
+                                    loading = false,
+                                    periods = records,
+                                    today = today,
+                                    analysis = analysis
+                                ),
+                                today = today
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("forecast-date").assertIsDisplayed()
+        saveRendering(name)
+    }
+
     private fun saveRendering(name: String, dialog: Boolean = false) {
         compose.waitForIdle()
         val bitmap = if (dialog) {

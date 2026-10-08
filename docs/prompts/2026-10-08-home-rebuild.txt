@@ -1,0 +1,759 @@
+Ты работаешь над Ritela — Android / Kotlin / Jetpack Compose.
+
+Предыдущая попытка редизайна НЕ достигла цели.
+
+Текущий интерфейс всё ещё выглядит почти как исходный MVP:
+- белый / кремовый плоский фон;
+- обычные Material-компоненты;
+- слишком много пустого пространства;
+- орбита визуально слабая;
+- календарь выглядит утилитарно;
+- celestial-botanical premium style практически отсутствует.
+
+Эта задача НЕ является incremental polish.
+
+Нужно визуально ПЕРЕСОБРАТЬ Home и Calendar значительно ближе к референсам.
+
+Обязательно сначала изучи:
+
+docs/ui/ritela_main.png
+docs/ui/ritela_calendar.png
+docs/ui/Ritela_UI_Kit.png
+
+Эти изображения важнее текущего вида приложения.
+
+Текущий UI — это implementation source.
+Референсы — visual source of truth.
+
+Если текущая структура мешает приблизиться к референсу:
+разрешается менять layout/composition существующих composables.
+
+Бизнес-логику и данные сохранить.
+
+==================================================
+1. ОСНОВНАЯ ОШИБКА ПРЕДЫДУЩЕЙ ВЕРСИИ
+==================================================
+
+Не делай ещё один лёгкий facelift.
+
+НЕ НУЖНО:
+
+"оставить всё как есть +
+чуть изменить radius +
+чуть изменить colors"
+
+НУЖНО:
+
+перестроить визуальную композицию.
+
+После работы интерфейс должен выглядеть заметно иначе даже при беглом сравнении screenshot before / after.
+
+==================================================
+2. СТИЛЬ
+==================================================
+
+Целевой стиль:
+
+CELESTIAL-BOTANICAL PREMIUM MINIMALISM
+
+Характер:
+
+- deep plum
+- muted wine
+- dusty rose
+- warm blush
+- sage green
+- ivory
+- soft peach highlights
+- subtle celestial glow
+- botanical decorative accents
+- serif display typography
+- restrained fantasy atmosphere
+
+Это НЕ:
+
+- astrology app
+- Tarot app
+- gothic UI
+- sci-fi
+- childish fairy theme
+- generic Material 3 sample
+
+Это должно выглядеть как дорогой wellness / cycle app
+с лёгким fantasy/celestial характером.
+
+==================================================
+3. ЦВЕТОВАЯ СИСТЕМА
+==================================================
+
+Используй приблизительно такую систему.
+
+LIGHT BASE:
+
+Background:
+#FBF6F1
+
+Surface:
+#FFF9F5
+
+Primary plum:
+#503444
+
+Deep plum:
+#3C2533
+
+Muted plum:
+#765768
+
+Dusty rose:
+#AD6074
+
+Rose:
+#D78393
+
+Soft blush:
+#F4DEE2
+
+Peach:
+#F2C2A6
+
+Moon mauve:
+#C8BBCD
+
+Orbit:
+#C99EAD
+
+
+FERTILITY / OVULATION:
+
+FertileSoft:
+#E3EED6
+
+FertileMedium:
+#C9DEB2
+
+FertileStrong:
+#AFCB8B
+
+OvulationGlow:
+#D9E8C4
+
+
+DARK / ATMOSPHERIC SURFACES:
+
+HeroDarkTop:
+#523243
+
+HeroDarkBottom:
+#3E2835
+
+DarkCard:
+#593747
+
+DarkBorder:
+#885D70
+
+LightText:
+#FFF4ED
+
+SecondaryLightText:
+#D9C1C8
+
+
+Создай централизованные tokens.
+
+Не хардкодить цвета внутри каждого composable.
+
+==================================================
+4. HOME: ИЗМЕНИТЬ КОМПОЗИЦИЮ
+==================================================
+
+Текущая главная слишком пустая.
+
+Нужно сделать Home ближе к референсу ritela_main.png.
+
+Структура:
+
+Header
+↓
+Atmospheric Cycle Hero
+↓
+3 compact insight tiles
+↓
+Primary CTA
+↓
+Today quick actions
+↓
+Cycle stats
+↓
+Articles
+↓
+Bottom navigation
+
+Hero должен быть главным визуальным объектом.
+
+Не оставлять большие пустые пространства между блоками.
+
+==================================================
+5. HOME HEADER
+==================================================
+
+Ritela:
+display serif / elegant.
+
+Дата:
+меньше, мягче.
+
+Не использовать огромный Material-style plain heading.
+
+Можно добавить очень слабый botanical/celestial accent,
+но header не должен перегружаться.
+
+==================================================
+6. HERO ДОЛЖЕН БЫТЬ ATMOSPHERIC
+==================================================
+
+Текущая hero card слишком светлая и почти сливается с background.
+
+Переделать.
+
+Preferred style:
+
+dark plum atmospheric card
+или
+plum-to-wine subtle gradient.
+
+Внутри:
+
+- orbit scene
+- cycle day
+- phase
+- next period
+- prediction window
+
+Визуальная иерархия:
+
+Orbit / celestial visual
+↓
+cycle state
+↓
+next period
+
+или близкая к референсу композиция.
+
+Не оставлять огромный пустой белый фон внутри hero.
+
+==================================================
+7. ORBIT: СДЕЛАТЬ ВИЗУАЛЬНО БОГАЧЕ
+==================================================
+
+Текущая orbit слишком тонкая и слабая.
+
+Нужна:
+
+- larger orbit;
+- visually centered;
+- elegant;
+- clearly visible;
+- slight glow;
+- stronger marker hierarchy.
+
+Orbit занимает заметную часть hero.
+
+Она может быть художественно асимметричной.
+
+Не обязана быть идеальным ellipse.
+
+Но должна выглядеть как единая дизайнерская композиция.
+
+==================================================
+8. ORBIT: СМЫСЛ
+==================================================
+
+5 semantic markers:
+
+1. Cycle start
+2. Follicular
+3. Ovulation
+4. Luteal
+5. End / transition
+
++
+
+Current day marker.
+
+Никаких текстовых подписей на самой орбите.
+
+Sun:
+символ начала цикла / энергии.
+
+Moon:
+символ конца цикла / перехода.
+
+Current marker:
+отдельная активная точка.
+
+==================================================
+9. ORBIT: DECORATIVE LANGUAGE
+==================================================
+
+Разрешены очень умеренно:
+
+- 2–4 tiny stars/dust particles;
+- soft glow;
+- 1–3 stylized leaves;
+- moon;
+- sun;
+- orbit points.
+
+НЕ делать:
+
+- десятки звёзд;
+- galaxies;
+- astrology symbols;
+- zodiac;
+- excessive sparkle.
+
+Botanical elements должны быть abstract / elegant.
+
+==================================================
+10. ORBIT MOTION
+==================================================
+
+Добавить:
+
+sun halo breathing
+current marker pulse
+orbit opacity breathing
+1–2 decorative particles drift
+
+Очень медленно.
+
+4–7 секунд.
+
+NO:
+- rotation;
+- spinning;
+- bounce;
+- shimmer loader.
+
+==================================================
+11. HERO TYPOGRAPHY
+==================================================
+
+Использовать serif-style display для:
+
+"2 ноября"
+
+и, возможно, branding / major section dates.
+
+UI labels — sans serif.
+
+Дата должна выглядеть premium.
+
+Не использовать один и тот же Android sans-serif для всего.
+
+==================================================
+12. INSIGHT TILES
+==================================================
+
+Под hero сделать 3 compact tiles.
+
+Пример:
+
+Низкая вероятность ПМС
+
+Вероятная овуляция
+через 12 дней
+
+Обычная длительность
+7 дней
+
+В light mode:
+soft surfaces.
+
+В dark atmospheric section:
+semi-transparent plum cards.
+
+Не делать большой dashboard.
+
+==================================================
+13. PRIMARY CTA
+==================================================
+
+Current CTA слишком обычная Material button.
+
+Сделать:
+
+dusty rose / rose gradient
+или
+rich dusty rose surface.
+
+Высота ~56–60dp.
+
+Большой radius.
+
+Soft highlight.
+
+Не делать overly glossy.
+
+==================================================
+14. TODAY ACTIONS
+==================================================
+
+Использовать 5 compact round / soft capsule controls:
+
+Настроение
+Энергия
+Симптомы
+Активность
+Заметка
+
+Каждый:
+small colored circular icon surface
++
+short label.
+
+Как в ritela_main.png.
+
+==================================================
+15. ARTICLES
+==================================================
+
+Оставить статьи в нижней части Home.
+
+Оформить в том же языке:
+
+- soft card;
+- botanical/celestial micro-accent;
+- calm colors;
+- clear typography.
+
+Не делать их главным визуальным объектом.
+
+==================================================
+16. CALENDAR: ПРЕДЫДУЩУЮ ВЕРСИЮ ПЕРЕСОБРАТЬ
+==================================================
+
+Текущий Calendar всё ещё слишком похож на MVP.
+
+Проблемы:
+
+- много пустого места;
+- plain typography;
+- "Лента месяцев" выглядит лишним;
+- нет атмосферного header;
+- grid слишком утилитарный;
+- calendar не связан визуально с Home.
+
+Нужно реконструировать.
+
+==================================================
+17. CALENDAR STRUCTURE
+==================================================
+
+Preferred:
+
+Atmospheric header
+↓
+Month title + arrows
+↓
+weekday row
+↓
+calendar grid
+↓
+next period summary
+↓
+cycle phase summary
+↓
+legend
+↓
+bottom navigation
+
+УБРАТЬ отдельный большой текст:
+
+"Лента месяцев"
+
+если он не несёт реальной функции.
+
+==================================================
+18. CALENDAR HEADER
+==================================================
+
+Добавить атмосферную верхнюю композицию.
+
+Можно использовать:
+
+- small crescent moon;
+- subtle orbit lines;
+- 1–2 botanical branches/leaves;
+- soft glow;
+- 1–3 stars.
+
+Но компактно.
+
+Это НЕ должно занимать половину экрана.
+
+==================================================
+19. CALENDAR GRID
+==================================================
+
+Grid остаётся функциональным.
+
+Не делать все дни карточками одинакового размера с тяжёлыми backgrounds.
+
+Preferred:
+
+default day:
+no background
+
+period:
+soft rose surface
+
+fertile / predicted ovulation window:
+SOFT LIGHT GREEN
+
+ovulation:
+green / sage halo or stronger green ring
+
+today:
+thin warm / plum highlight ring
+
+selected:
+clear elegant outline
+
+out-of-month:
+low alpha.
+
+==================================================
+20. IMPORTANT: FERTILE WINDOW GREEN
+==================================================
+
+Вернуть светло-зелёный fertile-window style.
+
+Use:
+
+FertileSoft #E3EED6
+
+Для более заметной части:
+#C9DEB2
+
+Ovulation:
+#AFCB8B
+или
+ring + glow на основе #D9E8C4.
+
+Это сознательное решение дизайна.
+
+НЕ заменять fertile window на beige / orange.
+
+==================================================
+21. PERIOD COLOR
+==================================================
+
+Logged menstruation:
+
+dusty rose / muted pink.
+
+Не использовать слишком насыщенный red.
+
+Пример:
+
+#D78393
+или
+#CB788A
+
+Predicted period:
+lighter rose/blush.
+
+==================================================
+22. CALENDAR RANGE DESIGN
+==================================================
+
+Если подряд идут несколько дней одного типа:
+
+не обязательно рисовать 5 изолированных chunky cards.
+
+Можно создать мягкое ощущение contiguous range.
+
+Например:
+
+day backgrounds visually connect
+или
+использовать low-radius neighboring shapes.
+
+Но day numbers должны оставаться читаемыми.
+
+==================================================
+23. CALENDAR SUMMARY CARDS
+==================================================
+
+Под grid:
+
+Next period
+2 декабря
+через 22 дня
+
+и
+
+Current phase
+Лютеиновая фаза
+день N из M
+
+Сделать compact premium cards.
+
+Можно добавить:
+- tiny moon;
+- small leaves;
+- subtle gradient.
+
+==================================================
+24. LIGHT / DARK
+==================================================
+
+Основной light mode не должен быть просто белым.
+
+Использовать warm ivory.
+
+Atmospheric surfaces могут быть тёмными даже внутри light theme.
+
+То есть допустимо:
+
+warm ivory app background
++
+deep plum hero card
+
+Именно это даст нужный visual identity.
+
+==================================================
+25. BOTTOM NAVIGATION
+==================================================
+
+Не делать навигацию главным элементом.
+
+Текущая bottom nav в целом нормальная.
+
+Только привести:
+
+- spacing;
+- active color;
+- typography;
+- icons
+
+к новой design system.
+
+==================================================
+26. REMOVE EXCESS EMPTY SPACE
+==================================================
+
+Особенно важно.
+
+Home и Calendar сейчас имеют слишком большие вертикальные разрывы.
+
+Review all paddings.
+
+Target:
+denser but breathable.
+
+Do not blindly use 32–48dp spacing everywhere.
+
+Typical:
+8
+12
+16
+20
+24
+
+Larger spacing only between major sections.
+
+==================================================
+27. COMPOSE IMPLEMENTATION
+==================================================
+
+Создай reusable components:
+
+RitelaHeroCard
+CycleOrbitScene
+RitelaInsightTile
+TodayAction
+RitelaArticleCard
+
+Calendar:
+
+RitelaCalendarHeader
+RitelaCalendarDay
+CalendarLegend
+CycleSummaryCard
+
+==================================================
+28. DESIGN TOKENS
+==================================================
+
+Обязательно создать/обновить:
+
+RitelaColors
+RitelaTypography
+RitelaShapes
+RitelaSpacing
+RitelaMotion
+
+И перевести новые компоненты на эти tokens.
+
+==================================================
+29. VISUAL TEST LOOP
+==================================================
+
+Это обязательная часть задачи.
+
+После первой реализации:
+
+1. build;
+2. install / preview;
+3. screenshot Home;
+4. screenshot Calendar;
+5. compare against:
+
+docs/ui/ritela_main.png
+docs/ui/ritela_calendar.png
+
+6. исправить:
+   - color depth;
+   - hero density;
+   - fantasy atmosphere;
+   - typography;
+   - ornament balance;
+   - spacing;
+   - calendar hierarchy.
+
+Провести минимум ДВА visual polish passes.
+
+Не завершать задачу после первого successful compile.
+
+==================================================
+30. ACCEPTANCE CRITERIA
+==================================================
+
+Редизайн считается успешным, только если:
+
+- интерфейс визуально заметно отличается от текущего MVP;
+- на Home появился deep plum atmospheric hero;
+- orbit стала крупнее, богаче и выразительнее;
+- появилась celestial-botanical атмосфера;
+- большие даты используют serif-style typography;
+- Today actions стали polished tiles;
+- calendar получил atmospheric header;
+- fertile / ovulation window снова светло-зелёное;
+- menstruation остаётся dusty rose;
+- лишний текст "Лента месяцев" удалён;
+- whitespace существенно улучшен;
+- Home и Calendar выглядят как один продукт;
+- UI ближе к ritela_main.png / ritela_calendar.png;
+- build/tests/lint проходят.
+
+В финале приложи:
+- список изменённых файлов;
+- screenshots before/after если environment позволяет;
+- описание design-token changes;
+- описание Orbit implementation;
+- описание Calendar state colors;
+- выполненные тесты.
