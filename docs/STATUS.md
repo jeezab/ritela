@@ -1,5 +1,14 @@
 # Точка продолжения
 
+Актуально 2026-10-08: исправлено падение Release APK в `HomeScreenTest.calendarLogsSelectedPastDayAndOpensExistingRecord:235`. Тест больше не нажимает удалённую стрелку основного Calendar, а прокручивает вертикальную ленту к предыдущему месяцу. Android-код/версия 0.3.0/code 3000 не менялись. Локальный v0.3.0 подготовлен на исправленном коммите; удалённые refs не менялись. Следующее действие — push master, удаление удалённого v0.3.0, push подготовленного локального тега, ожидание нового Release APK (не Re-run старого запуска).
+
+## Исправление релизного теста Calendar
+
+- Сбой воспроизведён локально одним тестом: `Expected exactly 1 node ... TestTag = previous-month`, строка 235. Это устаревший шаг теста после явно запрошенного удаления стрелок Calendar; основной интерфейс не сломан. Заменён только этот шаг на `month-grid.performScrollToIndex(1199)` — предыдущий месяц ленты с текущим месяцем на индексе 1200. Сохранены проверки открытия редактирования, выбора прошлой даты и записи в Room с правильным окончанием.
+- `scripts/gradle.ps1 formatKotlin` — PASS. `scripts/gradle.ps1 checkKotlin assembleDebug lintDebug testDebugUnitTest --tests app.ritela.HomeScreenTest.calendarLogsSelectedPastDayAndOpensExistingRecord --tests app.ritela.HomeScreenTest.calendarAlwaysUsesVerticalMonthStream --tests app.ritela.HomeScreenTest.periodRangeAcrossLeapDayCanBeSavedWithTwoCalendarTaps` — BUILD SUCCESSFUL: 3 tests, 0 failures/errors; lint без ухудшений. Полный набор 89 тестов локально не повторялся; его выполнит CI. PNG не просматривались, полный screenshot-набор не запускался.
+- `scripts/verify-apk.ps1` — PASS, финальный APK неизменён: 13 409 967 bytes, SHA256 `cba92ba8c786448311cfcf4490864a0ca1eb9708e91452f58b5864fb1602989b`, API 26–37, no network permissions. `python scripts/release.py check --tag v0.3.0`, `scripts/check-workspace.ps1`, `git diff --check`, staged diff — PASS.
+- `git ls-remote` подтверждает удалённые master/v0.3.0 на предыдущем коммите подготовки `69782f9`; authenticated API возвращает 404 для Release v0.3.0 после неудачного запуска. Сейчас удалять GitHub Release не требуется — нужно заменить удалённый тег для запуска workflow из исправленного коммита. Push/публикация не выполнялись; docs/ui остаются пользовательскими untracked файлами. Устройство и production подпись/публикацию этот локальный прогон не подтверждает.
+
 Актуально 2026-10-08: по явному запросу подготовлен перевыпуск **0.3.0/code 3000** с текущими Home/Calendar/Settings и flat orbit. Локальный `v0.3.0` перенесён на коммит подготовки; удалённые master/tag и GitHub Release не изменены. Следующее действие — пользователю выполнить последовательность push master → удаление старого GitHub Release → удаление удалённого тега → push нового локального тега из docs/RELEASES.md, затем проверить новый Release APK workflow/подпись/assets.
 
 ## Подготовка перевыпуска 0.3.0
