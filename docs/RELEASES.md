@@ -1,5 +1,19 @@
 # Выпуски и Obtainium
 
+## Выпуск 0.3.1, 2026-10-08
+
+Новая версия `0.3.1` / code `3001`: упрощённые Home/Calendar/дневник и локальный персональный прогноз со взвешенной медианой, backtesting, Monte Carlo на год, диапазонами овуляции/фертильности и дневным сигналом выделений. Длительность месячных определяется автоматически от 5 дней, ручной выбор удалён. Room v3, существующие записи и backup сохранены. Пользователь явно разрешил push ветки и нового тега. `v0.3.1` отсутствует локально и remote перед подготовкой; прежний `v0.3.0` не переносится и не удаляется. Старые инструкции перевыпуска 0.3.0 ниже — история, для 0.3.1 они не применяются.
+
+После сохранения проверенного release commit:
+
+```powershell
+git push origin master
+git tag -a v0.3.1 -m "Ritela 0.3.1"
+git push origin refs/tags/v0.3.1
+```
+
+Release APK workflow собирает production APK и публикует `ritela-0.3.1.apk` с SHA256. Версия/code повышены, поэтому Obtainium может предложить обновление опубликованного APK с прежним signing key. Фактический результат workflow и отправки фиксируется отдельно в STATUS.
+
 Источник: `https://github.com/jeezab/ritela`, package ID `app.ritela`. Ссылка в README передаёт ID, название, автора и URL через официальный HTTPS redirect. Токен в ссылке не хранится.
 
 Obtainium читает GitHub Releases, а не Actions artifacts. Каждый стабильный выпуск содержит один универсальный `ritela-<version>.apk` и checksum рядом. Не нужно выбирать архитектуру, включать отслеживание по дате или отключать распознавание версии. Тег `v0.2.1` соответствует Android versionName `0.2.1`; префикс `v` Obtainium распознаёт.
@@ -64,7 +78,7 @@ git ls-remote origin refs/heads/master refs/tags/v0.3.0 'refs/tags/v0.3.0^{}'
 
 ### Обычный выпуск новой версии
 
-1. Измени `versionName` в `version.properties`. Только три числовых компонента без суффиксов и ведущих нулей. Текущий кандидат: `0.3.0`.
+1. Измени `versionName` в `version.properties`. Только три числовых компонента без суффиксов и ведущих нулей. Текущий кандидат: `0.3.1`.
 2. Выполни проверки и сохрани отдельный коммит по CONTRIBUTING:
 
    ```powershell
@@ -78,22 +92,22 @@ git ls-remote origin refs/heads/master refs/tags/v0.3.0 'refs/tags/v0.3.0^{}'
 
    ```powershell
    git push origin master
-   git tag v0.3.0
-   git push origin v0.3.0
+   git tag v0.3.1
+   git push origin v0.3.1
    ```
 
 4. Workflow `Release APK` проверяет тег и предыдущие стабильные выпуски, собирает debug/release, запускает тесты и lint, проверяет сертификат и содержимое APK. После проверок создаёт черновик GitHub Release, загружает APK и SHA-256 и публикует только после успешной загрузки. Повторный запуск продолжает незавершённый черновик; опубликованный выпуск не перезаписывается. Ключ из runner temp удаляется и при ошибке. Обычный workflow Android продолжает выдавать debug artifact.
-5. В Obtainium проверь обновления и установи выпуск. Для следующего выпуска повтори с увеличенной версией, например `0.3.1`. Не перезаписывай APK опубликованной версии и не меняй подписывающий ключ.
+5. В Obtainium проверь обновления и установи выпуск. Для следующего выпуска повтори с увеличенной версией, например `0.3.2`. Не перезаписывай APK опубликованной версии и не меняй подписывающий ключ.
 
 Android versionCode: `major × 1000000 + minor × 1000 + patch`. Допустимы major 0–2000, minor/patch 0–999; нулевой итог запрещён. `0.2.1` имеет код 2001, выше прежнего debug-кода 1. Workflow отклоняет повторную или более старую версию относительно всех опубликованных стабильных Releases.
 
 Локальная проверка подписанного APK без публикации:
 
 ```powershell
-python scripts/release.py prepare --tag v0.3.0 --apk app/build/outputs/apk/release/app-release.apk --sdk .toolchain/android-sdk
+python scripts/release.py prepare --tag v0.3.1 --apk app/build/outputs/apk/release/app-release.apk --sdk .toolchain/android-sdk
 ```
 
-Нужен `ANDROID_SIGNING_CERT_SHA256`; результат — `app/build/distribution/ritela-0.3.0.apk` и `.sha256`. Скрипт отказывает при неверной версии/package, debug-флаге, сетевых разрешениях, неправильном сертификате или перезаписи результата. `python scripts/release.py link` восстанавливает точную ссылку README.
+Нужен `ANDROID_SIGNING_CERT_SHA256`; результат — `app/build/distribution/ritela-0.3.1.apk` и `.sha256`. Скрипт отказывает при неверной версии/package, debug-флаге, сетевых разрешениях, неправильном сертификате или перезаписи результата. `python scripts/release.py link` восстанавливает точную ссылку README.
 
 ## Доступ и переход с первого APK
 
