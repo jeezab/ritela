@@ -25,11 +25,18 @@ import app.ritela.R
 
 @Composable
 fun SettingsScreen(padding: PaddingValues, state: PeriodUiState) {
-    HomeTheme { SettingsContent(padding, state) }
+    HomeTheme {
+        LoveSurprise { onClick, anchor -> SettingsContent(padding, state, onClick, anchor) }
+    }
 }
 
 @Composable
-private fun SettingsContent(padding: PaddingValues, state: PeriodUiState) {
+private fun SettingsContent(
+    padding: PaddingValues,
+    state: PeriodUiState,
+    onLoveClick: () -> Unit,
+    modifier: Modifier
+) {
     val context = LocalContext.current
     Column(
         Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
@@ -71,5 +78,6 @@ private fun SettingsContent(padding: PaddingValues, state: PeriodUiState) {
             style = MaterialTheme.typography.bodySmall,
             color = HomeColors.muted
         )
+        WithLoveButton(onLoveClick, modifier)
     }
 }

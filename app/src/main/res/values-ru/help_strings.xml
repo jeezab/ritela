@@ -1,7 +1,7 @@
 <resources>
     <string name="help_warmth_title">Тепло при боли в животе</string>
     <string name="help_warmth_body">Попробуйте тёплый душ или грелку на живот, обёрнутую полотенцем.</string>
-    <string name="help_movement_title">Мягкое движение</string>
+    <string name="help_movement_title">Немного движения</string>
     <string name="help_movement_body">Прогулка, плавание или мягкая йога могут облегчить менструальную боль. Выбирайте комфортную нагрузку.</string>
     <string name="help_pain_care_title">Боль мешает обычным делам</string>
     <string name="help_pain_care_body">Запишитесь к врачу, если боль мешает повседневным делам, возникает при сексе или сопровождается кровью между месячными.</string>
