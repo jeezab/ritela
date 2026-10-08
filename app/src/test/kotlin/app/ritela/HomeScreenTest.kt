@@ -11,6 +11,7 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -1452,7 +1453,7 @@ class HomeScreenTest {
 
     @Test fun dischargeTagsAreFixedAndSelectionsSurviveRecreation() {
         val application = compose.activity.application as RitelaApplication
-        compose.onNodeWithTag("quick-discharge").performScrollTo().performClick()
+        openDischargeJournal()
         assertEquals(
             listOf("mood", "discharge", "sex", "energy"),
             runBlocking { application.journal.layout.first().sections.map { it.id } }
@@ -1471,7 +1472,7 @@ class HomeScreenTest {
             }
         }
         compose.activityRule.scenario.recreate()
-        compose.onNodeWithTag("quick-discharge").performScrollTo().performClick()
+        openDischargeJournal()
         compose.onNodeWithTag("discharge-WATERY").performScrollTo().assertIsSelected()
         compose.onNodeWithTag("mood-HAPPY").performScrollTo().performClick()
         compose.onNodeWithTag("save-day").performClick()
@@ -1487,6 +1488,18 @@ class HomeScreenTest {
                 application.days.logs.first().single().custom["discharge"]
             }
         )
+    }
+
+    private fun openDischargeJournal() {
+        // Room collection and prediction run outside Compose's idling resources.
+        // Both initial launch and recreation must finish loading before tapping.
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("quick-discharge").fetchSemanticsNodes().singleOrNull()
+                ?.config?.contains(SemanticsProperties.Disabled) == false
+        }
+        compose.onNodeWithTag("quick-discharge")
+            .performScrollTo().assertIsEnabled().performClick()
+        compose.onNodeWithTag("journal-edit-discharge").assertExists()
     }
 
     private fun assertHomeGradientBackground() {
