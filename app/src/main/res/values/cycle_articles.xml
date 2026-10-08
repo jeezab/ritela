@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="help_cycle_title">What is a menstrual cycle?</string>
+    <string name="help_cycle_body">The cycle runs from the first day of one period to the day before the next. Periods are just one part of it. Hormones guide an egg towards release and prepare the lining of the uterus for a possible pregnancy. If pregnancy does not happen, the lining leaves the body during a period.\n\nThe phases describe this process. Their timing varies; Ritela estimates it from dates and cannot confirm ovulation.</string>
+    <string name="help_menstruation_title">Menstruation: the cycle begins</string>
+    <string name="help_menstruation_body">A period is blood and tissue leaving the lining of the uterus through the vagina. Its first day is day 1 of a new cycle. Bleeding often lasts 2–7 days and may change in amount and colour.\n\nPeriod length and cycle length are different: bleeding ends, but the cycle continues until the next period.</string>
+    <string name="help_follicular_title">The follicular phase: before ovulation</string>
+    <string name="help_follicular_body">This phase starts on day 1 of the period and lasts until ovulation, so it includes the days of bleeding. Follicles are small sacs in the ovaries containing eggs. An egg matures as the body prepares for its release. Rising oestrogen also helps the lining of the uterus grow again.\n\nRitela shows the bleeding days separately to make the calendar easier to read. The phase has no fixed number of days.</string>
+    <string name="help_ovulation_title">Ovulation: an egg is released</string>
+    <string name="help_ovulation_body">Ovulation is the release of an egg from an ovary. It does not always happen on day 14. Pregnancy is possible around this time, including after sex in the preceding days because sperm can survive until the egg is released.\n\nThe calendar marker is an estimate. It cannot confirm ovulation or identify days when contraception is unnecessary.</string>
+    <string name="help_luteal_title">The luteal phase: after ovulation</string>
+    <string name="help_luteal_body">This is the time between ovulation and the next period. Progesterone helps prepare the lining of the uterus for a pregnancy. If pregnancy does not happen, hormone levels fall and a new period starts.\n\nSome people notice bloating, breast tenderness or mood changes before a period; others do not. These symptoms alone cannot confirm the phase, PMS or pregnancy.</string>
+</resources>

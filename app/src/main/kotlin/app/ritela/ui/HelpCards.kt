@@ -52,6 +52,36 @@ data class HelpArticle(
 
 val HelpLibrary = listOf(
     HelpArticle(
+        "cycle",
+        R.string.help_cycle_title,
+        R.string.help_cycle_body,
+        "https://www.nhs.uk/conditions/periods/fertility-in-the-menstrual-cycle/"
+    ),
+    HelpArticle(
+        "menstruation",
+        R.string.help_menstruation_title,
+        R.string.help_menstruation_body,
+        "https://www.nhs.uk/conditions/periods/"
+    ),
+    HelpArticle(
+        "follicular",
+        R.string.help_follicular_title,
+        R.string.help_follicular_body,
+        "https://www.nhs.uk/conditions/periods/fertility-in-the-menstrual-cycle/"
+    ),
+    HelpArticle(
+        "ovulation",
+        R.string.help_ovulation_title,
+        R.string.help_ovulation_body,
+        "https://www.nhs.uk/conditions/periods/fertility-in-the-menstrual-cycle/"
+    ),
+    HelpArticle(
+        "luteal",
+        R.string.help_luteal_title,
+        R.string.help_luteal_body,
+        "https://www.nhs.uk/conditions/periods/fertility-in-the-menstrual-cycle/"
+    ),
+    HelpArticle(
         "warmth",
         R.string.help_warmth_title,
         R.string.help_warmth_body,
@@ -184,6 +214,11 @@ fun relevantArticles(log: DayLog?, analysis: CycleAnalysis): List<HelpArticle> {
             add("movement")
         }
         if (log?.mood != null) add("pms-diary")
+        add("cycle")
+        add("follicular")
+        add("ovulation")
+        add("luteal")
+        add("menstruation")
         add("warmth")
         add("pms")
         add("condoms")
