@@ -36,18 +36,15 @@
     <string name="day_summary">%1$s: %2$s</string>
     <string name="cycle_day_label">Cycle day</string>
     <string name="cycle_trends">Your cycle</string>
-    <string name="cycle_median">Typical length</string>
-    <string name="cycle_spread">Recorded range</string>
     <plurals name="days_value">
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
     </plurals>
     <string name="days_range">%1$d–%2$d d</string>
-    <string name="year_basis">Median · last 12 months</string>
     <string name="chart_empty">Log two period starts to see your first cycle length.</string>
     <string name="chart_values">Cycle lengths in days: %s</string>
     <string name="period_chart">Expected period duration</string>
-    <string name="calendar_history">Period history</string>
+    <string name="calendar_history">Record history</string>
     <string name="day_has_log">Day logged</string>
     <string name="help_title">For you</string>
     <string name="help_all">All articles</string>

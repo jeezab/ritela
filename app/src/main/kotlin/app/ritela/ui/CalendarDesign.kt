@@ -45,9 +45,6 @@ import java.time.format.DateTimeFormatter
 object CalendarDesign {
     val period = HomeColors.rose
     val estimatedPeriod = HomeColors.blush
-    val fertile = Color(0xFFE3EED6)
-    val ovulation = Color(0xFFAFCB8B)
-    val fertileLikely = Color(0xFFC9DEAE)
 }
 
 @Composable
@@ -153,17 +150,7 @@ fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> U
                             ),
                             Triple(
                                 R.drawable.ic_flower,
-                                CalendarDesign.fertile,
-                                R.string.fertile_estimate
-                            ),
-                            Triple(
-                                R.drawable.ic_flower,
-                                CalendarDesign.fertileLikely,
-                                R.string.fertile_likely
-                            ),
-                            Triple(
-                                R.drawable.ic_flower,
-                                CalendarDesign.ovulation,
+                                HomeColors.muted,
                                 R.string.ovulation_estimate
                             )
                         )) {

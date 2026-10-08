@@ -198,7 +198,7 @@ fun CycleInsights(
     today: LocalDate,
     logs: List<DayLog>,
     onLogDay: () -> Unit = {},
-    expectedDuration: Int = 7
+    expectedDuration: Int = 5
 ) {
     val cycles = app.ritela.domain.measuredCycles(periods, today)
     Column(
@@ -219,37 +219,6 @@ fun CycleInsights(
         if (cycles.values.isEmpty()) {
             Text(stringResource(R.string.chart_empty))
         } else {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.large)) {
-                Column {
-                    Text(
-                        pluralStringResource(
-                            R.plurals.days_value,
-                            cycles.median!!,
-                            cycles.median!!
-                        ),
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                    Text(
-                        stringResource(R.string.cycle_median),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Column {
-                    Text(
-                        stringResource(R.string.days_range, cycles.min!!, cycles.max!!),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Text(
-                        stringResource(R.string.cycle_spread),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-            Text(
-                stringResource(R.string.year_basis),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             SeriesInsight(cycles.values.takeLast(6))
         }
         Surface(

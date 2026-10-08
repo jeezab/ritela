@@ -4,7 +4,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -117,7 +116,7 @@ fun ForecastCard(
                             analysis.cycleDay?.let {
                                 Text(
                                     stringResource(R.string.hero_cycle_day, it),
-                                    style = MaterialTheme.typography.titleMedium.copy(
+                                    style = MaterialTheme.typography.titleLarge.copy(
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
                                     )
                                 )
@@ -158,20 +157,20 @@ fun ForecastCard(
                         )
                     } else {
                         val pattern = if (locale.language == "ru") "d MMMM" else "MMM d"
-                        FlowRow(
+                        Row(
                             Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 next.predictedStartDate.format(
                                     DateTimeFormatter.ofPattern(pattern, locale)
                                 ),
                                 style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontSize = 36.sp
+                                    fontSize = 30.sp
                                 ),
                                 color = colors.text,
-                                modifier = Modifier.testTag("forecast-date")
+                                modifier = Modifier.weight(1f).testTag("forecast-date")
                             )
                             val days = ChronoUnit.DAYS.between(
                                 today,
@@ -220,12 +219,6 @@ fun ForecastCard(
                                 }
                             }
                         }
-                        Text(
-                            compactForecastRange(next.lowerBound, next.upperBound),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.muted,
-                            modifier = Modifier.testTag("forecast-window")
-                        )
                     }
                 }
             }

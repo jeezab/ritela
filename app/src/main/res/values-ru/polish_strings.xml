@@ -1,5 +1,4 @@
 <resources>
-    <string name="appearance_title">Внешний вид</string>
     <string name="calendar_key">Обозначения</string>
     <string name="history_short">История</string>
     <string name="history_empty">Месячные пока не отмечены</string>

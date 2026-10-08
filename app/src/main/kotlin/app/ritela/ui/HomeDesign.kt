@@ -5,8 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -90,11 +93,9 @@ fun HomeTheme(content: @Composable () -> Unit) {
 
 @Composable
 fun HomeInsightTiles(analysis: CycleAnalysis) {
-    FlowRow(
-        Modifier.fillMaxWidth().testTag("home-insight-tiles"),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        maxItemsInEachRow = 2
+    Row(
+        Modifier.fillMaxWidth().height(IntrinsicSize.Min).testTag("home-insight-tiles"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         val tiles = listOf(
             Triple(
@@ -118,7 +119,13 @@ fun HomeInsightTiles(analysis: CycleAnalysis) {
         )
         tiles.forEach { (icon, label, value) ->
             Card(
-                Modifier.weight(1f),
+                Modifier.weight(1f).fillMaxHeight().testTag(
+                    if (label == R.string.home_cycle_tile) {
+                        "home-insight-cycle"
+                    } else {
+                        "home-insight-duration"
+                    }
+                ),
                 shape = MaterialTheme.shapes.large,
                 border = BorderStroke(1.dp, HomeColors.border.copy(alpha = 0.6f)),
                 colors = CardDefaults.cardColors(

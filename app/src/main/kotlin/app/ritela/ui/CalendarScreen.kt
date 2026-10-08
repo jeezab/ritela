@@ -564,6 +564,12 @@ fun MonthGrid(
                         Spacer(Modifier.weight(1f).height(cellHeight))
                     } else {
                         val detail = info(day)
+                        val estimatedBleeding = when (detail.kind) {
+                            CalendarDayKind.PREDICTED, CalendarDayKind.UNCERTAIN,
+                            CalendarDayKind.APPROXIMATE, CalendarDayKind.ESTIMATED_PERIOD -> true
+
+                            else -> false
+                        }
                         val inRange =
                             rangeStart != null && day >= rangeStart &&
                                 day <= (rangeEnd ?: rangeStart)
@@ -591,29 +597,7 @@ fun MonthGrid(
                                         CalendarColors.period
                                     }
 
-                                detail.kind == CalendarDayKind.OVULATION_ESTIMATE ->
-                                    if (atmospheric) {
-                                        CalendarDesign.ovulation
-                                    } else {
-                                        CalendarColors.ovulation
-                                    }
-
-                                detail.kind == CalendarDayKind.FERTILE_LIKELY ->
-                                    if (atmospheric) {
-                                        CalendarDesign.fertileLikely
-                                    } else {
-                                        CalendarColors.fertileLikely
-                                    }
-
-                                detail.kind == CalendarDayKind.FERTILE_ESTIMATE ->
-                                    if (atmospheric) {
-                                        CalendarDesign.fertile
-                                    } else {
-                                        CalendarColors.fertile
-                                    }
-
-                                detail.kind !=
-                                    CalendarDayKind.NONE ->
+                                estimatedBleeding ->
                                     if (atmospheric) {
                                         CalendarDesign.estimatedPeriod
                                     } else {
@@ -628,7 +612,7 @@ fun MonthGrid(
                             },
                             contentColor = if (inRange || detail.kind == CalendarDayKind.OBSERVED) {
                                 CalendarColors.ink
-                            } else if (detail.kind != CalendarDayKind.NONE) {
+                            } else if (estimatedBleeding) {
                                 CalendarColors.ink
                             } else {
                                 MaterialTheme.colorScheme.onSurface
