@@ -37,7 +37,7 @@
 | `gradle/libs.versions.toml` | Закреплённые версии зависимостей и plugins |
 | `app/src/main/kotlin/app/ritela/` | Activity и Compose UI |
 | `app/src/main/kotlin/app/ritela/domain/` | Чистые модели, проверка дат, расчёт цикла и сетка календаря |
-| `app/src/main/kotlin/app/ritela/ui/CalendarScreen.kt` | Свободная лента месяцев, детали дня, история и действия |
+| `app/src/main/kotlin/app/ritela/ui/CalendarScreen.kt` | Один месяц / свободная лента месяцев, детали дня, история и действия |
 | `app/src/main/kotlin/app/ritela/ui/ForecastCard.kt` | Дата прогноза, диапазон и качество истории |
 | `app/src/main/kotlin/app/ritela/data/` | Room database, DAO, storage entity, repository |
 | `app/schemas/` | Экспортированные схемы Room v1/v2/v3 |
@@ -73,10 +73,12 @@
 
 Редактируемый дневник: `domain/JournalLayout.kt` — модель/инварианты и преобразование selections; `data/JournalRepository.kt` — Room DAO/JSON codec/поток настройки; `ui/DayLogEntry.kt` — редактор и drag; `journal_strings.xml` EN/RU. Room v3 сохраняет custom selections и иконку дня; backup payload v2 переносит layout. `JournalLayoutTest` и DayLogBackupTest проверяют изменения/миграции/перенос; HomeScreenTest — полноценное редактирование.
 
-Иконка: [ritela.png](../ritela.png) — пользовательский исходник; drawable-nodpi/launcher_art.png — точная копия; mipmap-anydpi/ic_launcher.xml — adaptive icon для minSdk 26, drawable/ic_launcher_foreground.xml — отступ до безопасной центральной области 66/108, drawable/ic_launcher_background.xml — бумажный фон. [update-launcher-icon.ps1](../scripts/update-launcher-icon.ps1) проверяет квадратный PNG и обновляет копию без перекодирования: `& ./scripts/update-launcher-icon.ps1`.
+Иконка: [ritela.png](../ritela.png) — пользовательский исходник; drawable-nodpi/launcher_art.png — точная копия; mipmap-anydpi/ic_launcher.xml — adaptive icon для minSdk 26, drawable/ic_launcher_foreground.xml — отступ 16.6667% до центральной области 72/108, drawable/ic_launcher_background.xml — сливовый фон #4B2938. [update-launcher-icon.ps1](../scripts/update-launcher-icon.ps1) проверяет квадратный PNG и обновляет копию без перекодирования: `& ./scripts/update-launcher-icon.ps1`.
 
 [Промпт небесного hero](prompts/2026-10-07-orbit-hero.txt) сохранён без изменений. domain/CycleScene.kt — предполагаемая фаза/прогресс представления без изменения расчёта; ui/CycleOrbitScene.kt — лёгкая рисованная орбита; ui/OrbitMotion.kt — lifecycle, системные анимации и low-RAM; CycleSceneTest — границы шаблона и недоступный прогноз.
 
 ui/ForecastCard.kt — новый hero, компактные локализованные даты, info-dialog, ForecastDurationInsight и статичные light/dark/large-font Preview; прежний ui/CycleOrbit.kt удалён. HomeScreen подключает отдельную длительность и CTA с каплей. HomeScreenTest проверяет новый текст и info на 320dp/200%; существующие CI screenshot-тесты Home используют новый hero без новых имён PNG.
 
 Орбита hero: ui/OrbitGeometry.kt — аналитическая эллиптическая геометрия, rotation matrix и упорядоченные OrbitPhaseMarkers; ui/CycleOrbitScene.kt — drawOval, пять вех и кольцо дня. OrbitGeometryTest проверяет принадлежность точек эллипсу, замыкание, положение 8/29 и clamping. HomeScreenTest.renderPolishedOrbitHeroInLightDarkAndLargeText создаёт три целевых PNG orbit-hero-light/dark/large-text, зарегистрированных в preview-ui.ps1. Производственный прогноз и domain/CycleScene.kt не изменены.
+
+UI 2026-10-08: [пользовательский промпт](prompts/2026-10-08-ui-polish.txt) сохранён без изменений. ui/ScreenPreviews.kt — Home/Calendar (normal, narrow EN, dark, 200% RU) на синтетических данных. ui/Insights.kt — JournalQuickActions с реальными разделами дневника; ui/CalendarScreen.kt — один месяц и переключаемая вертикальная лента. res/values/cycle_articles.xml и values-ru/cycle_articles.xml — пять новых образовательных статей; HelpArticlesTest проверяет локализации и приоритет срочных советов. Theme.kt содержит общие RitelaColors/Typography/Shapes/Motion и Spacing. Пользовательские docs/ui остаются отдельными исходными материалами и не включаются автоматически в коммит.

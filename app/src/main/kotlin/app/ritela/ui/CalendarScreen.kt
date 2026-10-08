@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -76,17 +77,31 @@ fun CalendarScreen(
     onLogDay: (LocalDate) -> Unit = {}
 ) {
     val base = remember { YearMonth.from(state.today) }
-    val list = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
+    var monthStream by rememberSaveable { mutableStateOf(false) }
+    var monthIndex by rememberSaveable { mutableIntStateOf(1200) }
+    val historyList = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
+    val singleMonthList = rememberLazyListState()
+    val list = if (monthStream) historyList else singleMonthList
     val scope = rememberCoroutineScope()
     var selectedDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var choosingMonth by rememberSaveable { mutableStateOf(false) }
     var historyOpen by rememberSaveable { mutableStateOf(false) }
     var legendOpen by rememberSaveable { mutableStateOf(false) }
-    val visibleIndex by remember { derivedStateOf { list.firstVisibleItemIndex } }
+    val streamIndex by remember { derivedStateOf { historyList.firstVisibleItemIndex } }
+    val visibleIndex = if (monthStream) streamIndex else monthIndex
     val month = base.plusMonths((visibleIndex - 1200).toLong())
     val cellHeight = maxOf(56.dp, (40 * LocalDensity.current.fontScale).dp)
     fun showMonth(index: Int) {
-        scope.launch { list.scrollToItem(index.coerceIn(0, 2400)) }
+        monthIndex = index.coerceIn(0, 2400)
+        scope.launch {
+            if (monthStream) {
+                historyList.scrollToItem(
+                    monthIndex
+                )
+            } else {
+                singleMonthList.scrollToItem(0)
+            }
+        }
     }
     Column(Modifier.fillMaxSize().padding(padding)) {
         Row(
@@ -126,12 +141,34 @@ fun CalendarScreen(
                 Text(stringResource(R.string.history_short))
             }
         }
+        TextButton(
+            onClick = {
+                monthIndex = visibleIndex
+                monthStream = !monthStream
+                if (monthStream) scope.launch { historyList.scrollToItem(monthIndex) }
+            },
+            modifier = Modifier.align(Alignment.CenterHorizontally).testTag("calendar-mode")
+        ) {
+            Text(
+                stringResource(
+                    if (monthStream) {
+                        R.string.calendar_single_month
+                    } else {
+                        R.string.calendar_month_stream
+                    }
+                )
+            )
+        }
         LazyColumn(
             state = list,
             modifier = Modifier.weight(1f).fillMaxWidth().testTag("month-grid")
         ) {
-            items(2401, key = { it }) { index ->
-                val displayed = base.plusMonths((index - 1200).toLong())
+            items(if (monthStream) 2401 else 1, key = {
+                if (monthStream) it else monthIndex
+            }) { index ->
+                val displayed = base.plusMonths(
+                    ((if (monthStream) index else monthIndex) - 1200).toLong()
+                )
                 Column(Modifier.testTag("calendar-month-$displayed")) {
                     Text(
                         displayed.format(
@@ -438,7 +475,7 @@ fun MonthHeader(
                 contentDescription =
                     previous
             }
-        ) { Text("⌃", style = MaterialTheme.typography.headlineMedium) }
+        ) { Text("‹", style = MaterialTheme.typography.headlineMedium) }
         TextButton(onClick = onChoose, modifier = Modifier.weight(1f).testTag("month-selector")) {
             Text(
                 month.format(
@@ -454,7 +491,7 @@ fun MonthHeader(
                 contentDescription =
                     next
             }
-        ) { Text("⌄", style = MaterialTheme.typography.headlineMedium) }
+        ) { Text("›", style = MaterialTheme.typography.headlineMedium) }
     }
 }
 

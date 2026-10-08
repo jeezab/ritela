@@ -25,6 +25,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
@@ -287,6 +288,7 @@ class HomeScreenTest {
         }
         assertTrue(compose.onAllNodesWithText("Отметить месячные").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("calendar-heading").assertIsDisplayed()
+        compose.onNodeWithTag("calendar-mode").performClick()
         val before = compose.onNodeWithTag("month-grid").fetchSemanticsNode()
             .config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
             .value()
@@ -583,6 +585,41 @@ class HomeScreenTest {
                     app.ritela.domain.Pain.NONE
             }
         }
+    }
+
+    @Test
+    fun quickJournalActionOpensTheEditableDay() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText(compose.activity.getString(R.string.empty_title))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("quick-energy").performScrollTo().performClick()
+        compose.onNodeWithTag("day-note").assertExists()
+    }
+
+    @Test
+    fun calendarSwitchesBetweenSingleMonthAndStreamAtTheChosenMonth() {
+        val today = LocalDate.of(2026, 10, 8)
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                RitelaTheme {
+                    Scaffold {
+                        CalendarScreen(it, PeriodUiState(loading = false, today = today), {
+                        }, {}, {})
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("calendar-month-2026-11").assertDoesNotExist()
+        compose.onNodeWithTag("next-month").performClick()
+        compose.onNodeWithTag("calendar-month-2026-10").assertDoesNotExist()
+        compose.onNodeWithTag("calendar-day-2026-11-08").assertIsDisplayed()
+        compose.onNodeWithTag("calendar-mode").performClick()
+        compose.onNodeWithTag("month-grid").performScrollToIndex(1202)
+        compose.onNodeWithTag("calendar-mode").performClick()
+        compose.onNodeWithTag("calendar-day-2026-12-08").assertIsDisplayed()
+        compose.onNodeWithTag("calendar-today").performClick()
+        compose.onNodeWithTag("calendar-day-2026-10-08").assertIsDisplayed()
     }
 
     @Test

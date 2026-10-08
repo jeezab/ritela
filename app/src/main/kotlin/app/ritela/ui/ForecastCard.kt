@@ -70,8 +70,8 @@ fun ForecastCard(
         colors = CardDefaults.cardColors(containerColor = heroSurface)
     ) {
         Column(
-            Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            Modifier.padding(Spacing.large),
+            verticalArrangement = Arrangement.spacedBy(Spacing.small)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -113,7 +113,15 @@ fun ForecastCard(
                         },
                         heroSurface
                     ),
-                    Modifier.fillMaxWidth().height(if (fontScale > 1.2f) 124.dp else 156.dp)
+                    Modifier.fillMaxWidth().height(
+                        if (fontScale >
+                            1.2f
+                        ) {
+                            Spacing.heroCompactOrbitHeight
+                        } else {
+                            Spacing.heroOrbitHeight
+                        }
+                    )
                 )
             }
             Text(

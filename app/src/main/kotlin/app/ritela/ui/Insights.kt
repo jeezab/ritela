@@ -7,7 +7,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -80,12 +84,7 @@ fun DaySummary(
                 Text(stringResource(R.string.log_day), Modifier.padding(start = Spacing.small))
             }
         }
-        if (log == null || log.empty) {
-            Text(
-                stringResource(R.string.today_empty),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        JournalQuickActions(layout, onEdit, enabled)
         log?.let {
             val selections = it.journalSelections()
             layout.sections.forEach { section ->
@@ -119,6 +118,73 @@ fun DaySummary(
 }
 
 @Composable
+private fun JournalQuickActions(
+    layout: app.ritela.domain.JournalLayout,
+    onEdit: () -> Unit,
+    enabled: Boolean
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(Spacing.small),
+        verticalArrangement = Arrangement.spacedBy(Spacing.small)
+    ) {
+        // Show actual configured sections; removed sections never reappear as shortcuts.
+        val sections = layout.sections.sortedBy {
+            when (it.id) {
+                "mood" -> 0
+                "energy" -> 1
+                else -> 2
+            }
+        }.take(4)
+        sections.forEach { section ->
+            JournalQuickAction(
+                journalSectionLabel(section),
+                journalIcon(section.icon),
+                "quick-${section.id}",
+                onEdit,
+                enabled
+            )
+        }
+        JournalQuickAction(
+            stringResource(R.string.day_note),
+            R.drawable.ic_note,
+            "quick-note",
+            onEdit,
+            enabled
+        )
+    }
+}
+
+@Composable
+private fun JournalQuickAction(
+    label: String,
+    icon: Int,
+    tag: String,
+    onEdit: () -> Unit,
+    enabled: Boolean
+) {
+    Card(
+        onClick = onEdit,
+        enabled = enabled,
+        modifier = Modifier.width(
+            Spacing.tileWidth
+        ).heightIn(min = Spacing.actionHeight).testTag(tag),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Row(
+            Modifier.padding(Spacing.medium),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.small)
+        ) {
+            Icon(painterResource(icon), null, tint = MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+@Composable
 fun CycleInsights(
     periods: List<Period>,
     today: LocalDate,
@@ -128,7 +194,7 @@ fun CycleInsights(
     val cycles = app.ritela.domain.measuredCycles(periods, today)
     val durations = app.ritela.domain.measuredDurations(periods, today)
     Column(
-        verticalArrangement = Arrangement.spacedBy(Spacing.large),
+        verticalArrangement = Arrangement.spacedBy(Spacing.medium),
         modifier = Modifier.testTag("cycle-insights")
     ) {
         Row(
@@ -178,22 +244,32 @@ fun CycleInsights(
             )
             SeriesInsight(cycles.values.takeLast(6))
         }
-        androidx.compose.material3.HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-        Text(stringResource(R.string.period_chart), style = MaterialTheme.typography.titleLarge)
-        if (durations.values.isEmpty()) {
-            Text(stringResource(R.string.period_chart_empty))
-        } else {
-            Text(
-                pluralStringResource(
-                    R.plurals.days_value,
-                    kotlin.math.round(durations.values.map { it.second }.average()).toInt(),
-                    kotlin.math.round(durations.values.map { it.second }.average()).toInt()
-                ),
-                style = MaterialTheme.typography.headlineMedium
-            )
-            SeriesInsight(durations.values.takeLast(6))
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = MaterialTheme.shapes.large
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(Spacing.medium),
+                verticalArrangement = Arrangement.spacedBy(Spacing.small)
+            ) {
+                Text(
+                    stringResource(R.string.period_chart),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                if (durations.values.isEmpty()) {
+                    Text(stringResource(R.string.period_chart_empty))
+                } else {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.days_value,
+                            kotlin.math.round(durations.values.map { it.second }.average()).toInt(),
+                            kotlin.math.round(durations.values.map { it.second }.average()).toInt()
+                        ),
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    SeriesInsight(durations.values.takeLast(6))
+                }
+            }
         }
     }
 }
