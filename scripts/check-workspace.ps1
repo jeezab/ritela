@@ -15,7 +15,7 @@ $documents = @(Get-ChildItem -LiteralPath $projectRoot -Filter '*.md')
 $documents += @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'docs') -Filter '*.md' -Recurse)
 $documents += @(Get-ChildItem -LiteralPath (Join-Path $projectRoot '.agents/skills') -Filter 'SKILL.md' -Recurse)
 foreach ($document in $documents) {
-    $content = Get-Content -Encoding UTF8 -Raw -LiteralPath $document.FullName
+    $content = [string](Get-Content -Encoding UTF8 -Raw -LiteralPath $document.FullName)
     foreach ($match in [regex]::Matches($content, '\[[^\]]+\]\(([^)]+)\)')) {
         $target = $match.Groups[1].Value
         if ($target -match '^(https?://|mailto:|#)') { continue }

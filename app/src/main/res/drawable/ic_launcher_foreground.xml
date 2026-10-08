@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Full-bleed artwork: the launcher supplies the final adaptive icon mask. -->
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/launcher_art"
-    android:gravity="fill"
-    android:filter="true" />
+<!-- Fit the artwork into the central 72/108 area; launcher masks may trim corners. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:inset="16.6667%">
+    <bitmap
+        android:src="@drawable/launcher_art"
+        android:gravity="fill"
+        android:filter="true" />
+</inset>

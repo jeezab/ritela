@@ -1,6 +1,6 @@
 # Точка продолжения
 
-Актуально 2026-10-07: исправлена белая рамка launcher icon — убран inset 19.4444%, foreground заполняет слой, фон сливовый #4B2938. Подготовлен 0.2.7/code 2007. Format/checkKotlin/assembleDebug/lintDebug, metadata/workspace/APK/diff проверки прошли; тесты не запускались по предыдущему запросу. Пользователь явно поручил push master и новый тег v0.2.7 после коммита. Следующий шаг — проверить Release APK workflow для v0.2.7 и обновлённую иконку на телефоне.
+Актуально 2026-10-08: исправлен масштаб launcher icon — рисунок вписан в центральные 72/108 при сливовом фоне. Format/checkKotlin/assembleDebug/lintDebug и проверка APK прошли в составе рабочего пакета. Следующий шаг — сохранить добавленные статьи и UI-доработки из обновлённого пользовательского brief отдельными коммитами.
 
 2026-10-07. Выполнен пакет доработок скриншотов, резервных копий, календаря, длительности прогноза и редактируемого дневника. Все локальные обязательные Android checks прошли. По новому явному запросу пользователя подготовлен выпуск 0.2.2/code 2002 для отправки master и нового тега v0.2.2. Существующие теги не меняются; публикацию APK должен подтвердить GitHub workflow.
 
@@ -120,3 +120,9 @@ CycleOrbitScene рисует один математически гладкий 
 version.properties → 0.2.7/code 2007, RELEASES команды обновлены. Git fetch origin --tags: master синхронизирован с origin/master до правки; новый v0.2.7 отсутствует локально и remote. FormatKotlin и checkKotlin/assembleDebug/lintDebug — PASS. Тесты не запускались по предыдущему запросу пользователя, CI сохраняет существующие проверки. release.py check --tag v0.2.7, check-workspace и diff checks — PASS. verify-apk — PASS: debug app.ritela API 26–37 без сетевых permissions; app/build/outputs/apk/debug/app-debug.apk, 12 968 708 bytes, SHA256 c0aa0dd5a41c43cadd6d4cd79e33a0d44b7d9ace2cb4e10147f074ef72c7d0a5. Aapt2 проверяет XML foreground без inset, сливовый background и versionName/code в собранном APK.
 
 Пользователь явно разрешил git push origin master, git tag v0.2.7, git push origin v0.2.7. Команды выполняются после этого контрольного коммита; фактический результат отправки сообщается в ответе. Существующие теги/история не меняются. Следующий шаг — проверить Release APK workflow/production APK v0.2.7 и отсутствие белых краёв после обновления на телефоне. Production signing и device smoke test локально не проверялись.
+
+## 2026-10-08: масштаб иконки
+
+Foreground inset 16.6667% помещает исходный рисунок в центральные 72/108 adaptive icon вместо прежнего full-bleed. Фон #4B2938 сохраняется, исходные ritela.png/launcher_art.png не перекодируются. Маска лаунчера может слегка срезать углы. Локального просмотра PNG/интерфейса не было. Проверка workspace теперь корректно обрабатывает пустые Markdown-файлы (ошибка обнаружена на изначально пустом пользовательском style_brief.md).
+
+Проверено в рабочем пакете: scripts/gradle.ps1 formatKotlin; checkKotlin assembleDebug lintDebug; scripts/verify-apk.ps1; scripts/check-workspace.ps1; git diff --check — PASS. Текущий debug APK app/build/outputs/apk/debug/app-debug.apk, API 26–37, без сетевых permissions. Результат на конкретном лаунчере требует проверки на телефоне. Версия остаётся 0.2.7, публикация/push не выполняются. Следующий шаг — статьи о цикле и фазах.
