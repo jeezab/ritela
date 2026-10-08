@@ -10,6 +10,12 @@ if (-not $SkipRender) {
 
 $directory = Join-Path $projectRoot 'app/build/reports/screenshots'
 $labels = [ordered]@{
+    'calendar-home-system-light' = 'Calendar · дизайн-система Home'
+    'calendar-home-system-dark' = 'Calendar · тёмная тема'
+    'calendar-home-system-details' = 'Calendar · подробности дня'
+    'calendar-home-system-english-light' = 'Calendar · EN · 320dp'
+    'calendar-home-system-english-dark' = 'Calendar · EN · тёмная тема'
+    'calendar-home-system-english-details' = 'Calendar · EN · подробности дня'
     'home-light' = 'Главная · светлая тема'
     'home-reference-light' = 'Home · новый сливовый стиль'
     'home-reference-dark' = 'Home · системная тёмная тема'

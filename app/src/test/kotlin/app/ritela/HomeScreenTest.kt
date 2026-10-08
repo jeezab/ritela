@@ -266,7 +266,7 @@ class HomeScreenTest {
             compose.activity.runOnUiThread {
                 compose.activity.setContent {
                     RitelaTheme(darkTheme = dark, dynamicColor = false) {
-                        Scaffold(bottomBar = { AppNavigation(1) {} }) {
+                        Scaffold(bottomBar = { app.ritela.ui.HomeTheme { AppNavigation(1) {} } }) {
                             CalendarScreen(it, state, {}, {}, {})
                         }
                     }
@@ -313,7 +313,9 @@ class HomeScreenTest {
                     CompositionLocalProvider(LocalDensity provides Density(density, scale)) {
                         RitelaTheme(dynamicColor = false) {
                             key(scale) {
-                                Scaffold(bottomBar = { AppNavigation(1) {} }) {
+                                Scaffold(bottomBar = {
+                                    app.ritela.ui.HomeTheme { AppNavigation(1) {} }
+                                }) {
                                     CalendarScreen(
                                         it,
                                         PeriodUiState(loading = false, today = today),
@@ -1147,6 +1149,52 @@ class HomeScreenTest {
         }
         compose.onNodeWithTag("forecast-date").assertIsDisplayed()
         saveRendering(name)
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "ru-rRU-w390dp-h844dp")
+    fun renderCalendarWithHomeDesignSystem() {
+        renderCalendarHomeFixture("calendar-home-system")
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    fun renderCalendarWithHomeDesignSystemInEnglish() {
+        renderCalendarHomeFixture("calendar-home-system-english")
+    }
+
+    private fun renderCalendarHomeFixture(prefix: String) {
+        val today = LocalDate.of(2026, 10, 8)
+        val records = (0L..4L).map {
+            val start = LocalDate.of(2026, 10, 1).minusDays(it * 32)
+            Period(UUID(0, it + 1), start, start.plusDays(5), Instant.EPOCH, Instant.EPOCH)
+        }
+        val state =
+            PeriodUiState(
+                loading = false,
+                periods = records,
+                today = today,
+                analysis = analyzeCycles(records, today)
+            )
+        for (dark in listOf(false, true)) {
+            compose.activity.runOnUiThread {
+                compose.activity.setContent {
+                    RitelaTheme(darkTheme = dark) {
+                        Scaffold(bottomBar = { app.ritela.ui.HomeTheme { AppNavigation(1) {} } }) {
+                            CalendarScreen(it, state, {}, {}, {})
+                        }
+                    }
+                }
+            }
+            compose.onNodeWithTag("calendar-day-$today").assertIsDisplayed()
+            saveRendering("$prefix-${if (dark) "dark" else "light"}")
+            compose.onNodeWithTag("calendar-day-2026-10-19").performClick()
+            compose.onNodeWithText(
+                compose.activity.getString(app.ritela.R.string.conception_peak)
+            ).performScrollTo().assertIsDisplayed()
+            saveRendering("$prefix-details", dialog = true)
+            compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
+        }
     }
 
     private fun saveRendering(name: String, dialog: Boolean = false) {
