@@ -20,6 +20,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -926,29 +927,25 @@ class HomeScreenTest {
     }
 
     @Test
-    fun forecastDurationCanBeChangedAndSurvivesRestart() {
+    fun durationIsAutomaticAndSurvivesRestartWithoutChangingRecords() {
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText(
+                "\u041d\u0430\u0447\u043d\u0451\u043c \u0441 \u0434\u0430\u0442\u044b"
+            ).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("nav-settings").performClick()
-        compose.onNodeWithTag("forecast-duration").performScrollTo().performClick()
-        compose.onNodeWithTag("forecast-duration-input").performTextReplacement("3")
-        compose.onNodeWithText("Сохранить").performClick()
-        compose.waitUntil(10_000) {
-            val app = compose.activity.application as RitelaApplication
-            app.settings.values.value.periodDuration == 3
-        }
-        compose.activityRule.scenario.recreate()
-        compose.onNodeWithTag("forecast-duration").performScrollTo().assertTextEquals(
-            "Прогноз месячных: 3 дня"
-        )
+        compose.onNodeWithTag("forecast-duration").assertDoesNotExist()
         val application = compose.activity.application as RitelaApplication
         val start = LocalDate.now().minusDays(20)
         runBlocking { application.periods.add(start, start.plusDays(6)) }
+        compose.activityRule.scenario.recreate()
         compose.onNodeWithTag("nav-today").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("expected-period-duration").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag(
             "expected-period-duration"
-        ).performScrollTo().assertTextEquals("3 дн.")
+        ).performScrollTo().assertTextEquals("6 \u0434\u043d.")
         assertEquals(
             start.plusDays(6),
             runBlocking {
@@ -1199,9 +1196,7 @@ class HomeScreenTest {
             compose.onNodeWithTag("calendar-day-$today").assertIsDisplayed()
             saveRendering("$prefix-${if (dark) "dark" else "light"}")
             compose.onNodeWithTag("calendar-day-2026-10-19").performClick()
-            compose.onNodeWithText(
-                compose.activity.getString(app.ritela.R.string.conception_peak)
-            ).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithTag("fertility-window-range").performScrollTo().assertIsDisplayed()
             saveRendering("$prefix-details", dialog = true)
             compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
         }
@@ -1232,7 +1227,7 @@ class HomeScreenTest {
                 CompositionLocalProvider(LocalDensity provides Density(density.density, scale)) {
                     RitelaTheme {
                         Scaffold(bottomBar = { app.ritela.ui.HomeTheme { AppNavigation(2) {} } }) {
-                            app.ritela.ui.SettingsScreen(it, PeriodUiState(loading = false), {})
+                            app.ritela.ui.SettingsScreen(it, PeriodUiState(loading = false))
                         }
                     }
                 }
@@ -1244,11 +1239,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("backup-import").performScrollTo().assertIsDisplayed()
         saveRendering("$prefix-data")
         compose.onNodeWithTag("theme-selector").assertDoesNotExist()
-        compose.onNodeWithTag("forecast-duration").performScrollTo().performClick()
-        saveRendering("$prefix-duration", dialog = true)
-        compose.onNodeWithText(
-            compose.activity.getString(app.ritela.R.string.cancel)
-        ).performClick()
+        compose.onNodeWithTag("forecast-duration").assertDoesNotExist()
     }
 
     @Test
@@ -1356,6 +1347,42 @@ class HomeScreenTest {
         compose.onNodeWithTag("orbit-phase-close").performClick()
         compose.onNodeWithTag("orbit-detail-close").assertIsDisplayed().performClick()
         compose.onNodeWithTag("forecast-date").assertIsDisplayed()
+    }
+
+    @Test fun calendarShowsMucusSignalAndSharedMethodInfoWithoutRiskLabels() {
+        val today = LocalDate.of(2026, 10, 8)
+        val start = today.minusDays(8)
+        val periods =
+            listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
+        val logs = listOf(
+            app.ritela.domain.DayLog(
+                today,
+                custom = mapOf("discharge" to setOf("WATERY"))
+            )
+        )
+        val state = PeriodUiState(
+            loading = false,
+            today = today,
+            periods = periods,
+            dayLogs = logs,
+            analysis = analyzeCycles(periods, today, dayLogs = logs)
+        )
+        compose.activity.runOnUiThread {
+            compose.activity.setContent {
+                RitelaTheme {
+                    CalendarScreen(androidx.compose.foundation.layout.PaddingValues(), state, {
+                    }, {}, {})
+                }
+            }
+        }
+        compose.onNodeWithTag("calendar-day-$today").performClick()
+        compose.onNodeWithTag("mucus-fertility-signal").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("fertility-window-range").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Вероятность беременности").assertDoesNotExist()
+        compose.onNodeWithTag("day-details-close").performScrollTo().performClick()
+        compose.onNodeWithTag("calendar-forecast-info").performScrollTo().performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.prediction_method_info))
+            .assertIsDisplayed()
     }
 
     private fun useLegacyJournal() {

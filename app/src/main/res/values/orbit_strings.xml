@@ -14,7 +14,6 @@
     <string name="orbit_end">End / transition</string>
     <string name="orbit_start_info">The sun anchors the start of the cycle. Day 1 is the first day of your period.</string>
     <string name="orbit_end_info">The moon represents the ending and transition towards a new cycle. It does not predict the exact day your next period will start.</string>
-    <string name="orbit_symbolic">The five landmarks explain the cycle. Their positions are symbolic, not personal phase boundaries.</string>
     <string name="orbit_overdue">Your cycle is longer than the estimate. Today’s marker stays at the end of the path; a new cycle has not been assumed.</string>
     <string name="orbit_focus_control">Day to explore</string>
     <string name="orbit_previous_day">Previous day</string>

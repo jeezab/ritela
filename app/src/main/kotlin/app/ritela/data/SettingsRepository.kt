@@ -11,12 +11,8 @@ import kotlinx.coroutines.withContext
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 class SettingsRepository(private val preferences: SharedPreferences) {
-    private val state = MutableStateFlow(
-        PredictionDefaults(
-            preferences.getInt("cycleLength", 28).coerceIn(1, 365),
-            preferences.getInt("forecastPeriodDuration", 7).coerceIn(1, 60)
-        )
-    )
+    // Old preferences remain on disk for compatibility, but no longer control forecasts.
+    private val state = MutableStateFlow(PredictionDefaults())
     val values = state.asStateFlow()
     private val appearance = MutableStateFlow(
         ThemeMode.entries.firstOrNull {
@@ -36,6 +32,6 @@ class SettingsRepository(private val preferences: SharedPreferences) {
             putInt("cycleLength", value.cycleLength)
             putInt("forecastPeriodDuration", value.periodDuration)
         }
-        state.value = value
+        state.value = PredictionDefaults()
     }
 }

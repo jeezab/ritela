@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -229,41 +231,7 @@ fun ForecastCard(
             }
         }
     }
-    if (showInfo) {
-        AlertDialog(
-            onDismissRequest = { showInfo = false },
-            title = { Text(stringResource(R.string.forecast_info)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    next?.let {
-                        Text(
-                            if (analysis.usesDefaults) {
-                                stringResource(R.string.default_forecast_basis, it.cycleMedian)
-                            } else {
-                                pluralStringResource(
-                                    R.plurals.cycles_used,
-                                    it.cyclesUsed,
-                                    it.cyclesUsed
-                                )
-                            }
-                        )
-                        Text(
-                            stringResource(
-                                R.string.forecast_range,
-                                formattedDate(it.lowerBound),
-                                formattedDate(it.upperBound)
-                            )
-                        )
-                    }
-                    Text(stringResource(R.string.hero_phase_info))
-                    Text(stringResource(R.string.hero_orbit_info))
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showInfo = false }) { Text(stringResource(R.string.done)) }
-            }
-        )
-    }
+    if (showInfo) PredictionMethodInfo(analysis) { showInfo = false }
     if (showOrbit && next != null) {
         CycleOrbitDetail(analysis, today, reducedMotion) { showOrbit = false }
     }
@@ -276,6 +244,37 @@ fun phaseName(phase: EstimatedCyclePhase): Int = when (phase) {
     EstimatedCyclePhase.OVULATION -> R.string.phase_ovulation_name
     EstimatedCyclePhase.LUTEAL -> R.string.phase_luteal_name
     EstimatedCyclePhase.UNKNOWN -> R.string.hero_phase_info
+}
+
+@Composable
+fun PredictionMethodInfo(analysis: CycleAnalysis, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.forecast_info)) },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                analysis.forecasts.firstOrNull()?.let {
+                    Text(
+                        if (analysis.usesDefaults) {
+                            stringResource(R.string.default_forecast_basis, it.cycleMedian)
+                        } else {
+                            pluralStringResource(
+                                R.plurals.cycles_used,
+                                it.cyclesUsed,
+                                it.cyclesUsed
+                            )
+                        }
+                    )
+                }
+                Text(stringResource(R.string.prediction_method_info))
+                Text(stringResource(R.string.hero_orbit_info))
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) } }
+    )
 }
 
 @Composable

@@ -4,10 +4,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.max
-import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 enum class HistoryConfidence { LOW, MEDIUM, HIGH }
 enum class ForecastUnavailable { NEED_MORE, INVALID_HISTORY, ONGOING, PAST_DUE }
@@ -23,24 +20,35 @@ data class CycleForecast(
     val cycleVariation: Double
 )
 
-data class PredictionDefaults(val cycleLength: Int = 28, val periodDuration: Int = 7)
+data class PredictionDefaults(val cycleLength: Int = 28, val periodDuration: Int = 5)
 
 data class CycleAnalysis(
     val cycleDay: Long? = null,
     val forecasts: List<CycleForecast> = emptyList(),
     val unavailable: ForecastUnavailable? = ForecastUnavailable.NEED_MORE,
     val usesDefaults: Boolean = false,
-    val periodDuration: Int = 7,
-    val measuredPeriodDuration: Int? = null
+    val periodDuration: Int = 5,
+    val measuredPeriodDuration: Int? = null,
+    val backtest: BacktestResult = BacktestResult(),
+    val mucusObservations: Map<LocalDate, CervicalMucus> = emptyMap()
 )
 
 /** Engineering estimate of period starts. Confidence is a history-quality label, not a probability. */
 fun analyzeCycles(
     periods: List<Period>,
     today: LocalDate,
-    defaults: PredictionDefaults = PredictionDefaults()
+    defaults: PredictionDefaults = PredictionDefaults(),
+    dayLogs: List<DayLog> = emptyList()
 ): CycleAnalysis {
-    if (periods.isEmpty()) return CycleAnalysis(periodDuration = defaults.periodDuration)
+    val observations = dayLogs.filter { it.date <= today }.mapNotNull { log ->
+        cervicalMucus(log)?.let { log.date to it }
+    }.toMap()
+    if (periods.isEmpty()) {
+        return CycleAnalysis(
+            periodDuration = defaults.periodDuration,
+            mucusObservations = observations
+        )
+    }
     val ordered = periods.sortedBy { it.start }
     val invalid = ordered.any { validatePeriod(it.start, it.end, today) != null } ||
         ordered.map { it.id }.distinct().size != ordered.size ||
@@ -48,74 +56,36 @@ fun analyzeCycles(
     if (invalid) return CycleAnalysis(unavailable = ForecastUnavailable.INVALID_HISTORY)
     val latest = ordered.last()
     val day = ChronoUnit.DAYS.between(latest.start, today) + 1
-    // A missing period can produce a gap, not evidence of a very long measured cycle.
-    val recent = ordered.zipWithNext().filter { (a, _) ->
-        a.start >= today.minusYears(1)
-    }.takeLast(12).map { (a, b) ->
-        ChronoUnit.DAYS.between(a.start, b.start)
-    }
-    val usable = recent.filter { it in 1..365 }.map { it.toDouble() }
+    val starts = ordered.map { it.start }
+    val usable = recentIntervals(starts, today)
     val durations = ordered.filter { it.end != null && it.start >= today.minusYears(1) }
-        .takeLast(12).map {
-            (ChronoUnit.DAYS.between(it.start, it.end) + 1).coerceIn(1, 365).toDouble()
-        }
-    val duration = if (durations.isEmpty()) {
-        defaults.periodDuration
-    } else {
-        median(
-            durations
-        ).roundToInt()
-    }
-    val fallback = usable.size < 3
-    val center = if (fallback) defaults.cycleLength.toDouble() else median(usable)
-    val deviations = usable.map { abs(it - center) }
-    val mad = if (fallback) 0.0 else median(deviations)
-    val atypical = deviations.count { it > max(7.0, 3 * mad) } + recent.size - usable.size
+        .takeLast(12).map { ChronoUnit.DAYS.between(it.start, it.end) + 1.0 }
+    val duration = personalizedLength(durations, defaults.periodDuration, 3)
+    val length = personalizedLength(usable, defaults.cycleLength, 4)
+    val median = usable.takeIf { it.isNotEmpty() }?.let(::weightedMedian) ?: length.toDouble()
+    val deviations = usable.map { abs(it - median) }
+    val mad = deviations.takeIf { it.isNotEmpty() }?.let(::weightedMedian) ?: 0.0
+    val atypical = deviations.count { it > max(7.0, 3 * mad) }
     val confidence = when {
         usable.size < 6 || atypical > 0 || mad > 3 -> HistoryConfidence.LOW
         mad <= 1 -> HistoryConfidence.HIGH
         else -> HistoryConfidence.MEDIUM
     }
-    val length = center.roundToInt()
-    // Heuristic safety margin, deliberately wider when dates contain gaps/outliers.
-    val baseRadius = if (fallback) 4 else max(2, ceil(3 * mad).toInt()) + 7 * atypical
-    val forecasts = (1..12).map { horizon ->
-        val expected = latest.start.plusDays(length.toLong() * horizon)
-        val radius = ceil(baseRadius * sqrt(horizon.toDouble())).toLong() + horizon - 1
-        CycleForecast(
-            expected,
-            expected.minusDays(radius),
-            expected.plusDays(radius),
-            horizon,
-            confidence,
-            usable.size,
-            length,
-            mad
-        )
-    }
-    if (today > forecasts.first().upperBound) {
-        return CycleAnalysis(
-            day,
-            unavailable = ForecastUnavailable.PAST_DUE,
-            usesDefaults = fallback,
-            periodDuration = defaults.periodDuration,
-            measuredPeriodDuration = duration.takeIf { durations.isNotEmpty() }
-        )
-    }
+    val backtest = backtestCycles(ordered, defaults.cycleLength)
+    val forecasts = simulateStarts(latest.start, today, usable, length, backtest, confidence, mad)
+    val overdue = forecasts.isEmpty() || today > forecasts.first().upperBound
     return CycleAnalysis(
-        day,
-        forecasts,
-        null,
-        fallback,
-        defaults.periodDuration,
-        duration.takeIf { durations.isNotEmpty() }
+        cycleDay = day,
+        forecasts = if (overdue) emptyList() else forecasts,
+        unavailable = if (overdue) ForecastUnavailable.PAST_DUE else null,
+        usesDefaults = usable.size < 4,
+        periodDuration = duration,
+        measuredPeriodDuration = durations.takeIf {
+            it.isNotEmpty()
+        }?.let(::weightedMedian)?.toInt(),
+        backtest = backtest,
+        mucusObservations = observations
     )
-}
-
-private fun median(values: List<Double>): Double {
-    val sorted = values.sorted()
-    val middle = sorted.size / 2
-    return if (sorted.size % 2 == 0) (sorted[middle - 1] + sorted[middle]) / 2 else sorted[middle]
 }
 
 enum class CalendarDayKind {
@@ -126,45 +96,8 @@ enum class CalendarDayKind {
     APPROXIMATE,
     ESTIMATED_PERIOD,
     FERTILE_ESTIMATE,
+    FERTILE_LIKELY,
     OVULATION_ESTIMATE
-}
-
-/** A seven-day planning estimate around the assumed ovulation date, never a safe-day rule. */
-fun estimatedFertileWindow(
-    periods: List<Period>,
-    analysis: CycleAnalysis,
-    date: LocalDate
-): ClosedRange<LocalDate>? {
-    if (analysis.unavailable == ForecastUnavailable.INVALID_HISTORY) return null
-    val firstStart = periods.minOfOrNull { it.start } ?: return null
-    if (date < firstStart) return null
-    val followingStarts =
-        periods.map { it.start } + analysis.forecasts.map { it.predictedStartDate }
-    return followingStarts.filter { it > firstStart }.sorted().map { next ->
-        next.minusDays(19)..next.minusDays(13)
-    }.firstOrNull { date in it }
-}
-
-enum class ConceptionEstimate { UNKNOWN, LOWER, HIGHER, PEAK }
-
-/** Relative calendar categories, never an individual probability or confirmed ovulation. */
-fun conceptionEstimate(
-    periods: List<Period>,
-    analysis: CycleAnalysis,
-    date: LocalDate,
-    today: LocalDate
-): ConceptionEstimate {
-    val kind = calendarDay(periods, analysis, date, today).kind
-    if (kind == CalendarDayKind.OVULATION_ESTIMATE) return ConceptionEstimate.PEAK
-    if (kind == CalendarDayKind.FERTILE_ESTIMATE) return ConceptionEstimate.HIGHER
-    val first = periods.minOfOrNull { it.start } ?: return ConceptionEstimate.UNKNOWN
-    val last =
-        analysis.forecasts.lastOrNull()?.predictedStartDate ?: return ConceptionEstimate.UNKNOWN
-    return if (date in first..last && analysis.unavailable == null) {
-        ConceptionEstimate.LOWER
-    } else {
-        ConceptionEstimate.UNKNOWN
-    }
 }
 
 data class CalendarDayInfo(
@@ -203,15 +136,14 @@ fun calendarDay(
     ) {
         return CalendarDayInfo(CalendarDayKind.ESTIMATED_PERIOD, forecast = estimatedPeriod)
     }
-    // Show the expected bleeding days, not the entire expanding start uncertainty interval.
+    val fertility = fertilityEstimate(periods, analysis, date)
     return CalendarDayInfo(
-        estimatedFertileWindow(periods, analysis, date)?.let { window ->
-            if (date == window.start.plusDays(5)) {
-                CalendarDayKind.OVULATION_ESTIMATE
-            } else {
-                CalendarDayKind.FERTILE_ESTIMATE
-            }
-        } ?: CalendarDayKind.NONE
+        when (fertility) {
+            FertilityLevel.POSSIBLE_OVULATION -> CalendarDayKind.OVULATION_ESTIMATE
+            FertilityLevel.LIKELY, FertilityLevel.MUCUS_SIGNAL -> CalendarDayKind.FERTILE_LIKELY
+            FertilityLevel.POSSIBLE -> CalendarDayKind.FERTILE_ESTIMATE
+            FertilityLevel.UNKNOWN -> CalendarDayKind.NONE
+        }
     )
 }
 

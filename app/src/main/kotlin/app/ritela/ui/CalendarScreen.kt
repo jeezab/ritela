@@ -54,14 +54,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import app.ritela.R
 import app.ritela.domain.CalendarDayInfo
 import app.ritela.domain.CalendarDayKind
-import app.ritela.domain.ConceptionEstimate
+import app.ritela.domain.CervicalMucus
 import app.ritela.domain.Period
 import app.ritela.domain.calendarDay
-import app.ritela.domain.conceptionEstimate
+import app.ritela.domain.fertilityWindows
 import app.ritela.domain.journalSelections
 import app.ritela.domain.monthDays
 import java.time.DayOfWeek
@@ -326,7 +325,6 @@ private fun CalendarDayDetails(
     onLogDay: (LocalDate) -> Unit
 ) {
     val selection = calendarDay(state.periods, state.analysis, date, state.today)
-    val context = androidx.compose.ui.platform.LocalContext.current
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
@@ -422,39 +420,40 @@ private fun CalendarDayDetails(
                         }
                     }
                 }
-                Text(
-                    stringResource(R.string.pregnancy_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    stringResource(
-                        when (
-                            conceptionEstimate(
-                                state.periods,
-                                state.analysis,
-                                date,
-                                state.today
-                            )
-                        ) {
-                            ConceptionEstimate.PEAK -> R.string.conception_peak
-                            ConceptionEstimate.HIGHER -> R.string.conception_higher
-                            ConceptionEstimate.LOWER -> R.string.conception_outside
-                            ConceptionEstimate.UNKNOWN -> R.string.conception_unconfirmed
-                        }
-                    ),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                TextButton(onClick = {
-                    context.startActivity(
-                        android.content.Intent(
-                            android.content.Intent.ACTION_VIEW,
-                            (
-                                "https://www.nhs.uk/contraception/methods-of-contraception/" +
-                                    "natural-family-planning/"
-                                ).toUri()
+                val window = fertilityWindows(state.periods, state.analysis)
+                    .filter { date in it.possible }
+                    .minByOrNull {
+                        kotlin.math.abs(it.ovulation.centralDate.toEpochDay() - date.toEpochDay())
+                    }
+                window?.let {
+                    Text(
+                        stringResource(R.string.fertile_estimate),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        stringResource(
+                            R.string.likely_dates,
+                            formattedDate(it.possible.start),
+                            formattedDate(it.possible.endInclusive)
+                        ),
+                        Modifier.testTag("fertility-window-range")
+                    )
+                    Text(
+                        stringResource(
+                            R.string.ovulation_dates,
+                            formattedDate(it.ovulation.earliest),
+                            formattedDate(it.ovulation.latest)
                         )
                     )
-                }) { Text(stringResource(R.string.help_source, "NHS")) }
+                }
+                if (state.analysis.mucusObservations[date] in
+                    setOf(CervicalMucus.WATERY, CervicalMucus.CLEAR_STRETCHY)
+                ) {
+                    Text(
+                        stringResource(R.string.mucus_fertility_signal),
+                        Modifier.testTag("mucus-fertility-signal")
+                    )
+                }
                 if (date <= state.today) {
                     DaySummary(
                         state.dayLogs.firstOrNull { it.date == date },
@@ -599,6 +598,13 @@ fun MonthGrid(
                                         CalendarColors.ovulation
                                     }
 
+                                detail.kind == CalendarDayKind.FERTILE_LIKELY ->
+                                    if (atmospheric) {
+                                        CalendarDesign.fertileLikely
+                                    } else {
+                                        CalendarColors.fertileLikely
+                                    }
+
                                 detail.kind == CalendarDayKind.FERTILE_ESTIMATE ->
                                     if (atmospheric) {
                                         CalendarDesign.fertile
@@ -680,6 +686,12 @@ fun MonthGrid(
                                         contentDescription = null,
                                         modifier = Modifier.height(12.dp)
                                     )
+                                } else if (detail.kind == CalendarDayKind.OVULATION_ESTIMATE) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_flower),
+                                        null,
+                                        Modifier.height(12.dp)
+                                    )
                                 } else if (hasLog(day)) {
                                     Icon(
                                         painterResource(logIcon(day)),
@@ -694,6 +706,7 @@ fun MonthGrid(
                                             CalendarDayKind.UNCERTAIN -> "\u00b7"
                                             CalendarDayKind.ESTIMATED_PERIOD -> "\u25cb"
                                             CalendarDayKind.OVULATION_ESTIMATE -> "\u273f"
+                                            CalendarDayKind.FERTILE_LIKELY -> "\u273f"
                                             CalendarDayKind.FERTILE_ESTIMATE -> "\u273f"
                                             else -> " "
                                         },
@@ -802,6 +815,7 @@ private fun dayKindText(kind: CalendarDayKind): String = stringResource(
         CalendarDayKind.APPROXIMATE -> R.string.calendar_approximate
         CalendarDayKind.ESTIMATED_PERIOD -> R.string.calendar_estimated_period
         CalendarDayKind.NONE -> R.string.calendar_empty
+        CalendarDayKind.FERTILE_LIKELY -> R.string.fertile_likely
         CalendarDayKind.FERTILE_ESTIMATE -> R.string.fertile_estimate
         CalendarDayKind.OVULATION_ESTIMATE -> R.string.ovulation_estimate
     }

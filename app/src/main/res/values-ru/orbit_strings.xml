@@ -14,7 +14,6 @@
     <string name="orbit_end">Завершение / переход</string>
     <string name="orbit_start_info">Солнце — точка начала цикла. Первый день месячных считается первым днём цикла.</string>
     <string name="orbit_end_info">Луна обозначает завершение и переход к новому циклу. Она не предсказывает точный день начала следующих месячных.</string>
-    <string name="orbit_symbolic">Пять вех помогают понять цикл. Их положение условное: это не индивидуальные границы фаз.</string>
     <string name="orbit_overdue">Цикл длиннее расчётного. Маркер сегодняшнего дня остаётся в конце пути: новый цикл не предполагается.</string>
     <string name="orbit_focus_control">День для просмотра</string>
     <string name="orbit_previous_day">Предыдущий день</string>

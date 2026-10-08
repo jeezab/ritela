@@ -21,12 +21,14 @@ import app.ritela.domain.analyzeCycles
 import java.time.LocalDate
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class PeriodUiState(
     val periods: List<Period> = emptyList(),
@@ -78,12 +80,15 @@ class PeriodViewModel(
                     val periods = source.periods
                     val defaults = source.defaults
                     val today = repository.today
+                    val analysis = withContext(Dispatchers.Default) {
+                        analyzeCycles(periods, today, defaults, source.dayLogs)
+                    }
                     state.update {
                         it.copy(
                             periods = periods,
                             loading = false,
                             today = today,
-                            analysis = analyzeCycles(periods, today, defaults),
+                            analysis = analysis,
                             defaults = defaults,
                             themeMode = source.themeMode,
                             dayLogs = source.dayLogs,
@@ -136,8 +141,21 @@ class PeriodViewModel(
 
     fun refreshToday() {
         val today = repository.today
-        state.update {
-            it.copy(today = today, analysis = analyzeCycles(it.periods, today, it.defaults))
+        viewModelScope.launch {
+            val snapshot = state.value
+            val analysis = withContext(Dispatchers.Default) {
+                analyzeCycles(snapshot.periods, today, snapshot.defaults, snapshot.dayLogs)
+            }
+            state.update {
+                if (repository.today == today &&
+                    it.periods == snapshot.periods && it.dayLogs == snapshot.dayLogs &&
+                    it.defaults == snapshot.defaults
+                ) {
+                    it.copy(today = today, analysis = analysis)
+                } else {
+                    it
+                }
+            }
         }
     }
 

@@ -77,7 +77,7 @@ fun OrbitPhaseInfo(marker: OrbitMarker, onDismiss: () -> Unit) {
                         )
                     )
                     Text(
-                        stringResource(R.string.orbit_symbolic),
+                        stringResource(R.string.hero_orbit_info),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -215,11 +215,6 @@ fun CycleOrbitDetail(
                                 }
                             }
                             if (state.overdue) Text(stringResource(R.string.orbit_overdue))
-                            Text(
-                                stringResource(R.string.orbit_symbolic),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = HomeColors.muted
-                            )
                             FlowRow {
                                 OrbitMarker.entries.forEach { marker ->
                                     TextButton(onClick = {
