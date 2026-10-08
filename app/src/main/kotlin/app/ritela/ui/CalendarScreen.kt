@@ -1,6 +1,8 @@
 package app.ritela.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -50,6 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import app.ritela.R
 import app.ritela.domain.CalendarDayInfo
@@ -75,6 +79,18 @@ fun CalendarScreen(
     onEdit: (Period) -> Unit,
     onDelete: (Period) -> Unit,
     onLogDay: (LocalDate) -> Unit = {}
+) {
+    HomeTheme { CalendarContent(padding, state, onAdd, onEdit, onDelete, onLogDay) }
+}
+
+@Composable
+private fun CalendarContent(
+    padding: PaddingValues,
+    state: PeriodUiState,
+    onAdd: (LocalDate) -> Unit,
+    onEdit: (Period) -> Unit,
+    onDelete: (Period) -> Unit,
+    onLogDay: (LocalDate) -> Unit
 ) {
     val base = remember { YearMonth.from(state.today) }
     var monthStream by rememberSaveable { mutableStateOf(false) }
@@ -103,61 +119,63 @@ fun CalendarScreen(
             }
         }
     }
-    Column(Modifier.fillMaxSize().padding(padding)) {
-        Row(
-            Modifier.padding(horizontal = Spacing.large),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                stringResource(R.string.calendar_title),
-                Modifier.weight(1f).testTag("calendar-heading"),
-                style = MaterialTheme.typography.headlineMedium
-            )
-            androidx.compose.material3.IconButton(onClick = { legendOpen = true }) {
-                Icon(
-                    painterResource(R.drawable.ic_info),
-                    contentDescription = stringResource(R.string.calendar_key)
-                )
-            }
-        }
+    Column(
+        Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
+            .padding(horizontal = HomeSpacing.gutter)
+    ) {
+        CalendarAtmosphericHeader { legendOpen = true }
         MonthHeader(
             month,
             { showMonth(visibleIndex - 1) },
             { showMonth(visibleIndex + 1) },
-            { choosingMonth = true }
+            { choosingMonth = true },
+            atmospheric = true
         )
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.medium),
+            Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             TextButton(onClick = {
                 showMonth(1200)
             }, modifier = Modifier.weight(1f).testTag("calendar-today")) {
-                Text(stringResource(R.string.home_title))
+                if (LocalDensity.current.fontScale > 1.3f) {
+                    Icon(painterResource(R.drawable.ic_today), stringResource(R.string.home_title))
+                } else {
+                    Text(stringResource(R.string.home_title))
+                }
             }
             TextButton(onClick = {
                 historyOpen = true
             }, modifier = Modifier.weight(1f).testTag("calendar-history")) {
-                Text(stringResource(R.string.history_short))
+                if (LocalDensity.current.fontScale > 1.3f) {
+                    Icon(
+                        painterResource(R.drawable.ic_chart),
+                        stringResource(R.string.history_short)
+                    )
+                } else {
+                    Text(stringResource(R.string.history_short))
+                }
             }
-        }
-        TextButton(
-            onClick = {
-                monthIndex = visibleIndex
-                monthStream = !monthStream
-                if (monthStream) scope.launch { historyList.scrollToItem(monthIndex) }
-            },
-            modifier = Modifier.align(Alignment.CenterHorizontally).testTag("calendar-mode")
-        ) {
-            Text(
-                stringResource(
-                    if (monthStream) {
-                        R.string.calendar_single_month
-                    } else {
-                        R.string.calendar_month_stream
-                    }
+            androidx.compose.material3.IconButton(
+                onClick = {
+                    monthIndex = visibleIndex
+                    monthStream = !monthStream
+                    if (monthStream) scope.launch { historyList.scrollToItem(monthIndex) }
+                },
+                modifier = Modifier.testTag("calendar-mode")
+            ) {
+                Icon(
+                    painterResource(R.drawable.ic_calendar),
+                    stringResource(
+                        if (monthStream) {
+                            R.string.calendar_single_month
+                        } else {
+                            R.string.calendar_month_stream
+                        }
+                    ),
+                    tint = if (monthStream) HomeColors.peach else HomeColors.muted
                 )
-            )
+            }
         }
         LazyColumn(
             state = list,
@@ -170,21 +188,37 @@ fun CalendarScreen(
                     ((if (monthStream) index else monthIndex) - 1200).toLong()
                 )
                 Column(Modifier.testTag("calendar-month-$displayed")) {
-                    Text(
-                        displayed.format(
-                            DateTimeFormatter.ofPattern(
-                                "LLLL yyyy",
-                                LocalConfiguration.current.locales[0]
-                            )
-                        ),
-                        Modifier.padding(horizontal = Spacing.medium, vertical = Spacing.medium),
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    if (monthStream) {
+                        Text(
+                            displayed.format(
+                                DateTimeFormatter.ofPattern(
+                                    "LLLL yyyy",
+                                    LocalConfiguration.current.locales[0]
+                                )
+                            ),
+                            Modifier.padding(
+                                horizontal = Spacing.medium,
+                                vertical = Spacing.medium
+                            ),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
                     MonthGrid(
                         displayed,
                         state.today,
                         selectedDay?.let(LocalDate::ofEpochDay),
+                        modifier = Modifier.border(
+                            1.dp,
+                            HomeColors.border.copy(alpha = 0.6f),
+                            MaterialTheme.shapes.large
+                        )
+                            .background(
+                                HomeColors.card.copy(alpha = 0.2f),
+                                MaterialTheme.shapes.large
+                            )
+                            .padding(vertical = 8.dp),
                         cellHeight = cellHeight,
+                        atmospheric = true,
                         info = { calendarDay(state.periods, state.analysis, it, state.today) },
                         hasLog = { day -> state.dayLogs.any { it.date == day } },
                         logIcon = { day ->
@@ -200,6 +234,7 @@ fun CalendarScreen(
                         },
                         onDay = { selectedDay = it.toEpochDay() }
                     )
+                    if (!monthStream) CalendarSummaries(state)
                 }
             }
         }
@@ -461,17 +496,20 @@ fun MonthHeader(
     month: YearMonth,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onChoose: () -> Unit
+    onChoose: () -> Unit,
+    atmospheric: Boolean = false
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = Spacing.small),
+        Modifier.fillMaxWidth().padding(horizontal = if (atmospheric) 0.dp else Spacing.small),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val previous = stringResource(R.string.previous_month)
         val next = stringResource(R.string.next_month)
         TextButton(
             onClick = onPrevious,
-            modifier = Modifier.testTag("previous-month").semantics {
+            modifier = Modifier.then(
+                if (atmospheric) Modifier.size(48.dp) else Modifier
+            ).testTag("previous-month").semantics {
                 contentDescription =
                     previous
             }
@@ -479,15 +517,29 @@ fun MonthHeader(
         TextButton(onClick = onChoose, modifier = Modifier.weight(1f).testTag("month-selector")) {
             Text(
                 month.format(
-                    DateTimeFormatter.ofPattern("LLLL yyyy", LocalConfiguration.current.locales[0])
+                    DateTimeFormatter.ofPattern(
+                        if (atmospheric && LocalDensity.current.fontScale > 1.3f) {
+                            "LLLL\nyyyy"
+                        } else {
+                            "LLLL yyyy"
+                        },
+                        LocalConfiguration.current.locales[0]
+                    )
                 ),
-                style = MaterialTheme.typography.titleLarge
+                style = if (atmospheric) {
+                    MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp)
+                } else {
+                    MaterialTheme.typography.titleLarge
+                },
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-            Text(" ▾")
+            if (!atmospheric) Text(" ▾")
         }
         TextButton(
             onClick = onNext,
-            modifier = Modifier.testTag("next-month").semantics {
+            modifier = Modifier.then(
+                if (atmospheric) Modifier.size(48.dp) else Modifier
+            ).testTag("next-month").semantics {
                 contentDescription =
                     next
             }
@@ -502,6 +554,7 @@ fun MonthGrid(
     chosen: LocalDate?,
     modifier: Modifier = Modifier,
     cellHeight: androidx.compose.ui.unit.Dp = 56.dp,
+    atmospheric: Boolean = false,
     tagPrefix: String = "calendar-day",
     rangeStart: LocalDate? = null,
     rangeEnd: LocalDate? = null,
@@ -514,7 +567,10 @@ fun MonthGrid(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val compact = LocalDensity.current.fontScale > 1.3f
-    Column(modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(if (atmospheric) 4.dp else 0.dp)
+    ) {
         Row(Modifier.fillMaxWidth().heightIn(min = 32.dp)) {
             for (weekday in DayOfWeek.entries) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -530,7 +586,10 @@ fun MonthGrid(
         }
         val days = monthDays(month)
         for (week in days.chunked(7)) {
-            Row(Modifier.fillMaxWidth()) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(if (atmospheric) 3.dp else 0.dp)
+            ) {
                 for (day in week) {
                     if (day == null) {
                         Spacer(Modifier.weight(1f).height(cellHeight))
@@ -557,19 +616,39 @@ fun MonthGrid(
                             shape = MaterialTheme.shapes.small,
                             color = when {
                                 inRange || detail.kind == CalendarDayKind.OBSERVED ->
-                                    CalendarColors.period
+                                    if (atmospheric) {
+                                        CalendarDesign.period
+                                    } else {
+                                        CalendarColors.period
+                                    }
 
                                 detail.kind == CalendarDayKind.OVULATION_ESTIMATE ->
-                                    CalendarColors.ovulation
+                                    if (atmospheric) {
+                                        CalendarDesign.ovulation
+                                    } else {
+                                        CalendarColors.ovulation
+                                    }
 
                                 detail.kind == CalendarDayKind.FERTILE_ESTIMATE ->
-                                    CalendarColors.fertile
+                                    if (atmospheric) {
+                                        CalendarDesign.fertile
+                                    } else {
+                                        CalendarColors.fertile
+                                    }
 
                                 detail.kind !=
                                     CalendarDayKind.NONE ->
-                                    CalendarColors.estimatedPeriod
+                                    if (atmospheric) {
+                                        CalendarDesign.estimatedPeriod
+                                    } else {
+                                        CalendarColors.estimatedPeriod
+                                    }
 
-                                else -> MaterialTheme.colorScheme.surface
+                                else -> if (atmospheric) {
+                                    androidx.compose.ui.graphics.Color.Transparent
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                }
                             },
                             contentColor = if (inRange || detail.kind == CalendarDayKind.OBSERVED) {
                                 CalendarColors.ink
@@ -581,7 +660,18 @@ fun MonthGrid(
                             border = if (day == chosen ||
                                 day == today
                             ) {
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                                BorderStroke(
+                                    if (atmospheric && day == chosen) {
+                                        2.dp
+                                    } else {
+                                        1.dp
+                                    },
+                                    if (atmospheric) {
+                                        HomeColors.peach
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    }
+                                )
                             } else {
                                 if (detail.kind == CalendarDayKind.PREDICTED) {
                                     BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)

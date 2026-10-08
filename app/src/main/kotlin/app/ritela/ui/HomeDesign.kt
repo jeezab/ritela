@@ -37,7 +37,7 @@ import app.ritela.R
 import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.JournalLayout
 
-/** Home-only tokens: Calendar and the other screens retain their existing theme. */
+/** Home is the source of truth for Home/Calendar; Settings retains its existing theme. */
 object HomeColors {
     val top = Color(0xFF523243)
     val bottom = Color(0xFF3C2533)

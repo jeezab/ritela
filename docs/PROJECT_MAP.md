@@ -10,6 +10,7 @@
 | `docs/STATUS.md` | Последний checkpoint и следующее действие |
 | `docs/prompts/2026-10-08-home-rebuild.txt` | Оригинальный промпт; текущий scope пользователя — только Home |
 | `app/src/main/kotlin/app/ritela/ui/HomeDesign.kt` | Изолированные цвета/типографика Home, три insight-плитки и круглые действия |
+| `app/src/main/kotlin/app/ritela/ui/CalendarDesign.kt` | Calendar на tokens Home: атмосферная шапка, акценты состояний, прогноз/фаза/легенда |
 | `app/src/main/res/values/home_strings.xml`, `values-ru/home_strings.xml` | EN/RU подписи нового Home |
 | `app/src/test/kotlin/app/ritela/HomeScreenTest.kt` | Взаимодействия Home и целевые рендеры композиции/320dp/200% |
 | `docs/DECISIONS.md` | Решения, причины и статус |
