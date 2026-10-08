@@ -1449,6 +1449,8 @@ class HomeScreenTest {
         compose.onNodeWithTag("calendar-forecast-info").performScrollTo().performClick()
         compose.onNodeWithText(compose.activity.getString(R.string.prediction_method_info))
             .assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.hero_orbit_info))
+            .assertDoesNotExist()
     }
 
     private fun useLegacyJournal() {
@@ -1580,7 +1582,7 @@ class HomeScreenTest {
             }
         }
         compose.onNodeWithTag("calendar-day-${today.plusDays(1)}").performClick()
-        compose.onNodeWithTag("selected-day-status").assertTextEquals("Обычный день")
+        compose.onNodeWithTag("selected-day-status").assertTextEquals("Фертильный период")
         compose.onNodeWithTag("log-day").assertDoesNotExist()
         compose.onNodeWithTag("fertility-window-range").assertDoesNotExist()
         val frame = compose.onNodeWithTag("day-details-frame").fetchSemanticsNode().boundsInRoot
