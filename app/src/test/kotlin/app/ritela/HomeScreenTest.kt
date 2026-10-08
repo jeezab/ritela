@@ -232,7 +232,7 @@ class HomeScreenTest {
         compose.onNodeWithText("Изменить").performScrollTo().performClick()
         compose.onNodeWithText("Изменить даты").assertIsDisplayed()
         compose.onNodeWithText("Отмена").performClick()
-        compose.onNodeWithTag("previous-month").performClick()
+        compose.onNodeWithTag("month-grid").performScrollToIndex(1199)
         val day = YearMonth.from(today).minusMonths(1).atDay(15)
         compose.onNodeWithTag("month-grid").performScrollToNode(hasTestTag("calendar-day-$day"))
         compose.onNodeWithTag("calendar-day-$day").performClick()
