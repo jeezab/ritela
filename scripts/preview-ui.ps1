@@ -10,6 +10,12 @@ if (-not $SkipRender) {
 
 $directory = Join-Path $projectRoot 'app/build/reports/screenshots'
 $labels = [ordered]@{
+    'home-flat-orbit' = 'Home · плоская орбита'
+    'home-flat-orbit-large' = 'Home · новая орбита · EN 320dp/200%'
+    'orbit-phase-info' = 'Орбита · объяснение фазы'
+    'orbit-detail' = 'Орбита · подробности цикла'
+    'orbit-detail-scrubbed' = 'Орбита · просмотр другого дня'
+    'orbit-detail-large' = 'Орбита · подробности EN 320dp/200%'
     'settings-home-system' = 'Настройки · дизайн-система Home'
     'settings-home-system-data' = 'Настройки · данные'
     'settings-home-system-theme' = 'Настройки · выбор темы'

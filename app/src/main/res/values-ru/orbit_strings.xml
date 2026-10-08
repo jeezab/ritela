@@ -1,0 +1,23 @@
+<resources>
+    <string name="orbit_more">Подробнее</string>
+    <string name="orbit_open">Посмотреть цикл подробнее</string>
+    <string name="orbit_title">Ваш цикл</string>
+    <string name="orbit_direction">От солнца по часовой стрелке</string>
+    <string name="orbit_hint">Нажмите на веху, чтобы узнать о ней</string>
+    <string name="orbit_scrub_hint">Ведите по орбите, чтобы посмотреть дни. Можно использовать ползунок.</string>
+    <string name="orbit_current_day">Сегодня · день %1$d цикла</string>
+    <string name="orbit_focus_day">Просмотр дня %1$d</string>
+    <string name="orbit_start">Начало цикла</string>
+    <string name="orbit_follicular">Фолликулярная фаза</string>
+    <string name="orbit_ovulation">Овуляция</string>
+    <string name="orbit_luteal">Лютеиновая фаза</string>
+    <string name="orbit_end">Завершение / переход</string>
+    <string name="orbit_start_info">Солнце — точка начала цикла. Первый день месячных считается первым днём цикла.</string>
+    <string name="orbit_end_info">Луна обозначает завершение и переход к новому циклу. Она не предсказывает точный день начала следующих месячных.</string>
+    <string name="orbit_symbolic">Пять вех помогают понять цикл. Их положение условное: это не индивидуальные границы фаз.</string>
+    <string name="orbit_overdue">Цикл длиннее расчётного. Маркер сегодняшнего дня остаётся в конце пути: новый цикл не предполагается.</string>
+    <string name="orbit_focus_control">День для просмотра</string>
+    <string name="orbit_previous_day">Предыдущий день</string>
+    <string name="orbit_next_day">Следующий день</string>
+    <string name="orbit_focus_legend">Светлое кольцо — сегодня · персиковое — просматриваемый день</string>
+</resources>

@@ -1,0 +1,23 @@
+<resources>
+    <string name="orbit_open">Explore your cycle</string>
+    <string name="orbit_more">Explore</string>
+    <string name="orbit_title">Your cycle</string>
+    <string name="orbit_direction">Clockwise from the sun</string>
+    <string name="orbit_hint">Tap a landmark to learn about it</string>
+    <string name="orbit_scrub_hint">Move along the orbit to explore days. The slider also works.</string>
+    <string name="orbit_current_day">Today · cycle day %1$d</string>
+    <string name="orbit_focus_day">Exploring day %1$d</string>
+    <string name="orbit_start">Cycle start</string>
+    <string name="orbit_follicular">Follicular phase</string>
+    <string name="orbit_ovulation">Ovulation</string>
+    <string name="orbit_luteal">Luteal phase</string>
+    <string name="orbit_end">End / transition</string>
+    <string name="orbit_start_info">The sun anchors the start of the cycle. Day 1 is the first day of your period.</string>
+    <string name="orbit_end_info">The moon represents the ending and transition towards a new cycle. It does not predict the exact day your next period will start.</string>
+    <string name="orbit_symbolic">The five landmarks explain the cycle. Their positions are symbolic, not personal phase boundaries.</string>
+    <string name="orbit_overdue">Your cycle is longer than the estimate. Today’s marker stays at the end of the path; a new cycle has not been assumed.</string>
+    <string name="orbit_focus_control">Day to explore</string>
+    <string name="orbit_previous_day">Previous day</string>
+    <string name="orbit_next_day">Next day</string>
+    <string name="orbit_focus_legend">Ivory ring — today · peach ring — day being explored</string>
+</resources>

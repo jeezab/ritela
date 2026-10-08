@@ -57,7 +57,7 @@ fun CalendarAtmosphericHeader(onLegend: () -> Unit) {
             )
         }
         if (LocalDensity.current.fontScale <= 1.3f) {
-            CycleOrbitScene(
+            CalendarOrbitDecoration(
                 1,
                 0.3f,
                 true,

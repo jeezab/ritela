@@ -1,5 +1,6 @@
 package app.ritela.ui
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -55,6 +57,9 @@ fun ForecastCard(
     reducedMotion: Boolean = orbitReducedMotion()
 ) {
     var showInfo by rememberSaveable { mutableStateOf(false) }
+    var showOrbit by rememberSaveable { mutableStateOf(false) }
+    var selectedMarker by rememberSaveable { mutableStateOf<OrbitMarker?>(null) }
+    val orbit = orbitInteractionState(analysis, today)
     val next = analysis.forecasts.firstOrNull()
     val scene = cycleSceneState(analysis, today)
     val colors = HomeColors
@@ -66,7 +71,7 @@ fun ForecastCard(
             if (next != null && fontScale <= 1.5f) {
                 CycleOrbitScene(
                     analysis.cycleDay ?: 1,
-                    scene.progress,
+                    orbit.currentProgress,
                     reducedMotion,
                     OrbitColors(
                         HomeColors.text,
@@ -76,11 +81,30 @@ fun ForecastCard(
                     ),
                     Modifier.fillMaxWidth().height(
                         if (fontScale > 1.2f) HomeSpacing.compactOrbit else HomeSpacing.orbit
-                    )
+                    ),
+                    onMarker = { selectedMarker = it },
+                    onOpen = { showOrbit = true }
                 )
             }
+            if (next != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.orbit_direction),
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeColors.muted
+                    )
+                    TextButton(onClick = {
+                        showOrbit = true
+                    }, modifier = Modifier.testTag("orbit-open")) {
+                        Text(stringResource(R.string.orbit_more))
+                    }
+                }
+            }
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().pointerInput(next) {
+                    detectTapGestures(onTap = { if (next != null) showOrbit = true })
+                },
                 border = androidx.compose.foundation.BorderStroke(1.dp, HomeColors.border),
                 shape = MaterialTheme.shapes.extraLarge,
                 colors = CardDefaults.cardColors(containerColor = heroSurface)
@@ -224,6 +248,10 @@ fun ForecastCard(
             }
         )
     }
+    if (showOrbit && next != null) {
+        CycleOrbitDetail(analysis, today, reducedMotion) { showOrbit = false }
+    }
+    selectedMarker?.let { OrbitPhaseInfo(it) { selectedMarker = null } }
 }
 
 private fun phaseLabel(phase: EstimatedCyclePhase): Int = when (phase) {

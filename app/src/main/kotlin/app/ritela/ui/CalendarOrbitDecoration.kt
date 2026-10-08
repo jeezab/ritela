@@ -1,0 +1,236 @@
+package app.ritela.ui
+
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.dp
+import kotlin.math.min
+
+/** One analytic ellipse. All geometry and brushes are cached; animation only invalidates drawing. */
+@Composable
+fun CalendarOrbitDecoration(
+    cycleDay: Long,
+    progress: Float,
+    reducedMotion: Boolean,
+    colors: OrbitColors,
+    modifier: Modifier = Modifier
+) {
+    val breath =
+        orbitPulse(
+            reducedMotion,
+            0.93f,
+            1f,
+            RitelaMotion.ORBIT_HALF_BREATH_MILLIS,
+            "orbit breathing"
+        )
+    val currentPulse =
+        orbitPulse(
+            reducedMotion,
+            0.98f,
+            1.04f,
+            RitelaMotion.MARKER_HALF_BREATH_MILLIS,
+            "current point"
+        )
+    Canvas(
+        modifier.testTag("cycle-orbit-$cycleDay").clearAndSetSemantics {}.drawWithCache {
+            // Reserve space for the tilted ellipse and the largest halo at every width.
+            val unit = min(size.width / 300f, size.height / 220f)
+            val center = Offset(size.width / 2, size.height / 2)
+            val geometry = OrbitGeometry(center, 112f * unit, 96f * unit, 0f)
+            val orbitSize = Size(geometry.horizontalRadius * 2, geometry.verticalRadius * 2)
+            val orbitTopLeft = center - Offset(geometry.horizontalRadius, geometry.verticalRadius)
+            val stroke = Stroke(1.1.dp.toPx())
+            val sun = geometry.pointOnOrbit(CalendarOrbitLandmarks.START.angleDegrees)
+            val follicular = geometry.pointOnOrbit(CalendarOrbitLandmarks.FOLLICULAR.angleDegrees)
+            val ovulation = geometry.pointOnOrbit(CalendarOrbitLandmarks.OVULATION.angleDegrees)
+            val luteal = geometry.pointOnOrbit(CalendarOrbitLandmarks.LUTEAL.angleDegrees)
+            val moon = geometry.pointOnOrbit(CalendarOrbitLandmarks.END.angleDegrees)
+            val active = geometry.pointOnOrbit((210f + 360f * progress.coerceIn(0f, 1f)))
+            fun halo(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
+                listOf(color.copy(alpha = 0.65f), color.copy(alpha = 0.19f), Color.Transparent),
+                point,
+                radius * unit
+            )
+            val sunHalo = halo(colors.peach, sun, 24f)
+            val focusSun = center + Offset(-5f * unit, -76f * unit)
+            val focusHalo = halo(colors.peach, focusSun, 38f)
+            val innerOrbit =
+                OrbitGeometry(center + Offset(0f, -7f * unit), 105f * unit, 62f * unit, -25f)
+            val pearl = androidx.compose.ui.graphics.lerp(colors.peach, Color(0xFFFFF4E5), 0.65f)
+            val moonColor = androidx.compose.ui.graphics.lerp(
+                colors.ink,
+                colors.surface,
+                if (colors.surface.luminance() < 0.4f) 0.25f else 0.65f
+            )
+            val ovulationHalo = halo(colors.rose, ovulation, 24f)
+            val activeHalo = halo(colors.rose, active, 16f)
+            val mist = Brush.radialGradient(
+                listOf(colors.rose.copy(alpha = 0.07f), Color.Transparent),
+                center,
+                85f * unit
+            )
+            fun planet(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
+                listOf(androidx.compose.ui.graphics.lerp(color, Color.White, 0.4f), color),
+                point - Offset(radius * unit * 0.3f, radius * unit * 0.4f),
+                radius * unit * 1.5f
+            )
+            val sunBody = planet(colors.peach, sun, 6.5f)
+            val pearlBody = planet(pearl, ovulation, 8.5f)
+            // A true vector crescent: its transparent cutout preserves the underlying ellipse.
+            val moonRadius = 15f * unit
+            val moonDisc = Path().apply {
+                addOval(
+                    androidx.compose.ui.geometry.Rect(
+                        moon - Offset(moonRadius, moonRadius),
+                        Size(moonRadius * 2, moonRadius * 2)
+                    )
+                )
+            }
+            val cutoutCenter = moon + Offset(8f * unit, -4.8f * unit)
+            val moonCutout = Path().apply {
+                addOval(
+                    androidx.compose.ui.geometry.Rect(
+                        cutoutCenter - Offset(moonRadius, moonRadius),
+                        Size(
+                            moonRadius * 2,
+                            moonRadius * 2
+                        )
+                    )
+                )
+            }
+            val crescent = Path.combine(PathOperation.Difference, moonDisc, moonCutout)
+            val leaves = (0..2).map { index ->
+                val origin =
+                    center + Offset((-95f + index * 15f) * unit, (55f + index * 15f) * unit)
+                Path().apply {
+                    moveTo(origin.x, origin.y)
+                    quadraticTo(
+                        origin.x + 3f * unit,
+                        origin.y - 23f * unit,
+                        origin.x + 28f * unit,
+                        origin.y - 35f * unit
+                    )
+                    quadraticTo(
+                        origin.x + 16f * unit,
+                        origin.y - 10f * unit,
+                        origin.x + 12f * unit,
+                        origin.y + 5f * unit
+                    )
+                    close()
+                }
+            }
+            onDrawBehind {
+                val light = breath.value
+                drawCircle(mist, 85f * unit, center)
+                rotate(geometry.tiltDegrees, center) {
+                    drawOval(
+                        colors.rose.copy(alpha = 0.75f * light),
+                        orbitTopLeft,
+                        orbitSize,
+                        style = stroke
+                    )
+                }
+                rotate(innerOrbit.tiltDegrees, innerOrbit.center) {
+                    drawOval(
+                        colors.rose.copy(alpha = 0.4f * light),
+                        innerOrbit.center -
+                            Offset(innerOrbit.horizontalRadius, innerOrbit.verticalRadius),
+                        Size(innerOrbit.horizontalRadius * 2, innerOrbit.verticalRadius * 2),
+                        style = Stroke(0.8.dp.toPx())
+                    )
+                }
+                drawCircle(focusHalo, 38f * unit, focusSun, alpha = light)
+                drawCircle(colors.peach, 14f * unit, focusSun)
+                drawCircle(sunHalo, 24f * unit, sun, alpha = light)
+                drawCircle(sunBody, 6.5f * unit, sun)
+                drawCircle(colors.surface, 4.2f * unit, follicular)
+                drawCircle(
+                    colors.rose.copy(alpha = 0.55f),
+                    4.2f * unit,
+                    follicular,
+                    style = Stroke(0.8.dp.toPx())
+                )
+                drawCircle(ovulationHalo, 24f * unit, ovulation, alpha = light)
+                drawCircle(pearlBody, 8.5f * unit, ovulation)
+                drawCircle(
+                    colors.rose.copy(alpha = 0.30f),
+                    8.5f * unit,
+                    ovulation,
+                    style = Stroke(0.7.dp.toPx())
+                )
+                drawCircle(colors.rose.copy(alpha = 0.65f), 4.5f * unit, luteal)
+                drawPath(crescent, moonColor)
+                // Three abstract leaves; decoration carries no health information.
+                for (leaf in leaves) drawPath(leaf, colors.rose.copy(alpha = 0.6f))
+                drawCircle(
+                    colors.peach.copy(alpha = 0.65f),
+                    1.2f * unit,
+                    center + Offset(80f * unit, (-65f + currentPulse.value * 2f) * unit)
+                )
+                drawCircle(
+                    colors.rose.copy(alpha = 0.6f),
+                    1f * unit,
+                    center + Offset(-65f * unit, -82f * unit)
+                )
+                val scale = currentPulse.value
+                drawCircle(activeHalo, 16f * unit * scale, active)
+                drawCircle(colors.surface, 6f * unit * scale, active)
+                drawCircle(
+                    colors.rose.copy(alpha = 0.8f),
+                    6f * unit * scale,
+                    active,
+                    style = stroke
+                )
+                drawCircle(colors.ink.copy(alpha = 0.8f), 2.4f * unit, active)
+            }
+        }
+    ) {}
+}
+
+@Composable
+private fun orbitPulse(
+    reducedMotion: Boolean,
+    from: Float,
+    to: Float,
+    halfPeriod: Int,
+    label: String
+): State<Float> {
+    if (reducedMotion) return rememberUpdatedState(1f)
+    return rememberInfiniteTransition(label = label).animateFloat(
+        initialValue = from,
+        targetValue = to,
+        animationSpec = infiniteRepeatable(
+            tween(halfPeriod, easing = FastOutSlowInEasing),
+            RepeatMode.Reverse
+        ),
+        label = label
+    )
+}
+
+private enum class CalendarOrbitLandmarks(val angleDegrees: Float) {
+    START(210f),
+    FOLLICULAR(255f),
+    OVULATION(320f),
+    LUTEAL(390f),
+    END(430f)
+}

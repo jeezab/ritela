@@ -1,5 +1,7 @@
 # Карта проекта
 
+Home orbit 2026-10-08: `ui/OrbitGeometry.kt` — один замкнутый Path, позиции по длине и обратная проекция жеста; `OrbitMarker` — пять символических вех. `ui/OrbitInteractionState.kt` — текущий день/фокус/дата/существующая оценка фазы, без записи данных. `ui/CycleOrbitScene.kt` — общий Canvas компактного и подробного режима; `ui/CycleOrbitDetail.kt` — read-only подробности, drag, slider, доступные кнопки и справка. `orbit_strings.xml` EN/RU; OrbitGeometryTest/OrbitInteractionStateTest и целевые HomeScreenTest проверяют геометрию, даты, взаимодействия и 200%. `ui/CalendarOrbitDecoration.kt` сохраняет прежний независимый рисунок Calendar; новый Home его не изменяет. Старые записи о drawOval/OrbitPhaseMarkers ниже относятся к прежней реализации.
+
 Начало сессии: `STATUS.md` → `scripts/resume.ps1` → текущие файлы задачи. Не загружай полный промпт каждый раз.
 
 | Путь | Назначение |
