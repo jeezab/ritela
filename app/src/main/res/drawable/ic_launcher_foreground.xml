@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fit the artwork into the central 72/108 area; launcher masks may trim corners. -->
+<!-- Slightly overscan the visible 72/108 area so the artwork's transparent rim
+     stays outside launcher masks. Keep the bird and orbit near their original size. -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:inset="16.6667%">
+    android:inset="10%">
     <bitmap
         android:src="@drawable/launcher_art"
         android:gravity="fill"
