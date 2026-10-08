@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -32,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,6 +44,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -53,7 +52,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import app.ritela.R
 import app.ritela.domain.CalendarDayInfo
@@ -93,44 +91,35 @@ private fun CalendarContent(
     onLogDay: (LocalDate) -> Unit
 ) {
     val base = remember { YearMonth.from(state.today) }
-    var monthStream by rememberSaveable { mutableStateOf(false) }
-    var monthIndex by rememberSaveable { mutableIntStateOf(1200) }
-    val historyList = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
-    val singleMonthList = rememberLazyListState()
-    val list = if (monthStream) historyList else singleMonthList
+    val list = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
     val scope = rememberCoroutineScope()
     var selectedDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var choosingMonth by rememberSaveable { mutableStateOf(false) }
     var historyOpen by rememberSaveable { mutableStateOf(false) }
     var legendOpen by rememberSaveable { mutableStateOf(false) }
-    val streamIndex by remember { derivedStateOf { historyList.firstVisibleItemIndex } }
-    val visibleIndex = if (monthStream) streamIndex else monthIndex
+    val visibleIndex by remember { derivedStateOf { list.firstVisibleItemIndex } }
     val month = base.plusMonths((visibleIndex - 1200).toLong())
     val cellHeight = maxOf(56.dp, (40 * LocalDensity.current.fontScale).dp)
     fun showMonth(index: Int) {
-        monthIndex = index.coerceIn(0, 2400)
-        scope.launch {
-            if (monthStream) {
-                historyList.scrollToItem(
-                    monthIndex
-                )
-            } else {
-                singleMonthList.scrollToItem(0)
-            }
-        }
+        scope.launch { list.scrollToItem(index.coerceIn(0, 2400)) }
     }
     Column(
         Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
             .padding(horizontal = HomeSpacing.gutter)
     ) {
         CalendarAtmosphericHeader { legendOpen = true }
-        MonthHeader(
-            month,
-            { showMonth(visibleIndex - 1) },
-            { showMonth(visibleIndex + 1) },
-            { choosingMonth = true },
-            atmospheric = true
-        )
+        TextButton(
+            onClick = { choosingMonth = true },
+            modifier = Modifier.fillMaxWidth().testTag("month-selector")
+        ) {
+            Text(
+                month.format(
+                    DateTimeFormatter.ofPattern("LLLL yyyy", LocalConfiguration.current.locales[0])
+                ),
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -156,53 +145,27 @@ private fun CalendarContent(
                     Text(stringResource(R.string.history_short))
                 }
             }
-            androidx.compose.material3.IconButton(
-                onClick = {
-                    monthIndex = visibleIndex
-                    monthStream = !monthStream
-                    if (monthStream) scope.launch { historyList.scrollToItem(monthIndex) }
-                },
-                modifier = Modifier.testTag("calendar-mode")
-            ) {
-                Icon(
-                    painterResource(R.drawable.ic_calendar),
-                    stringResource(
-                        if (monthStream) {
-                            R.string.calendar_single_month
-                        } else {
-                            R.string.calendar_month_stream
-                        }
-                    ),
-                    tint = if (monthStream) HomeColors.peach else HomeColors.muted
-                )
-            }
         }
         LazyColumn(
             state = list,
             modifier = Modifier.weight(1f).fillMaxWidth().testTag("month-grid")
         ) {
-            items(if (monthStream) 2401 else 1, key = {
-                if (monthStream) it else monthIndex
-            }) { index ->
-                val displayed = base.plusMonths(
-                    ((if (monthStream) index else monthIndex) - 1200).toLong()
-                )
+            items(2401, key = { it }) { index ->
+                val displayed = base.plusMonths((index - 1200).toLong())
                 Column(Modifier.testTag("calendar-month-$displayed")) {
-                    if (monthStream) {
-                        Text(
-                            displayed.format(
-                                DateTimeFormatter.ofPattern(
-                                    "LLLL yyyy",
-                                    LocalConfiguration.current.locales[0]
-                                )
-                            ),
-                            Modifier.padding(
-                                horizontal = Spacing.medium,
-                                vertical = Spacing.medium
-                            ),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
+                    Text(
+                        displayed.format(
+                            DateTimeFormatter.ofPattern(
+                                "LLLL yyyy",
+                                LocalConfiguration.current.locales[0]
+                            )
+                        ),
+                        Modifier.padding(
+                            horizontal = Spacing.medium,
+                            vertical = Spacing.medium
+                        ),
+                        style = MaterialTheme.typography.titleMedium
+                    )
                     MonthGrid(
                         displayed,
                         state.today,
@@ -234,7 +197,7 @@ private fun CalendarContent(
                         },
                         onDay = { selectedDay = it.toEpochDay() }
                     )
-                    if (!monthStream) CalendarSummaries(state)
+                    if (index == 1200) CalendarSummaries(state)
                 }
             }
         }
@@ -496,20 +459,17 @@ fun MonthHeader(
     month: YearMonth,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onChoose: () -> Unit,
-    atmospheric: Boolean = false
+    onChoose: () -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = if (atmospheric) 0.dp else Spacing.small),
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.small),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val previous = stringResource(R.string.previous_month)
         val next = stringResource(R.string.next_month)
         TextButton(
             onClick = onPrevious,
-            modifier = Modifier.then(
-                if (atmospheric) Modifier.size(48.dp) else Modifier
-            ).testTag("previous-month").semantics {
+            modifier = Modifier.testTag("previous-month").semantics {
                 contentDescription =
                     previous
             }
@@ -517,29 +477,15 @@ fun MonthHeader(
         TextButton(onClick = onChoose, modifier = Modifier.weight(1f).testTag("month-selector")) {
             Text(
                 month.format(
-                    DateTimeFormatter.ofPattern(
-                        if (atmospheric && LocalDensity.current.fontScale > 1.3f) {
-                            "LLLL\nyyyy"
-                        } else {
-                            "LLLL yyyy"
-                        },
-                        LocalConfiguration.current.locales[0]
-                    )
+                    DateTimeFormatter.ofPattern("LLLL yyyy", LocalConfiguration.current.locales[0])
                 ),
-                style = if (atmospheric) {
-                    MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp)
-                } else {
-                    MaterialTheme.typography.titleLarge
-                },
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                style = MaterialTheme.typography.titleLarge
             )
-            if (!atmospheric) Text(" ▾")
+            Text(" ▾")
         }
         TextButton(
             onClick = onNext,
-            modifier = Modifier.then(
-                if (atmospheric) Modifier.size(48.dp) else Modifier
-            ).testTag("next-month").semantics {
+            modifier = Modifier.testTag("next-month").semantics {
                 contentDescription =
                     next
             }
@@ -575,10 +521,17 @@ fun MonthGrid(
             for (weekday in DayOfWeek.entries) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Text(
-                        weekday.getDisplayName(
-                            if (compact) TextStyle.NARROW else TextStyle.SHORT,
-                            locale
-                        ),
+                        if (atmospheric) {
+                            stringArrayResource(R.array.calendar_weekdays)[weekday.ordinal]
+                        } else {
+                            weekday.getDisplayName(
+                                if (compact) TextStyle.NARROW else TextStyle.SHORT,
+                                locale
+                            )
+                        },
+                        modifier = Modifier.semantics {
+                            contentDescription = weekday.getDisplayName(TextStyle.FULL, locale)
+                        },
                         style = MaterialTheme.typography.labelMedium
                     )
                 }

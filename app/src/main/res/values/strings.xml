@@ -1,6 +1,4 @@
 <resources>
-    <string name="calendar_single_month">Show one month</string>
-    <string name="calendar_month_stream">Browse months</string>
     <string name="app_name">Ritela</string>
     <string name="home_title">Today</string>
     <string name="empty_title">Start with a date</string>

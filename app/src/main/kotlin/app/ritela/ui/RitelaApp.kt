@@ -78,11 +78,7 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     }
     RitelaTheme(darkTheme = darkTheme) {
         Scaffold(bottomBar = {
-            if (page <= 1) {
-                HomeTheme { AppNavigation(page) { page = it } }
-            } else {
-                AppNavigation(page) { page = it }
-            }
+            HomeTheme { AppNavigation(page) { page = it } }
         }) { contentPadding ->
             if (page == 2) {
                 SettingsScreen(contentPadding, state, model::setTheme) { duration ->

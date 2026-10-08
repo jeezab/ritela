@@ -3,6 +3,7 @@ package app.ritela.ui
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,7 +18,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import app.ritela.R
 import app.ritela.data.ThemeMode
@@ -47,6 +48,16 @@ fun SettingsScreen(
     onThemeChange: (ThemeMode) -> Unit,
     onDurationChange: (Int) -> Unit = {}
 ) {
+    HomeTheme { SettingsContent(padding, state, onThemeChange, onDurationChange) }
+}
+
+@Composable
+private fun SettingsContent(
+    padding: PaddingValues,
+    state: PeriodUiState,
+    onThemeChange: (ThemeMode) -> Unit,
+    onDurationChange: (Int) -> Unit
+) {
     val context = LocalContext.current
     var choosingTheme by rememberSaveable { mutableStateOf(false) }
     var choosingDuration by rememberSaveable { mutableStateOf(false) }
@@ -54,73 +65,75 @@ fun SettingsScreen(
         mutableStateOf(state.defaults.periodDuration.toString())
     }
     Column(
-        Modifier.fillMaxSize().padding(padding)
-            .verticalScroll(rememberScrollState()).padding(Spacing.large),
-        verticalArrangement = Arrangement.spacedBy(Spacing.large)
+        Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
+            .verticalScroll(rememberScrollState()).padding(HomeSpacing.gutter),
+        verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
     ) {
         Text(
-            stringResource(R.string.settings_title),
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.testTag("settings-heading")
+            stringResource(R.string.app_name),
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 32.sp)
         )
         Text(
-            stringResource(R.string.appearance_title),
-            style = MaterialTheme.typography.titleMedium
+            stringResource(R.string.settings_title),
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.testTag("settings-heading")
         )
-        HorizontalDivider()
-        TextButton(onClick = {
-            val intent = if (Build.VERSION.SDK_INT >= 33) {
-                Intent(
-                    Settings.ACTION_APP_LOCALE_SETTINGS,
-                    "package:${context.packageName}".toUri()
-                )
-            } else {
-                Intent(Settings.ACTION_LOCALE_SETTINGS)
-            }
-            context.startActivity(intent)
-        }, modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.language_title), Modifier.weight(1f))
-                Text(
-                    LocalConfiguration.current.locales[0].getDisplayLanguage(
-                        LocalConfiguration.current.locales[0]
-                    ) +
-                        "  \u203a"
-                )
-            }
-        }
-        TextButton(onClick = {
-            choosingTheme = true
-        }, modifier = Modifier.fillMaxWidth().testTag("theme-selector")) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.theme_title), Modifier.weight(1f))
-                Text(
-                    stringResource(
-                        when (state.themeMode) {
-                            ThemeMode.SYSTEM -> R.string.theme_system
-                            ThemeMode.LIGHT -> R.string.theme_light
-                            ThemeMode.DARK -> R.string.theme_dark
-                        }
-                    ) + "  \u203a"
-                )
-            }
-        }
-        HorizontalDivider()
-        state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
-        TextButton(
-            onClick = { choosingDuration = true },
-            modifier = Modifier.fillMaxWidth()
-                .testTag("forecast-duration")
-        ) {
+        SettingsGroup {
             Text(
+                stringResource(R.string.appearance_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = HomeColors.muted
+            )
+            SettingsRow(
+                stringResource(R.string.language_title),
+                R.drawable.ic_note,
+                value = LocalConfiguration.current.locales[0].getDisplayLanguage(
+                    LocalConfiguration.current.locales[0]
+                )
+            ) {
+                val intent = if (Build.VERSION.SDK_INT >= 33) {
+                    Intent(
+                        Settings.ACTION_APP_LOCALE_SETTINGS,
+                        "package:${context.packageName}".toUri()
+                    )
+                } else {
+                    Intent(Settings.ACTION_LOCALE_SETTINGS)
+                }
+                context.startActivity(intent)
+            }
+            SettingsRow(
+                stringResource(R.string.theme_title),
+                R.drawable.ic_star,
+                modifier = Modifier.testTag("theme-selector"),
+                value = stringResource(
+                    when (state.themeMode) {
+                        ThemeMode.SYSTEM -> R.string.theme_system
+                        ThemeMode.LIGHT -> R.string.theme_light
+                        ThemeMode.DARK -> R.string.theme_dark
+                    }
+                ),
+                enabled = !state.saving
+            ) { choosingTheme = true }
+        }
+        state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
+        SettingsGroup {
+            SettingsRow(
                 pluralStringResource(
                     R.plurals.forecast_duration_value,
                     state.defaults.periodDuration,
                     state.defaults.periodDuration
-                )
-            )
+                ),
+                R.drawable.ic_calendar,
+                modifier = Modifier.testTag("forecast-duration"),
+                enabled = !state.saving
+            ) { choosingDuration = true }
         }
-        BackupActions()
+        SettingsGroup { BackupActions() }
+        Text(
+            stringResource(R.string.privacy_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = HomeColors.muted
+        )
     }
     if (choosingDuration) {
         androidx.compose.ui.window.Dialog(
