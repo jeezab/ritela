@@ -138,7 +138,12 @@ fun HomeInsightTiles(analysis: CycleAnalysis) {
                     Text(
                         value,
                         style = MaterialTheme.typography.labelSmall,
-                        color = HomeColors.muted
+                        color = HomeColors.muted,
+                        modifier = if (label == R.string.home_duration_tile) {
+                            Modifier.testTag("expected-period-duration")
+                        } else {
+                            Modifier
+                        }
                     )
                 }
             }

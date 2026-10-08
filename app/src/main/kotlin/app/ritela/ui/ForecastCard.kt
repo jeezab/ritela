@@ -263,6 +263,7 @@ fun PredictionMethodInfo(analysis: CycleAnalysis, onDismiss: () -> Unit) {
                     )
                 }
                 Text(stringResource(R.string.prediction_method_info))
+                Text(stringResource(R.string.selected_day_fertility_guide))
                 Text(stringResource(R.string.hero_orbit_info))
             }
         },

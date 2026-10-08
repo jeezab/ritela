@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -57,10 +60,10 @@ import androidx.compose.ui.unit.dp
 import app.ritela.R
 import app.ritela.domain.CalendarDayInfo
 import app.ritela.domain.CalendarDayKind
-import app.ritela.domain.CervicalMucus
 import app.ritela.domain.Period
-import app.ritela.domain.calendarDay
-import app.ritela.domain.fertilityWindows
+import app.ritela.domain.calendarDisplayDay
+import app.ritela.domain.calendarSelection
+import app.ritela.domain.compactFertilityWindows
 import app.ritela.domain.journalSelections
 import app.ritela.domain.monthDays
 import java.time.DayOfWeek
@@ -92,6 +95,9 @@ private fun CalendarContent(
     onLogDay: (LocalDate) -> Unit
 ) {
     val base = remember { YearMonth.from(state.today) }
+    val compactWindows = remember(state.periods, state.analysis) {
+        compactFertilityWindows(state.periods, state.analysis)
+    }
     val list = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
     val scope = rememberCoroutineScope()
     var selectedDay by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -182,7 +188,15 @@ private fun CalendarContent(
                             .padding(vertical = 8.dp),
                         cellHeight = cellHeight,
                         atmospheric = true,
-                        info = { calendarDay(state.periods, state.analysis, it, state.today) },
+                        info = {
+                            calendarDisplayDay(
+                                state.periods,
+                                state.analysis,
+                                it,
+                                state.today,
+                                compactWindows
+                            )
+                        },
                         hasLog = { day -> state.dayLogs.any { it.date == day } },
                         logIcon = { day ->
                             val log = state.dayLogs.firstOrNull { it.date == day }
@@ -324,21 +338,38 @@ private fun CalendarDayDetails(
     onDelete: (Period) -> Unit,
     onLogDay: (LocalDate) -> Unit
 ) {
-    val selection = calendarDay(state.periods, state.analysis, date, state.today)
+    val selection = remember(date, state.periods, state.analysis, state.today) {
+        calendarSelection(state.periods, state.analysis, date, state.today)
+    }
+    val resources = androidx.compose.ui.platform.LocalResources.current
+    val locale = LocalConfiguration.current.locales[0]
+    val formatter =
+        remember(resources, locale) { CalendarDayFormatter(resources, locale) }
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
     val scope = rememberCoroutineScope()
     var headerDrag by remember { mutableFloatStateOf(0f) }
+    var rangesOpen by rememberSaveable(date) { mutableStateOf(false) }
     val dismissDistance = with(LocalDensity.current) { 32.dp.toPx() }
+    val density = LocalDensity.current
+    val safeInsets = WindowInsets.safeDrawing.union(WindowInsets.ime)
+    val availableHeight = (
+        androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.height -
+            safeInsets.getTop(density) - safeInsets.getBottom(density)
+        ).coerceAtLeast(0)
+    val maximumHeight = with(density) { availableHeight.toDp() } * 0.92f
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetGesturesEnabled = false,
         dragHandle = null,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = HomeColors.bottom,
+        contentColor = HomeColors.text,
+        contentWindowInsets = { safeInsets }
     ) {
         Column(
-            Modifier.fillMaxWidth().fillMaxHeight(0.9f)
+            Modifier.fillMaxWidth().heightIn(max = maximumHeight)
                 .graphicsLayer { translationY = headerDrag }.testTag("day-details-frame")
         ) {
             Row(
@@ -362,13 +393,13 @@ private fun CalendarDayDetails(
                                 }
                             }
                         )
-                    }.padding(horizontal = Spacing.large),
+                    }.padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    formattedDate(date),
+                    formatter.date(date),
                     Modifier.weight(1f),
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.titleLarge
                 )
                 androidx.compose.material3.IconButton(
                     onClick = onDismiss,
@@ -378,89 +409,113 @@ private fun CalendarDayDetails(
                 }
             }
             Column(
-                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                    .padding(Spacing.large).testTag("day-details"),
-                verticalArrangement = Arrangement.spacedBy(Spacing.medium)
+                Modifier.weight(
+                    1f,
+                    fill = false
+                ).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp).testTag("day-details"),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (selection.kind != CalendarDayKind.NONE) Text(dayKindText(selection.kind))
-                selection.period?.let { period ->
-                    Text(periodDates(period))
-                    if (period.end == null) Text(stringResource(R.string.ongoing))
-                    Row {
+                Text(
+                    formatter.status(selection.day.kind),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.testTag("selected-day-status"),
+                    color = HomeColors.peach
+                )
+                formatter.cycle(selection)?.let { Text(it, color = HomeColors.muted) }
+                selection.day.period?.let {
+                    Text(
+                        formatter.period(it),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeColors.muted
+                    )
+                }
+                selection.day.forecast?.let {
+                    Text(
+                        formatter.expected(it),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeColors.muted
+                    )
+                }
+                if (selection.possibleWindow != null) {
+                    TextButton(onClick = {
+                        rangesOpen = !rangesOpen
+                    }, Modifier.testTag("day-ranges-toggle")) {
+                        Text(stringResource(R.string.selected_day_ranges))
+                        Text(if (rangesOpen) " ▴" else " ▾")
+                    }
+                    androidx.compose.animation.AnimatedVisibility(rangesOpen) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            formatter.uncertainty(selection).forEachIndexed { index, line ->
+                                Text(
+                                    line,
+                                    Modifier.testTag(
+                                        if (index ==
+                                            0
+                                        ) {
+                                            "fertility-window-range"
+                                        } else {
+                                            "ovulation-window-range"
+                                        }
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = HomeColors.muted
+                                )
+                            }
+                        }
+                    }
+                }
+                if (selection.mucusSignal) {
+                    Text(
+                        stringResource(R.string.mucus_fertility_signal),
+                        Modifier.testTag("mucus-fertility-signal"),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                val log = state.dayLogs.firstOrNull { it.date == date }
+                if (date <= state.today || log != null) {
+                    CalendarDayRecords(
+                        log,
+                        state.journalLayout,
+                        { onLogDay(date) },
+                        editable = date <= state.today && !state.loading && !state.saving
+                    )
+                }
+                selection.day.period?.let { period ->
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         TextButton(
                             onClick = { onEdit(period) },
                             enabled = !state.saving,
                             modifier = Modifier.testTag("edit-period-${period.id}")
                         ) {
-                            Text(stringResource(R.string.edit))
+                            Text(stringResource(R.string.edit_period))
                         }
                         TextButton(
                             onClick = { onDelete(period) },
                             enabled = !state.saving,
                             modifier = Modifier.testTag("delete-period-${period.id}")
                         ) {
-                            Text(stringResource(R.string.delete))
+                            Text(stringResource(R.string.selected_day_delete_period))
                         }
                     }
                 } ?: run {
-                    selection.forecast?.let {
-                        Text(
-                            stringResource(
-                                R.string.forecast_range,
-                                formattedDate(it.lowerBound),
-                                formattedDate(it.upperBound)
+                    if (date <=
+                        state.today
+                    ) {
+                        TextButton(
+                            onClick = { onAdd(date) },
+                            enabled =
+                                !state.loading && !state.saving
+                        ) {
+                            Icon(painterResource(R.drawable.ic_drop), null)
+                            Text(
+                                stringResource(R.string.add_period),
+                                Modifier.padding(start = 8.dp)
                             )
-                        )
-                    }
-                    if (date <= state.today) {
-                        Button(onClick = {
-                            onAdd(date)
-                        }, enabled = !state.loading && !state.saving) {
-                            Text(stringResource(R.string.add_period))
                         }
                     }
-                }
-                val window = fertilityWindows(state.periods, state.analysis)
-                    .filter { date in it.possible }
-                    .minByOrNull {
-                        kotlin.math.abs(it.ovulation.centralDate.toEpochDay() - date.toEpochDay())
-                    }
-                window?.let {
-                    Text(
-                        stringResource(R.string.fertile_estimate),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        stringResource(
-                            R.string.likely_dates,
-                            formattedDate(it.possible.start),
-                            formattedDate(it.possible.endInclusive)
-                        ),
-                        Modifier.testTag("fertility-window-range")
-                    )
-                    Text(
-                        stringResource(
-                            R.string.ovulation_dates,
-                            formattedDate(it.ovulation.earliest),
-                            formattedDate(it.ovulation.latest)
-                        )
-                    )
-                }
-                if (state.analysis.mucusObservations[date] in
-                    setOf(CervicalMucus.WATERY, CervicalMucus.CLEAR_STRETCHY)
-                ) {
-                    Text(
-                        stringResource(R.string.mucus_fertility_signal),
-                        Modifier.testTag("mucus-fertility-signal")
-                    )
-                }
-                if (date <= state.today) {
-                    DaySummary(
-                        state.dayLogs.firstOrNull { it.date == date },
-                        { onLogDay(date) },
-                        !state.loading && !state.saving,
-                        layout = state.journalLayout
-                    )
                 }
                 TextButton(onClick = onDismiss, modifier = Modifier.testTag("day-details-close")) {
                     Text(stringResource(R.string.done))
@@ -597,6 +652,12 @@ fun MonthGrid(
                                         CalendarColors.period
                                     }
 
+                                detail.kind == CalendarDayKind.OVULATION_ESTIMATE ->
+                                    CalendarDesign.ovulation
+
+                                detail.kind == CalendarDayKind.FERTILE_LIKELY ->
+                                    CalendarDesign.fertile
+
                                 estimatedBleeding ->
                                     if (atmospheric) {
                                         CalendarDesign.estimatedPeriod
@@ -612,7 +673,10 @@ fun MonthGrid(
                             },
                             contentColor = if (inRange || detail.kind == CalendarDayKind.OBSERVED) {
                                 CalendarColors.ink
-                            } else if (estimatedBleeding) {
+                            } else if (estimatedBleeding ||
+                                detail.kind == CalendarDayKind.OVULATION_ESTIMATE ||
+                                detail.kind == CalendarDayKind.FERTILE_LIKELY
+                            ) {
                                 CalendarColors.ink
                             } else {
                                 MaterialTheme.colorScheme.onSurface
@@ -633,7 +697,9 @@ fun MonthGrid(
                                     }
                                 )
                             } else {
-                                if (detail.kind == CalendarDayKind.PREDICTED) {
+                                if (detail.kind == CalendarDayKind.FERTILE_LIKELY) {
+                                    BorderStroke(1.dp, CalendarDesign.fertileAccent)
+                                } else if (detail.kind == CalendarDayKind.PREDICTED) {
                                     BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
                                 } else {
                                     null
@@ -791,16 +857,7 @@ fun MonthYearPicker(
 }
 
 @Composable
-private fun dayKindText(kind: CalendarDayKind): String = stringResource(
-    when (kind) {
-        CalendarDayKind.OBSERVED -> R.string.calendar_observed
-        CalendarDayKind.PREDICTED -> R.string.calendar_predicted
-        CalendarDayKind.UNCERTAIN -> R.string.calendar_uncertain
-        CalendarDayKind.APPROXIMATE -> R.string.calendar_approximate
-        CalendarDayKind.ESTIMATED_PERIOD -> R.string.calendar_estimated_period
-        CalendarDayKind.NONE -> R.string.calendar_empty
-        CalendarDayKind.FERTILE_LIKELY -> R.string.fertile_likely
-        CalendarDayKind.FERTILE_ESTIMATE -> R.string.fertile_estimate
-        CalendarDayKind.OVULATION_ESTIMATE -> R.string.ovulation_estimate
-    }
-)
+private fun dayKindText(kind: CalendarDayKind): String = CalendarDayFormatter(
+    androidx.compose.ui.platform.LocalResources.current,
+    LocalConfiguration.current.locales[0]
+).status(kind)

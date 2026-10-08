@@ -45,7 +45,6 @@
     <string name="days_range">%1$d–%2$d дн.</string>
     <string name="chart_empty">Отметьте два начала месячных — появится первая длина цикла.</string>
     <string name="chart_values">Длина циклов в днях: %s</string>
-    <string name="period_chart">Ожидаемая продолжительность месячных</string>
     <string name="calendar_history">История записей</string>
     <string name="day_has_log">Есть отметки дня</string>
     <string name="help_title">Для вас</string>

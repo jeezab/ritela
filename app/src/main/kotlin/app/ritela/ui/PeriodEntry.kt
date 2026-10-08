@@ -38,11 +38,10 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 @Composable
-fun formattedDate(date: LocalDate): String = date.format(
-    DateTimeFormatter.ofLocalizedDate(
-        FormatStyle.MEDIUM
-    ).withLocale(LocalConfiguration.current.locales[0])
-)
+fun formattedDate(date: LocalDate): String = CalendarDayFormatter(
+    androidx.compose.ui.platform.LocalResources.current,
+    LocalConfiguration.current.locales[0]
+).date(date)
 
 @Composable
 fun problemText(problem: PeriodProblem): String = stringResource(

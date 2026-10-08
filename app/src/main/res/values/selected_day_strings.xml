@@ -1,0 +1,15 @@
+<resources>
+    <string name="selected_day_period">Period</string>
+    <string name="selected_day_expected">Expected period</string>
+    <string name="selected_day_fertile">Fertile period</string>
+    <string name="selected_day_ordinary">Ordinary day</string>
+    <string name="selected_day_since">Since %s</string>
+    <string name="selected_day_start_range">Expected start: %s</string>
+    <string name="selected_day_possible_range">Possible fertile range: %s</string>
+    <string name="selected_day_records">Day records</string>
+    <string name="selected_day_no_records">No records yet</string>
+    <string name="selected_day_ranges">Possible dates</string>
+    <string name="selected_day_fertility_guide">The green days are a compact guide around the estimated date, not the full possible fertile range. Unhighlighted days are not guaranteed safe.</string>
+    <string name="selected_day_add_record">Add</string>
+    <string name="selected_day_delete_period">Delete period</string>
+</resources>

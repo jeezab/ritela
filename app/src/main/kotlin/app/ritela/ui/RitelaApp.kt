@@ -366,8 +366,7 @@ fun HomeScreen(
                 state.periods,
                 today,
                 state.dayLogs,
-                onLogDay,
-                state.analysis.periodDuration
+                onLogDay
             )
             HelpCards(state.dayLogs.firstOrNull { it.date == today }, state.analysis, today)
             Text(
@@ -430,9 +429,10 @@ fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
 }
 
 @Composable
-fun periodDates(period: Period): String = period.end?.let {
-    stringResource(R.string.period_range, formattedDate(period.start), formattedDate(it))
-} ?: formattedDate(period.start)
+fun periodDates(period: Period): String = CalendarDayFormatter(
+    androidx.compose.ui.platform.LocalResources.current,
+    androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+).period(period)
 
 @Preview(
     name = "Empty · light",

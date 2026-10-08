@@ -126,6 +126,74 @@ fun DaySummary(
 }
 
 @Composable
+fun CalendarDayRecords(
+    log: DayLog?,
+    layout: app.ritela.domain.JournalLayout,
+    onEdit: () -> Unit,
+    editable: Boolean
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.selected_day_records),
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall
+            )
+            log?.calendarIcon?.let { Icon(painterResource(journalIcon(it)), null) }
+            if (editable) {
+                TextButton(onClick = onEdit, modifier = Modifier.testTag("log-day")) {
+                    Text(
+                        stringResource(
+                            if (log == null ||
+                                log.empty
+                            ) {
+                                R.string.selected_day_add_record
+                            } else {
+                                R.string.edit
+                            }
+                        )
+                    )
+                }
+            }
+        }
+        if (log == null || log.empty) {
+            Text(
+                stringResource(R.string.selected_day_no_records),
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeColors.muted
+            )
+        } else {
+            val registry = (
+                layout.sections + app.ritela.domain.defaultJournalSections() +
+                    app.ritela.domain.builtInJournalSections()
+                ).distinctBy { it.id }
+            val selections = log.journalSelections().filterValues { it.isNotEmpty() }
+            val sections = registry.filter { it.id in selections } +
+                (selections.keys - registry.map { it.id }.toSet()).sorted().map {
+                    app.ritela.domain.JournalSection(it, title = it, tags = emptyList())
+                }
+            sections.forEach { section ->
+                val selected = selections.getValue(section.id)
+                val tags = section.tags.filter { it.id in selected } +
+                    (selected - section.tags.map { it.id }.toSet()).sorted().map {
+                        app.ritela.domain.JournalTag(it)
+                    }
+                val labels = tags.map { journalTagLabel(section, it) }
+                Text(
+                    stringResource(
+                        R.string.day_summary,
+                        journalSectionLabel(section),
+                        labels.joinToString()
+                    ),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            if (log.note.isNotBlank()) Text(log.note, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
 private fun JournalQuickActions(
     layout: app.ritela.domain.JournalLayout,
     onEdit: () -> Unit,
@@ -197,8 +265,7 @@ fun CycleInsights(
     periods: List<Period>,
     today: LocalDate,
     logs: List<DayLog>,
-    onLogDay: () -> Unit = {},
-    expectedDuration: Int = 5
+    onLogDay: () -> Unit = {}
 ) {
     val cycles = app.ritela.domain.measuredCycles(periods, today)
     Column(
@@ -220,25 +287,6 @@ fun CycleInsights(
             Text(stringResource(R.string.chart_empty))
         } else {
             SeriesInsight(cycles.values.takeLast(6))
-        }
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = MaterialTheme.shapes.large
-        ) {
-            Column(
-                Modifier.fillMaxWidth().padding(Spacing.medium),
-                verticalArrangement = Arrangement.spacedBy(Spacing.small)
-            ) {
-                Text(
-                    stringResource(R.string.period_chart),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    pluralStringResource(R.plurals.days_value, expectedDuration, expectedDuration),
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.testTag("expected-period-duration")
-                )
-            }
         }
     }
 }
