@@ -36,8 +36,6 @@
     <string name="day_summary">%1$s: %2$s</string>
     <string name="cycle_day_label">День цикла</string>
     <string name="cycle_trends">Ваш цикл</string>
-    <string name="cycle_median">Обычная длина</string>
-    <string name="cycle_spread">Разброс в записях</string>
     <plurals name="days_value">
         <item quantity="one">%d дн.</item>
         <item quantity="few">%d дн.</item>
@@ -45,11 +43,10 @@
         <item quantity="other">%d дн.</item>
     </plurals>
     <string name="days_range">%1$d–%2$d дн.</string>
-    <string name="year_basis">Медиана · последние 12 месяцев</string>
     <string name="chart_empty">Отметьте два начала месячных — появится первая длина цикла.</string>
     <string name="chart_values">Длина циклов в днях: %s</string>
-    <string name="period_chart">Ожидаемая длительность месячных</string>
-    <string name="calendar_history">История месячных</string>
+    <string name="period_chart">Ожидаемая продолжительность месячных</string>
+    <string name="calendar_history">История записей</string>
     <string name="day_has_log">Есть отметки дня</string>
     <string name="help_title">Для вас</string>
     <string name="help_all">Все статьи</string>

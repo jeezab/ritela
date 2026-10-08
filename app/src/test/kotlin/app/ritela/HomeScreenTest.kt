@@ -1002,7 +1002,12 @@ class HomeScreenTest {
         val start = today.minusDays(7)
         val records =
             listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH))
-        val analysis = analyzeCycles(records, today)
+        val basisAnalysis = analyzeCycles(records, today)
+        val analysis = basisAnalysis.copy(
+            forecasts = basisAnalysis.forecasts.map {
+                it.copy(predictedStartDate = LocalDate.of(2026, 10, 30))
+            }
+        )
         for ((scale, dark) in listOf(1f to false, 2f to false, 2f to true)) {
             compose.activity.runOnUiThread {
                 compose.activity.setContent {
@@ -1022,15 +1027,69 @@ class HomeScreenTest {
             }
             compose.onNodeWithTag(
                 "forecast-date"
-            ).assertTextEquals("28 октября").assertIsDisplayed()
+            ).assertTextEquals("30 октября").assertIsDisplayed()
             val hero = compose.onNodeWithTag("forecast-hero").fetchSemanticsNode().boundsInRoot
             val date = compose.onNodeWithTag("forecast-date").fetchSemanticsNode().boundsInRoot
             assertTrue(date.left >= hero.left && date.right <= hero.right)
+            val countdown = compose.onNodeWithTag("forecast-countdown")
+                .fetchSemanticsNode().boundsInRoot
+            assertTrue(date.right <= countdown.left)
+            assertTrue(kotlin.math.abs(date.center.y - countdown.center.y) < 1f)
+            compose.onNodeWithTag("forecast-window").assertDoesNotExist()
             val basis = compose.activity.getString(R.string.default_forecast_basis, 28)
             compose.onNodeWithText(basis).assertDoesNotExist()
             compose.onNodeWithTag("forecast-info").performClick()
             compose.onNodeWithText(basis).assertIsDisplayed()
             compose.onNodeWithText(compose.activity.getString(R.string.done)).performClick()
+            compose.onNodeWithTag("orbit-open").performClick()
+            compose.onNodeWithTag("orbit-reset").performScrollTo()
+            val previous = compose.onNodeWithTag("orbit-previous").fetchSemanticsNode().boundsInRoot
+            val reset = compose.onNodeWithTag("orbit-reset").fetchSemanticsNode().boundsInRoot
+            val next = compose.onNodeWithTag("orbit-next").fetchSemanticsNode().boundsInRoot
+            val controls = compose.onNodeWithTag(
+                "orbit-day-controls"
+            ).fetchSemanticsNode().boundsInRoot
+            assertTrue(kotlin.math.abs(previous.center.y - reset.center.y) < 1f)
+            assertTrue(kotlin.math.abs(next.center.y - reset.center.y) < 1f)
+            assertTrue(kotlin.math.abs(reset.center.x - controls.center.x) < 1f)
+            compose.onNodeWithTag("orbit-detail-close").performClick()
+        }
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w320dp-h740dp")
+    fun insightTilesHaveEqualHeightWithWrappedLabels() {
+        val today = LocalDate.of(2026, 10, 8)
+        val start = today.minusDays(8)
+        val analysis = analyzeCycles(
+            listOf(Period(UUID(0, 1), start, start.plusDays(4), Instant.EPOCH, Instant.EPOCH)),
+            today
+        )
+        for (scale in listOf(1f, 2f)) {
+            compose.activity.runOnUiThread {
+                compose.activity.setContent {
+                    val density = LocalDensity.current
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(density.density, scale)
+                    ) {
+                        app.ritela.ui.HomeTheme {
+                            androidx.compose.foundation.layout.Box(
+                                androidx.compose.ui.Modifier.width(320.dp)
+                            ) {
+                                app.ritela.ui.HomeInsightTiles(analysis)
+                            }
+                        }
+                    }
+                }
+            }
+            val cycle = compose.onNodeWithTag(
+                "home-insight-cycle"
+            ).fetchSemanticsNode().boundsInRoot
+            val duration = compose.onNodeWithTag(
+                "home-insight-duration"
+            ).fetchSemanticsNode().boundsInRoot
+            assertTrue(kotlin.math.abs(cycle.height - duration.height) < 1f)
+            assertEquals(cycle.top, duration.top)
         }
     }
 

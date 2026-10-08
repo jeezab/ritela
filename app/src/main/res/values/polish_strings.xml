@@ -1,5 +1,4 @@
 <resources>
-    <string name="appearance_title">Appearance</string>
     <string name="calendar_key">Calendar key</string>
     <string name="history_short">History</string>
     <string name="history_empty">No periods recorded yet</string>

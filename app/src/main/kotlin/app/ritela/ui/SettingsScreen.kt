@@ -46,11 +46,6 @@ private fun SettingsContent(padding: PaddingValues, state: PeriodUiState) {
             modifier = Modifier.testTag("settings-heading")
         )
         SettingsGroup {
-            Text(
-                stringResource(R.string.appearance_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = HomeColors.muted
-            )
             SettingsRow(
                 stringResource(R.string.language_title),
                 R.drawable.ic_note,

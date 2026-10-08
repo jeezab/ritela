@@ -189,7 +189,11 @@ fun CycleOrbitDetail(
                                         sliderLabel
                                 }
                             )
-                            FlowRow {
+                            Row(
+                                Modifier.fillMaxWidth().testTag("orbit-day-controls"),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 TextButton(onClick = {
                                     focusDay =
                                         (focusDay - 1).coerceIn(1, state.length.toLong())

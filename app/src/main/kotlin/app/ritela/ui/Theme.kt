@@ -34,9 +34,6 @@ object Spacing {
 object CalendarColors {
     val period = Color(0xFFD38A92)
     val estimatedPeriod = Color(0xFFF5D8DC)
-    val ovulation = Color(0xFFAFCB8B)
-    val fertile = Color(0xFFE3EED6)
-    val fertileLikely = Color(0xFFC9DEAE)
     val ink = Color(0xFF352E32)
 }
 
