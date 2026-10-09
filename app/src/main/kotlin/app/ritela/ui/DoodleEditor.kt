@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,6 +64,7 @@ object DoodleSchedule {
     }.getOrNull()
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DoodleEditor(dismiss: () -> Unit, send: (Doodle) -> Unit) {
     var strokes by remember { mutableStateOf<List<DoodleStroke>>(emptyList()) }
@@ -74,6 +78,8 @@ internal fun DoodleEditor(dismiss: () -> Unit, send: (Doodle) -> Unit) {
     var date by remember {
         mutableStateOf(LocalDateTime.now().plusDays(1).withSecond(0).withNano(0).toString())
     }
+    var showDate by remember { mutableStateOf(false) }
+    var showTime by remember { mutableStateOf(false) }
     var days by remember { mutableStateOf("1") }
     var bounds by remember { mutableStateOf(IntSize.Zero) }
     val palette =
@@ -168,18 +174,15 @@ internal fun DoodleEditor(dismiss: () -> Unit, send: (Doodle) -> Unit) {
                 )
             })
         }
-        if (opening ==
-            DoodleOpening.AFTER_DATE
-        ) {
-            OutlinedTextField(
-                date,
-                {
-                    date = it.take(30)
-                },
-                label = { Text(stringResource(R.string.partner_datetime)) },
-                isError =
-                    moment == null
-            )
+        if (opening == DoodleOpening.AFTER_DATE) {
+            TextButton({ showDate = true }) {
+                Text(
+                    stringResource(R.string.partner_datetime) + " · " +
+                        PartnerFormatter(
+                            androidx.compose.ui.platform.LocalResources.current
+                        ).moment(requireNotNull(moment))
+                )
+            }
         }
         if (opening ==
             DoodleOpening.AFTER_DAYS
@@ -207,6 +210,30 @@ internal fun DoodleEditor(dismiss: () -> Unit, send: (Doodle) -> Unit) {
                     (opening != DoodleOpening.AFTER_DAYS || delay != null)
         ) {
             Text(stringResource(R.string.partner_prepare))
+        }
+    }
+    if (showDate) {
+        PickDate(
+            LocalDateTime.parse(date).toLocalDate(),
+            { showDate = false },
+            { selected ->
+                date = selected.atTime(LocalDateTime.parse(date).toLocalTime()).toString()
+                showDate = false
+                showTime = true
+            },
+            minimum = java.time.LocalDate.now(),
+            maximum = java.time.LocalDate.now().plusYears(10)
+        )
+    }
+    if (showTime) {
+        val currentTime = LocalDateTime.parse(date)
+        val picker = rememberTimePickerState(currentTime.hour, currentTime.minute, true)
+        PartnerModal(stringResource(R.string.partner_datetime), { showTime = false }) {
+            TimeInput(picker)
+            Button({
+                date = currentTime.toLocalDate().atTime(picker.hour, picker.minute).toString()
+                showTime = false
+            }) { Text(stringResource(R.string.done)) }
         }
     }
 }

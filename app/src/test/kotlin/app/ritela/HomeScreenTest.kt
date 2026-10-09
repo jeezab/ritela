@@ -872,7 +872,14 @@ class HomeScreenTest {
         compose.onNodeWithTag("journal-icon-STAR").performScrollTo().performClick()
         compose.onNodeWithTag("save-day").performClick()
         compose.waitUntil(10_000) { runBlocking { app.days.logs.first().isNotEmpty() } }
+        // Await the completed UI save before recreation, not only the earlier Room write.
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("save-day").fetchSemanticsNodes().isEmpty()
+        }
         compose.activityRule.scenario.recreate()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("log-day").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag("log-day").performScrollTo().performClick()
         compose.onNodeWithText("Мой день").assertIsDisplayed()
         compose.onNodeWithTag(

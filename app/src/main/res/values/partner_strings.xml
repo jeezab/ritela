@@ -101,7 +101,7 @@
     <string name="partner_immediate">Open immediately</string>
     <string name="partner_after_date">On first visit after a date</string>
     <string name="partner_after_days">Days after receiving</string>
-    <string name="partner_datetime">Date and time: YYYY-MM-DDTHH:MM</string>
+    <string name="partner_datetime">Choose date and time</string>
     <string name="partner_days">Days: 1–365</string>
     <string name="partner_doodle_limits">The date lock is a gentle UI rule. Changing the clock or modifying the app can bypass it.</string>
     <string name="partner_waiting">Waiting for your little heart</string>

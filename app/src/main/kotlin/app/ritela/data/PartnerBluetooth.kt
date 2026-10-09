@@ -10,6 +10,8 @@ import app.ritela.domain.ExchangeEdge
 import app.ritela.domain.ExchangePhase
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -35,8 +37,10 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
     private val adapter: BluetoothAdapter? = context.getSystemService(
         BluetoothManager::class.java
     )?.adapter
-    private var socket: BluetoothSocket? = null
-    private var server: BluetoothServerSocket? = null
+
+    @Volatile private var socket: BluetoothSocket? = null
+
+    @Volatile private var server: BluetoothServerSocket? = null
     private val mutable = MutableStateFlow(ExchangeState())
     val state = mutable.asStateFlow()
     fun phones(): List<NearbyPhone> = adapter?.bondedDevices?.map {
@@ -172,15 +176,17 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
                 listOf(ExchangeEdge.TOP, ExchangeEdge.RIGHT, ExchangeEdge.BOTTOM, ExchangeEdge.LEFT)
             return clockwise[(clockwise.indexOf(edge) + senderRotation - receiverRotation + 6) % 4]
         }
-        fun read(socket: BluetoothSocket): ByteArray =
-            DataInputStream(socket.inputStream).let { stream ->
-                val size = stream.readInt()
-                require(size in 1..MAX_FRAME)
-                ByteArray(size).also(stream::readFully)
-            }
-        fun write(socket: BluetoothSocket, bytes: ByteArray) {
+        fun read(socket: BluetoothSocket): ByteArray = readFrame(socket.inputStream)
+        fun readFrame(input: InputStream): ByteArray = DataInputStream(input).let { stream ->
+            val size = stream.readInt()
+            require(size in 1..MAX_FRAME)
+            ByteArray(size).also(stream::readFully)
+        }
+        fun write(socket: BluetoothSocket, bytes: ByteArray) =
+            writeFrame(socket.outputStream, bytes)
+        fun writeFrame(output: OutputStream, bytes: ByteArray) {
             require(bytes.size in 1..MAX_FRAME)
-            DataOutputStream(socket.outputStream).apply {
+            DataOutputStream(output).apply {
                 writeInt(bytes.size)
                 write(bytes)
                 flush()

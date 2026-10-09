@@ -101,7 +101,7 @@
     <string name="partner_immediate">Открыть сразу</string>
     <string name="partner_after_date">При первом входе после даты</string>
     <string name="partner_after_days">Через несколько дней после получения</string>
-    <string name="partner_datetime">Дата и время: ГГГГ-ММ-ДДTЧЧ:ММ</string>
+    <string name="partner_datetime">Выбрать дату и время</string>
     <string name="partner_days">Дней: 1–365</string>
     <string name="partner_doodle_limits">Открытие по дате — мягкое правило интерфейса. Изменение часов или приложения позволяет его обойти.</string>
     <string name="partner_waiting">Ждём твоё сердечко</string>
