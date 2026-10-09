@@ -170,7 +170,7 @@ private fun LoveLetter(reducedMotion: Boolean, onDismiss: () -> Unit) {
         ) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    stringResource(R.string.love_letter_russian),
+                    stringResource(R.string.love_letter),
                     Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
                         .testTag("love-letter-text"),
                     style = MaterialTheme.typography.bodyLarge.copy(
