@@ -72,4 +72,18 @@ abstract class PeriodDao {
         insert(entity)
         return true
     }
+
+    @Transaction
+    open suspend fun addAllIfSeparate(entities: List<PeriodEntity>): Boolean {
+        val ordered = entities.sortedBy { it.startDay }
+        if (ordered.zipWithNext().any { (first, second) ->
+                (first.endDay ?: Long.MAX_VALUE) >= second.startDay
+            }
+        ) {
+            return false
+        }
+        if (ordered.any { overlaps(it.startDay, it.endDay ?: Long.MAX_VALUE) != 0 }) return false
+        ordered.forEach { insert(it) }
+        return true
+    }
 }

@@ -1,4 +1,6 @@
 <resources>
-    <string name="entry_save_more">Log and select more</string>
     <string name="entry_choose_days">Choose another period</string>
+    <string name="entry_discard_title">Discard unsaved periods?</string>
+    <string name="entry_discard_message">If you continue without saving, the periods you marked will not be saved.</string>
+    <string name="entry_discard_continue">Continue</string>
 </resources>

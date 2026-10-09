@@ -1,4 +1,6 @@
 <resources>
-    <string name="entry_save_more">Отметить и выбрать ещё</string>
     <string name="entry_choose_days">Выберите следующий период</string>
+    <string name="entry_discard_title">Выйти без сохранения?</string>
+    <string name="entry_discard_message">Если продолжить без сохранения, отмеченные периоды не сохранятся.</string>
+    <string name="entry_discard_continue">Продолжить</string>
 </resources>

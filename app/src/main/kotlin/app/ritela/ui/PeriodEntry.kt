@@ -53,14 +53,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import app.ritela.R
 import app.ritela.domain.CycleAnalysis
+import app.ritela.domain.Period
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.PeriodRange
 import app.ritela.domain.PeriodRangeSelection
 import app.ritela.domain.calendarDay
 import app.ritela.domain.periodConflict
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.util.UUID
 import kotlinx.coroutines.launch
 
 @Composable
@@ -91,12 +95,12 @@ fun PeriodEntry(
     onDelete: (() -> Unit)? = null,
     onChange: () -> Unit = {},
     startEmpty: Boolean = false,
-    onSaveAndContinue: ((LocalDate, LocalDate) -> Unit)? = null
+    onSaveBatch: ((List<PeriodRange>) -> Unit)? = null
 ) {
     HomeTheme {
         PeriodEntryContent(
             state, onDismiss, onSave, initialStart, initialEnd, editing,
-            editingId, onDelete, onChange, startEmpty, onSaveAndContinue
+            editingId, onDelete, onChange, startEmpty, onSaveBatch
         )
     }
 }
@@ -113,7 +117,7 @@ private fun PeriodEntryContent(
     onDelete: (() -> Unit)?,
     onChange: () -> Unit,
     startEmpty: Boolean,
-    onSaveAndContinue: ((LocalDate, LocalDate) -> Unit)?
+    onSaveBatch: ((List<PeriodRange>) -> Unit)?
 ) {
     var startDay by rememberSaveable { mutableStateOf(initialStart.toEpochDay()) }
     var endDay by rememberSaveable {
@@ -129,7 +133,30 @@ private fun PeriodEntryContent(
         endDay?.let(LocalDate::ofEpochDay),
         anchorDay?.let(LocalDate::ofEpochDay)
     )
-    val others = state.periods.filter { it.id != editingId }
+    var pendingDays by rememberSaveable { mutableStateOf(longArrayOf()) }
+    var dirty by rememberSaveable { mutableStateOf(false) }
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    val batchMode = !editing && onSaveBatch != null
+    val pending = remember(pendingDays) {
+        pendingDays.toList().chunked(2).map { (start, end) ->
+            PeriodRange(
+                LocalDate.ofEpochDay(start),
+                if (end ==
+                    Long.MAX_VALUE
+                ) {
+                    null
+                } else {
+                    LocalDate.ofEpochDay(end)
+                }
+            )
+        }
+    }
+    val pendingRecords = remember(pending) {
+        pending.map {
+            Period(UUID(0, it.start.toEpochDay()), it.start, it.end, Instant.EPOCH, Instant.EPOCH)
+        }
+    }
+    val others = state.periods.filter { it.id != editingId } + pendingRecords
     val closedValid =
         hasSelection && selection.end != null && selection.canSave(others, state.today)
     val ongoingValid = hasSelection && selection.canKeepOngoing(others, state.today)
@@ -159,13 +186,43 @@ private fun PeriodEntryContent(
         endDay = value.end?.toEpochDay()
         anchorDay = value.anchor?.toEpochDay()
         hasSelection = true
+        dirty = true
         onChange()
+    }
+    fun requestDismiss() {
+        if (state.saving) return
+        if (batchMode && (dirty || pending.isNotEmpty())) confirmDiscard = true else onDismiss()
+    }
+    fun markRange(end: LocalDate?) {
+        pendingDays =
+            pendingDays +
+            longArrayOf(selection.start.toEpochDay(), end?.toEpochDay() ?: Long.MAX_VALUE)
+        hasSelection = false
+        anchorDay = null
+        dirty = true
+        onChange()
+    }
+    fun saveRanges() {
+        if (batchMode) {
+            val ranges =
+                pending +
+                    if (hasSelection) {
+                        listOf(
+                            PeriodRange(selection.start, selection.end)
+                        )
+                    } else {
+                        emptyList()
+                    }
+            onSaveBatch?.invoke(ranges)
+        } else {
+            onSave(selection.start, selection.end)
+        }
     }
     val cellHeight = maxOf(56.dp, (40 * LocalDensity.current.fontScale).dp)
     val count = ((selection.end ?: selection.start).toEpochDay() - selection.start.toEpochDay() + 1)
         .coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
     JournalDialog(
-        onDismissRequest = { if (!state.saving) onDismiss() },
+        onDismissRequest = ::requestDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
@@ -186,7 +243,11 @@ private fun PeriodEntryContent(
                         Modifier.weight(1f),
                         style = MaterialTheme.typography.titleLarge
                     )
-                    TextButton(onDismiss, enabled = !state.saving) {
+                    TextButton(
+                        ::requestDismiss,
+                        enabled = !state.saving,
+                        modifier = Modifier.testTag("entry-cancel")
+                    ) {
                         Text(stringResource(R.string.cancel))
                     }
                 }
@@ -195,7 +256,19 @@ private fun PeriodEntryContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = HomeColors.muted
                 )
-                if (hasSelection) {
+                if (batchMode) {
+                    Text(
+                        if (hasSelection) {
+                            formattedDate(selection.start) + " – " +
+                                formattedDate(selection.end ?: selection.start)
+                        } else {
+                            stringResource(R.string.entry_choose_days)
+                        },
+                        minLines = 2,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeColors.peach
+                    )
+                } else if (hasSelection) {
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -272,7 +345,8 @@ private fun PeriodEntryContent(
                                 cellHeight = cellHeight,
                                 tagPrefix = "entry-day",
                                 rangeStart = if (hasSelection) selection.start else null,
-                                rangeEnd = selection.end, futureEnabled = false,
+                                rangeEnd = if (hasSelection) selection.end else null,
+                                futureEnabled = false,
                                 info = { calendarDay(others, CycleAnalysis(), it, state.today) },
                                 dayEnabled = {
                                     !state.saving &&
@@ -307,7 +381,7 @@ private fun PeriodEntryContent(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     OutlinedButton(
-                        { onSave(selection.start, null) },
+                        { if (batchMode) markRange(null) else onSave(selection.start, null) },
                         enabled = !state.saving && ongoingValid,
                         modifier = Modifier.weight(
                             1f
@@ -316,43 +390,59 @@ private fun PeriodEntryContent(
                     ) {
                         Text(stringResource(R.string.clear_end), textAlign = TextAlign.Center)
                     }
-                    Button(
-                        { onSave(selection.start, selection.end) },
-                        enabled = !state.saving && closedValid,
-                        modifier = Modifier.weight(
-                            1f
-                        ).fillMaxHeight().heightIn(min = 56.dp).testTag("entry-save"),
-                        contentPadding = PaddingValues(6.dp)
-                    ) {
-                        Text(
-                            if (state.saving) {
-                                stringResource(R.string.saving)
-                            } else {
-                                pluralStringResource(R.plurals.quick_duration, count, count)
-                            },
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                    if (!editing && onSaveAndContinue != null) {
+                    if (batchMode) {
                         OutlinedButton(
-                            {
-                                onSaveAndContinue(selection.start, requireNotNull(selection.end))
-                            },
+                            { markRange(requireNotNull(selection.end)) },
                             enabled = !state.saving && closedValid,
-                            modifier = Modifier.weight(
-                                1f
-                            ).fillMaxHeight().heightIn(min = 56.dp).testTag("entry-save-more"),
+                            modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 56.dp)
+                                .testTag("entry-save-more"),
                             contentPadding = PaddingValues(6.dp)
                         ) {
                             Text(
-                                stringResource(R.string.entry_save_more),
+                                pluralStringResource(R.plurals.quick_duration, count, count),
                                 textAlign = TextAlign.Center
                             )
                         }
                     }
+                    Button(
+                        ::saveRanges,
+                        enabled = !state.saving &&
+                            (closedValid || (batchMode && !hasSelection && pending.isNotEmpty())),
+                        modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 56.dp)
+                            .testTag("entry-save"),
+                        contentPadding = PaddingValues(6.dp)
+                    ) {
+                        Text(
+                            stringResource(if (state.saving) R.string.saving else R.string.save),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
+    }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            modifier = Modifier.testTag("entry-discard-dialog"),
+            title = { Text(stringResource(R.string.entry_discard_title)) },
+            text = { Text(stringResource(R.string.entry_discard_message)) },
+            confirmButton = {
+                TextButton({
+                    confirmDiscard = false
+                    onDismiss()
+                }, modifier = Modifier.testTag("entry-discard-continue")) {
+                    Text(stringResource(R.string.entry_discard_continue))
+                }
+            },
+            dismissButton = {
+                TextButton({
+                    confirmDiscard = false
+                }, modifier = Modifier.testTag("entry-discard-cancel")) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
     if (choosingMonth) {
         MonthYearPicker(month, 1900..state.today.year, { choosingMonth = false }) {

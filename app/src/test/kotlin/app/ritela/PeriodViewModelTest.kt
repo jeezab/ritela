@@ -10,6 +10,7 @@ import app.ritela.data.SettingsRepository
 import app.ritela.domain.CervicalMucus
 import app.ritela.domain.DayLog
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.PeriodRange
 import app.ritela.domain.PredictionDefaults
 import app.ritela.ui.PeriodUiState
 import app.ritela.ui.PeriodViewModel
@@ -103,6 +104,23 @@ class PeriodViewModelTest {
         val deleted = awaitPersistedState { it.periods.size == 3 }
         assertTrue(deleted.analysis.usesDefaults)
         assertEquals(29, deleted.analysis.forecasts.first().cycleMedian)
+    }
+
+    @Test fun savingBatchRecalculatesFromAllRangesAndReportsConflictWithoutChanges() = runBlocking {
+        val ranges = listOf(
+            PeriodRange(date.minusDays(56), date.minusDays(52)),
+            PeriodRange(date.minusDays(28), date.minusDays(24)),
+            PeriodRange(date, date)
+        )
+        model.savePeriods(ranges)
+        val saved = awaitPersistedState { it.periods.size == 3 }
+        assertEquals(date.plusDays(28), saved.analysis.forecasts.first().predictedStartDate)
+        model.clearResult()
+        model.savePeriods(listOf(PeriodRange(date.minusDays(7), date.minusDays(5)), ranges.last()))
+        val failed = withTimeout(5_000) { model.uiState.first { it.problem != null } }
+        assertEquals(PeriodProblem.OVERLAP, failed.problem)
+        assertFalse(failed.saved)
+        assertEquals(saved.periods, repository.periods.first())
     }
 
     private suspend fun awaitPersistedState(predicate: (PeriodUiState) -> Boolean): PeriodUiState {

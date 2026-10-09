@@ -1,6 +1,7 @@
 package app.ritela.data
 
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.PeriodRange
 import app.ritela.domain.validatePeriod
 import java.time.Clock
 import java.time.LocalDate
@@ -26,6 +27,25 @@ class PeriodRepository(
                 now
             )
         return if (dao.addIfSeparate(record)) null else PeriodProblem.OVERLAP
+    }
+
+    suspend fun addAll(ranges: List<PeriodRange>): PeriodProblem? {
+        if (ranges.isEmpty()) return PeriodProblem.STORAGE
+        val today = today
+        for (range in ranges) {
+            validatePeriod(range.start, range.end, today)?.let { return it }
+        }
+        val now = clock.millis()
+        val entities = ranges.map {
+            PeriodEntity(
+                UUID.randomUUID().toString(),
+                it.start.toEpochDay(),
+                it.end?.toEpochDay(),
+                now,
+                now
+            )
+        }
+        return if (dao.addAllIfSeparate(entities)) null else PeriodProblem.OVERLAP
     }
 
     suspend fun finish(id: UUID, end: LocalDate): PeriodProblem? {
