@@ -1,0 +1,9 @@
+<resources>
+    <string name="partner_title">Partner</string>
+    <string name="partner_mode">Partner mode</string>
+    <string name="partner_show">Show Partner section</string>
+    <string name="partner_normal">Return to my calendar</string>
+    <string name="partner_login">Partner login</string>
+    <string name="partner_private">Nothing is shared automatically. Your own records remain on this device.</string>
+    <string name="partner_empty">Add someone close. Scan each other’s invitations and compare identity fingerprints before confirming.</string>
+</resources>

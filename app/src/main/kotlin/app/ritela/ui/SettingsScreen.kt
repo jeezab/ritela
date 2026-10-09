@@ -46,6 +46,7 @@ private fun SettingsContent(
             modifier = Modifier.testTag("settings-heading")
         )
         UserSettings(state)
+        PartnerSettings()
         state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
         SettingsGroup { BackupActions() }
         Text(

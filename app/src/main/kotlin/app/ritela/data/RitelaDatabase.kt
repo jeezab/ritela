@@ -7,9 +7,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
-        PeriodEntity::class, DayLogEntity::class, JournalLayoutEntity::class, ProfileSettings::class
+        PeriodEntity::class,
+        DayLogEntity::class,
+        JournalLayoutEntity::class,
+        ProfileSettings::class,
+        PartnerDirectoryRow::class, PartnerMessage::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class RitelaDatabase : RoomDatabase() {
@@ -18,7 +22,19 @@ abstract class RitelaDatabase : RoomDatabase() {
     abstract fun journal(): JournalDao
     abstract fun profileSettings(): ProfileSettingsDao
 
+    abstract fun partner(): PartnerDao
+
     companion object {
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE partner_directory (id INTEGER NOT NULL, json TEXT NOT NULL, PRIMARY KEY(id))"
+                )
+                db.execSQL(
+                    "CREATE TABLE partner_messages (id TEXT NOT NULL, identity TEXT NOT NULL, device TEXT NOT NULL, outgoing INTEGER NOT NULL, kind TEXT NOT NULL, created INTEGER NOT NULL, received INTEGER NOT NULL, body TEXT NOT NULL, envelope TEXT NOT NULL, delivered INTEGER NOT NULL, opened INTEGER NOT NULL, PRIMARY KEY(id))"
+                )
+            }
+        }
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
