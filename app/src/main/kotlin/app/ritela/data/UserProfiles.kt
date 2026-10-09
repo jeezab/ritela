@@ -3,6 +3,7 @@ package app.ritela.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
@@ -11,9 +12,11 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
 import app.ritela.ui.PeriodViewModel
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -27,15 +30,36 @@ class ProfileRegistry(private val preferences: SharedPreferences) {
     private val catalog = preferences.getString("catalog", null)?.let(::JSONObject)
         ?: JSONObject().put("active", FIRST_ID).put(
             "users",
-            JSONArray().put(JSONObject().put("id", FIRST_ID).put("name", "Я"))
+            JSONArray().put(JSONObject().put("id", FIRST_ID).put("name", DEFAULT_NAME))
         ).also { persist(it.toString()) }
     private val users = MutableStateFlow(readUsers(catalog))
     val profiles = users.asStateFlow()
+    private var pending = catalog.optJSONArray("deleted")?.let { values ->
+        (0 until values.length()).map { values.getString(it) }
+    } ?: emptyList()
     var activeId: String = catalog.getString("active")
         private set
 
     init {
         require(users.value.any { it.id == activeId })
+        require(
+            pending.all { id ->
+                UUID.fromString(id).toString() == id && users.value.none { it.id == id }
+            }
+        )
+        if (catalog.optInt("nameVersion", 0) == 0) {
+            var name = DEFAULT_NAME
+            var suffix = 2
+            while (users.value.any { it.id != FIRST_ID && it.name.equals(name, true) }) {
+                name = "$DEFAULT_NAME (${suffix++})"
+            }
+            write(
+                users.value.map {
+                    if (it.id == FIRST_ID && it.name == "Я") it.copy(name = name) else it
+                },
+                activeId
+            )
+        }
     }
 
     @Synchronized fun add(name: String): UserProfile {
@@ -55,6 +79,27 @@ class ProfileRegistry(private val preferences: SharedPreferences) {
         write(users.value, id)
     }
 
+    @Synchronized fun delete(id: String, replacement: UserProfile? = null) {
+        require(users.value.any { it.id == id })
+        val remaining = users.value.filterNot { it.id == id }
+        val values = if (remaining.isEmpty()) {
+            val fresh = requireNotNull(replacement)
+            require(UUID.fromString(fresh.id).toString() == fresh.id && fresh.id != FIRST_ID)
+            require(fresh.id != id && fresh.id !in pending && fresh.name == DEFAULT_NAME)
+            listOf(fresh)
+        } else {
+            remaining
+        }
+        val selected = if (activeId == id) values.first().id else activeId
+        write(values, selected, pending + id)
+    }
+
+    @Synchronized fun pendingDeletions(): List<String> = pending.toList()
+
+    @Synchronized fun completeDeletion(id: String) {
+        write(users.value, activeId, pending.filterNot { it == id })
+    }
+
     private fun validName(name: String, excluding: String? = null): String {
         val value = name.trim()
         require(value.isNotEmpty() && value.length <= 80)
@@ -62,15 +107,21 @@ class ProfileRegistry(private val preferences: SharedPreferences) {
         return value
     }
 
-    private fun write(values: List<UserProfile>, active: String) {
-        val json = JSONObject().put("active", active).put(
-            "users",
-            JSONArray().apply {
-                values.forEach { put(JSONObject().put("id", it.id).put("name", it.name)) }
-            }
-        )
+    private fun write(
+        values: List<UserProfile>,
+        active: String,
+        deletions: List<String> = pending
+    ) {
+        val json = JSONObject().put("active", active).put("nameVersion", 1)
+            .put("deleted", JSONArray(deletions)).put(
+                "users",
+                JSONArray().apply {
+                    values.forEach { put(JSONObject().put("id", it.id).put("name", it.name)) }
+                }
+            )
         persist(json.toString())
         activeId = active
+        pending = deletions
         users.value = values
     }
 
@@ -94,8 +145,14 @@ class ProfileRegistry(private val preferences: SharedPreferences) {
     }
 
     companion object {
+        const val DEFAULT_NAME = "qwerty"
         const val FIRST_ID = "00000000-0000-0000-0000-000000000001"
     }
+}
+
+private fun profileDatabaseName(id: String): String {
+    require(UUID.fromString(id).toString() == id)
+    return if (id == ProfileRegistry.FIRST_ID) "ritela.db" else "ritela-$id.db"
 }
 
 class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOwner {
@@ -104,7 +161,7 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
     private val database = Room.databaseBuilder(
         context,
         RitelaDatabase::class.java,
-        if (profileId == ProfileRegistry.FIRST_ID) "ritela.db" else "ritela-$profileId.db"
+        profileDatabaseName(profileId)
     ).addMigrations(
         RitelaDatabase.MIGRATION_1_2,
         RitelaDatabase.MIGRATION_2_3,
@@ -155,6 +212,74 @@ class ProfileManager(private val context: Context) {
     private val changing = MutableStateFlow(false)
     val switching = changing.asStateFlow()
     private val mutex = Mutex()
+
+    init {
+        if (registry.pendingDeletions().isNotEmpty()) {
+            CoroutineScope(Dispatchers.IO).launch {
+                mutex.withLock { runCatching { purgePending() } }
+            }
+        }
+    }
+
+    suspend fun delete(id: String) = mutex.withLock {
+        val previous = active.value
+        check(!previous.backupActive.value && !previous.model.uiState.value.saving)
+        val users = registry.profiles.value
+        require(users.any { it.id == id })
+        val remaining = users.filterNot { it.id == id }
+        val replacement = if (remaining.isEmpty()) {
+            UserProfile(UUID.randomUUID().toString(), ProfileRegistry.DEFAULT_NAME)
+        } else {
+            null
+        }
+        val target = remaining.firstOrNull() ?: requireNotNull(replacement)
+        val deletingActive = previous.profileId == id
+        changing.value = true
+        var next: ProfileSession? = null
+        try {
+            if (deletingActive) {
+                next = withContext(Dispatchers.IO) { ProfileSession(context, target.id) }
+                next.settings.awaitReady()
+            }
+            check(!previous.backupActive.value && !previous.model.uiState.value.saving)
+            withContext(kotlinx.coroutines.NonCancellable) {
+                withContext(Dispatchers.IO) { registry.delete(id, replacement) }
+                if (deletingActive) {
+                    active.value = requireNotNull(next)
+                    previous.close()
+                }
+                withContext(Dispatchers.IO) { purgePending() }
+            }
+        } catch (error: Exception) {
+            if (active.value === previous) {
+                withContext(kotlinx.coroutines.NonCancellable) { next?.close() }
+            }
+            throw error
+        } finally {
+            changing.value = false
+        }
+    }
+
+    private fun purgePending() {
+        registry.pendingDeletions().forEach { id ->
+            check(id != active.value.profileId && registry.profiles.value.none { it.id == id })
+            val name = profileDatabaseName(id)
+            val path = context.getDatabasePath(name).canonicalFile
+            check(path.parentFile == context.getDatabasePath("ritela.db").canonicalFile.parentFile)
+            context.deleteDatabase(name)
+            check(
+                listOf("", "-wal", "-shm", "-journal").none {
+                    java.io.File(path.path + it).exists()
+                }
+            )
+            if (id == ProfileRegistry.FIRST_ID) {
+                context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit(commit = true) {
+                    clear()
+                }
+            }
+            registry.completeDeletion(id)
+        }
+    }
 
     suspend fun switchTo(id: String) = mutex.withLock {
         val previous = active.value

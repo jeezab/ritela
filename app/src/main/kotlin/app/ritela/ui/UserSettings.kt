@@ -32,6 +32,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ritela.R
 import app.ritela.RitelaApplication
+import app.ritela.data.ProfileRegistry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,6 +49,7 @@ fun UserSettings(state: PeriodUiState) {
     val language by session.settings.language.collectAsStateWithLifecycle()
     var showingUsers by rememberSaveable { mutableStateOf(false) }
     var showingLanguage by rememberSaveable { mutableStateOf(false) }
+    var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var name by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf(false) }
@@ -71,7 +73,9 @@ fun UserSettings(state: PeriodUiState) {
         SettingsRow(
             stringResource(R.string.profile_switch),
             R.drawable.ic_user,
-            value = users.first { it.id == session.profileId }.name,
+            value =
+                users.firstOrNull { it.id == session.profileId }?.name
+                    ?: ProfileRegistry.DEFAULT_NAME,
             enabled = enabled,
             modifier = Modifier.testTag("profile-switch")
         ) {
@@ -121,7 +125,7 @@ fun UserSettings(state: PeriodUiState) {
             }
         )
     }
-    if (showingUsers && editing == null) {
+    if (showingUsers && editing == null && deleting == null) {
         AlertDialog(
             onDismissRequest = { if (enabled) showingUsers = false },
             modifier = Modifier.testTag("profile-picker"),
@@ -132,10 +136,7 @@ fun UserSettings(state: PeriodUiState) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     users.forEach { profile ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Column(Modifier.fillMaxWidth()) {
                             TextButton(
                                 {
                                     scope.launch {
@@ -150,22 +151,40 @@ fun UserSettings(state: PeriodUiState) {
                                     }
                                 },
                                 enabled = enabled,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.fillMaxWidth()
                                     .testTag("profile-select-${profile.id}")
                             ) {
                                 RadioButton(profile.id == session.profileId, onClick = null)
                                 Text(profile.name, Modifier.weight(1f).padding(start = 4.dp))
                             }
-                            TextButton(
-                                {
-                                    editing = profile.id
-                                    name = profile.name
-                                    error = false
-                                },
-                                enabled = enabled,
-                                modifier = Modifier.testTag("profile-rename-${profile.id}")
+                            FlowRow(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
                             ) {
-                                Text(stringResource(R.string.edit))
+                                TextButton(
+                                    {
+                                        editing = profile.id
+                                        name = profile.name
+                                        error = false
+                                    },
+                                    enabled = enabled,
+                                    modifier = Modifier.testTag("profile-rename-${profile.id}")
+                                ) {
+                                    Text(stringResource(R.string.edit))
+                                }
+                                TextButton(
+                                    {
+                                        deleting = profile.id
+                                        error = false
+                                    },
+                                    enabled = enabled,
+                                    modifier = Modifier.testTag("profile-delete-${profile.id}")
+                                ) {
+                                    Text(
+                                        stringResource(R.string.delete),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
                         }
                     }
@@ -196,6 +215,58 @@ fun UserSettings(state: PeriodUiState) {
                 }
             }
         )
+    }
+    deleting?.let { id ->
+        val profile = users.firstOrNull { it.id == id }
+        if (profile != null) {
+            AlertDialog(
+                onDismissRequest = { if (enabled) deleting = null },
+                modifier = Modifier.testTag("profile-delete-dialog"),
+                title = { Text(stringResource(R.string.profile_delete_title)) },
+                text = {
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        Text(stringResource(R.string.profile_delete_description, profile.name))
+                        if (error) Text(stringResource(R.string.storage_error))
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        {
+                            working = true
+                            scope.launch {
+                                try {
+                                    manager.delete(id)
+                                    deleting = null
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    if (manager.registry.profiles.value.none { it.id == id }) {
+                                        deleting = null
+                                    }
+                                    error = true
+                                } finally {
+                                    working = false
+                                }
+                            }
+                        },
+                        enabled = enabled,
+                        modifier = Modifier.testTag("profile-delete-confirm")
+                    ) {
+                        Text(
+                            stringResource(R.string.delete),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        { deleting = null },
+                        enabled = enabled,
+                        modifier = Modifier.testTag("profile-delete-cancel")
+                    ) { Text(stringResource(R.string.cancel)) }
+                }
+            )
+        }
     }
     if (editing != null) {
         JournalDialog(

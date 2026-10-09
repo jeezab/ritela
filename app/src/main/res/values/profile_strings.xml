@@ -12,4 +12,6 @@
     <string name="backup_category_journal">Journal sections and tags</string>
     <string name="backup_category_settings">App settings</string>
     <string name="backup_settings_replace">Selected settings and journal sections will replace the current configuration. Existing day records will remain.</string>
+    <string name="profile_delete_title">Delete user?</string>
+    <string name="profile_delete_description">All records and settings for “%1$s” will be permanently deleted from the app. This cannot be undone. Other users’ data will remain.</string>
 </resources>

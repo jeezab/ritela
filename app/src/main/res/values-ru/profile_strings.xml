@@ -12,4 +12,6 @@
     <string name="backup_category_journal">Разделы и теги дневника</string>
     <string name="backup_category_settings">Настройки приложения</string>
     <string name="backup_settings_replace">Выбранные настройки и разделы заменят текущую конфигурацию. Существующие записи дневника останутся.</string>
+    <string name="profile_delete_title">Удалить пользователя?</string>
+    <string name="profile_delete_description">Все записи и настройки пользователя «%1$s» будут удалены из приложения без возможности восстановления. Данные остальных пользователей сохранятся.</string>
 </resources>
