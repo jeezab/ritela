@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Original geometric globe: circle, meridian and equator. -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,3.2 A8.8,8.8 0,1 1,12,20.8 A8.8,8.8 0,1 1,12,3.2 Z M12,3.2 C7.3,7.4 7.3,16.6 12,20.8 C16.7,16.6 16.7,7.4 12,3.2 Z M3.2,12 H20.8" />
+</vector>
