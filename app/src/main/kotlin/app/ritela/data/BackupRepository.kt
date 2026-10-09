@@ -18,18 +18,48 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+enum class BackupCategory { PERIODS, DAYS, JOURNAL, SETTINGS }
+
+data class BackupSelection(val categories: Set<BackupCategory> = BackupCategory.entries.toSet()) {
+    init {
+        require(categories.isNotEmpty())
+    }
+}
+
 data class BackupData(
     val periods: List<PeriodEntity>,
     val logs: List<DayLogEntity>,
-    val layout: app.ritela.domain.JournalLayout? = null
-)
+    val layout: app.ritela.domain.JournalLayout? = null,
+    val settings: ProfileSettings? = null,
+    val available: Set<BackupCategory> = buildSet {
+        add(BackupCategory.PERIODS)
+        add(BackupCategory.DAYS)
+        if (layout != null) add(BackupCategory.JOURNAL)
+        if (settings != null) add(BackupCategory.SETTINGS)
+    }
+) {
+    fun selected(selection: BackupSelection): BackupData {
+        val selected = available.intersect(selection.categories)
+        require(selected.isNotEmpty())
+        return BackupData(
+            if (BackupCategory.PERIODS in selected) periods else emptyList(),
+            if (BackupCategory.DAYS in selected) logs else emptyList(),
+            if (BackupCategory.JOURNAL in selected) layout else null,
+            if (BackupCategory.SETTINGS in selected) settings else null,
+            selected
+        )
+    }
+}
 
 /** Portable backup with optional encryption. Conflicting records are never overwritten. */
 class BackupRepository(
     private val database: RitelaDatabase,
     private val clock: Clock = Clock.systemDefaultZone()
 ) {
-    suspend fun export(password: CharArray): ByteArray = withContext(Dispatchers.IO) {
+    suspend fun export(
+        password: CharArray,
+        selection: BackupSelection = BackupSelection()
+    ): ByteArray = withContext(Dispatchers.IO) {
         try {
             val data = database.withTransaction {
                 BackupData(
@@ -37,8 +67,9 @@ class BackupRepository(
                     database.dayLogs().snapshot(),
                     database.journal().snapshot()?.let {
                         JournalCodec.decode(it.config)
-                    }
-                )
+                    } ?: app.ritela.domain.JournalLayout(),
+                    database.profileSettings().snapshot() ?: ProfileSettings()
+                ).selected(selection)
             }
             val plain = encode(data).toByteArray(Charsets.UTF_8)
             require(plain.size <= MAX_BYTES)
@@ -96,20 +127,17 @@ class BackupRepository(
             }
         }
 
-    suspend fun import(data: BackupData) = withContext(Dispatchers.IO) {
+    suspend fun import(
+        source: BackupData,
+        selection: BackupSelection = BackupSelection(source.available)
+    ) = withContext(Dispatchers.IO) {
+        val data = source.selected(selection)
         validate(data)
         database.withTransaction {
             data.layout?.let { layout ->
-                val previous = database.journal().snapshot()?.let { JournalCodec.decode(it.config) }
-                require(previous == null || previous == layout)
-                if (previous ==
-                    null
-                ) {
-                    database.journal().save(
-                        JournalLayoutEntity(config = JournalCodec.encode(layout))
-                    )
-                }
+                database.journal().save(JournalLayoutEntity(config = JournalCodec.encode(layout)))
             }
+            data.settings?.let { database.profileSettings().save(it) }
             val existing = database.periods().snapshot().associateBy { it.id }
             for (record in data.periods.sortedBy { it.startDay }) {
                 val previous = existing[record.id]
@@ -129,6 +157,8 @@ class BackupRepository(
     }
 
     private fun validate(data: BackupData) {
+        require(data.available.isNotEmpty())
+        data.settings?.let { require(it.valid()) }
         data.layout?.let { require(app.ritela.domain.validateJournalLayout(it)) }
         require(data.periods.size <= 10000 && data.logs.size <= 10000)
         val today = LocalDate.now(clock)
@@ -171,21 +201,50 @@ class BackupRepository(
                     .put("calendarIcon", it.calendarIcon ?: JSONObject.NULL)
             )
         }
-        return JSONObject().put("version", 2).put("periods", periods).put("days", logs)
-            .put(
-                "journal",
-                data.layout?.let {
-                    JSONObject(JournalCodec.encode(it))
-                } ?: JSONObject.NULL
-            ).toString()
+        val root = JSONObject().put("version", 3)
+        if (BackupCategory.PERIODS in data.available) root.put("periods", periods)
+        if (BackupCategory.DAYS in data.available) root.put("days", logs)
+        if (BackupCategory.JOURNAL in data.available) {
+            root.put("journal", JSONObject(JournalCodec.encode(requireNotNull(data.layout))))
+        }
+        if (BackupCategory.SETTINGS in data.available) {
+            val settings = requireNotNull(data.settings)
+            root.put(
+                "settings",
+                JSONObject().put("language", settings.language).put("theme", settings.theme)
+            )
+        }
+        return root.toString()
     }
 
     private fun decode(text: String): BackupData {
         val root = JSONObject(text)
-        require(integer(root, "version") in 1L..2L)
-        val periods = root.getJSONArray("periods")
-        val logs = root.getJSONArray("days")
+        val version = integer(root, "version")
+        require(version in 1L..3L)
+        val periods = if (version <
+            3
+        ) {
+            root.getJSONArray("periods")
+        } else {
+            root.optJSONArray("periods") ?: JSONArray()
+        }
+        val logs = if (version <
+            3
+        ) {
+            root.getJSONArray("days")
+        } else {
+            root.optJSONArray("days") ?: JSONArray()
+        }
         require(periods.length() <= 10000 && logs.length() <= 10000)
+        val available = buildSet {
+            if (root.has("periods")) add(BackupCategory.PERIODS)
+            if (root.has("days")) add(BackupCategory.DAYS)
+            if (!root.isNull("journal")) add(BackupCategory.JOURNAL)
+            if (version >= 3 && !root.isNull("settings")) add(BackupCategory.SETTINGS)
+        }
+        require(available.isNotEmpty())
+        if (BackupCategory.PERIODS in available) require(root.get("periods") is JSONArray)
+        if (BackupCategory.DAYS in available) require(root.get("days") is JSONArray)
         return BackupData(
             (0 until periods.length()).map { index ->
                 val p = periods.getJSONObject(index)
@@ -215,7 +274,17 @@ class BackupRepository(
                 null
             } else {
                 JournalCodec.decode(root.getJSONObject("journal").toString())
-            }
+            },
+            if (BackupCategory.SETTINGS in available) {
+                val settings = root.getJSONObject("settings")
+                ProfileSettings(
+                    language = settings.getString("language"),
+                    theme = settings.getString("theme")
+                )
+            } else {
+                null
+            },
+            available
         )
     }
 

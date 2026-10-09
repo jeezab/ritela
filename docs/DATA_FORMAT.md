@@ -1,6 +1,6 @@
 # Локальное хранение
 
-Room database v3: `ritela.db`, схема [3.json](../app/schemas/app.ritela.data.RitelaDatabase/3.json); исходная [v1](../app/schemas/app.ritela.data.RitelaDatabase/1.json) сохранена для migration. Таблица `periods`:
+Room database v4: исходный пользователь хранит `ritela.db`, остальные — `ritela-<UUID>.db`; схема [4.json](../app/schemas/app.ritela.data.RitelaDatabase/4.json); исходная [v1](../app/schemas/app.ritela.data.RitelaDatabase/1.json) сохранена для migration. Таблица `periods`:
 
 | Поле | Формат |
 |---|---|
@@ -18,9 +18,11 @@ Calendar date не переводится в UTC timestamp. Только ада�
 
 DAO/Repository читают все записи: это нужно календарю и расчёту цикла. История доступна в календаре целиком; на главной графики. Производные прогнозы вычисляются заново и не сохраняются в таблице. Реализован зашифрованный JSON backup и merge: [BACKUP.md](BACKUP.md). Схема v2 добавляет day_logs; явная MIGRATION_1_2 не меняет periods. Для последующих изменений схемы обязательна явная migration с автоматической проверкой.
 
-Исходные настройки хранятся отдельно в приватных SharedPreferences `settings`: `cycleLength` INT (default 28, 1..365) и `forecastPeriodDuration` INT (default 7, 1..60). Они не переписывают даты Room. SettingsRepository использует синхронный commit в IO dispatcher, затем публикует StateFlow; combine с Room вызывает пересчёт. Автоматический системный backup остаётся запрещён; ручная копия защищается необязательным паролем. Предполагаемые дни будущих периодов не вставляются в таблицу periods.
+Реестр пользователей хранится в приватных SharedPreferences `users` одним JSON `catalog`: active UUID и список id/name. Первый UUID фиксирован, имя по умолчанию «Я»; имя можно менять без изменения пути базы. Имена после trim должны быть непустыми, уникальными без учёта регистра, до 80 символов. Реестр сохраняется синхронно, выбор последнего пользователя восстанавливается при запуске. Профили не удаляются, не требуют аккаунта и не являются защитой доступа между людьми с доступом к телефону.
 
-Тема в тех же preferences: themeMode STRING = SYSTEM / LIGHT / DARK, по умолчанию SYSTEM. Сохранение в IO с последующей публикацией отдельного StateFlow. Ранее сохранённый cycleLength совместим; forecastPeriodDuration — отдельный новый preset, прежний periodDuration не влияет на новый календарь. Выбор длительности доступен в UI. Настройки темы не меняют схему Room.
+Версия 4: MIGRATION_3_4 добавляет `profile_settings(id INTEGER PRIMARY KEY, language TEXT NOT NULL, theme TEXT NOT NULL)`; единственная строка id=1. Язык: system/ru/en, тема: SYSTEM/LIGHT/DARK. SettingsRepository один раз заполняет отсутствующую строку; у первого профиля сохраняет прежнюю тему и поддерживаемый системный per-app язык, у новых — system/SYSTEM. Старые SharedPreferences `settings` остаются на месте, но cycleLength/forecastPeriodDuration не используются: расчёт стартует с 28 дней цикла и 5 дней месячных и уточняется историей.
+
+ProfileSession содержит Room/репозитории и собственный ViewModelStore. Переключение сначала открывает и проверяет новую базу, затем атомарно обновляет выбранный UUID, сбрасывает UI и закрывает старую сессию. Ошибка открытия не переключает профиль. Активное сохранение или backup блокирует переключение. Не используются destructive migrations, старый файл не копируется и не перемещается. Импорт записей, настроек и структуры выполняется в одной транзакции текущей базы. Производные прогнозы не хранятся и вычисляются отдельно для каждого пользователя. Системный backup запрещён.
 
 Таблица day_logs (v2): day INTEGER PRIMARY KEY (epoch day), nullable TEXT headache/cramps/backache/flow/mood/energy с enum names, sex TEXT (имена в алфавитном порядке через запятую), note TEXT (≤1000 символов). Боль NONE/MILD/MODERATE/SEVERE; flow NONE/LIGHT/MEDIUM/HEAVY; mood CALM/HAPPY/LOW/ANXIOUS/IRRITABLE; energy LOW/NORMAL/HIGH. Sex NONE/CONDOM/NO_BARRIER/VAGINAL/ORAL/ANAL/MASTURBATION/OTHER: несколько тегов за день, NONE отдельно от остальных. NULL/пустой набор — не отмечено; NONE — явное отсутствие. Пустая отметка удаляется, сохранение — Upsert по дню. Будущие дни запрещены. Форма draft переживает пересоздание Activity; ошибочное сохранение не закрывает форму.
 

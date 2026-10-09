@@ -4,12 +4,15 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import app.ritela.data.BackupCategory
 import app.ritela.data.BackupData
 import app.ritela.data.BackupRepository
+import app.ritela.data.BackupSelection
 import app.ritela.data.DayLogEntity
 import app.ritela.data.DayLogRepository
 import app.ritela.data.PeriodEntity
 import app.ritela.data.PeriodRepository
+import app.ritela.data.ProfileSettings
 import app.ritela.data.RitelaDatabase
 import app.ritela.domain.DayLog
 import app.ritela.domain.Pain
@@ -72,6 +75,64 @@ class DayLogBackupTest {
         assertEquals(PeriodProblem.STORAGE, repository.save(DayLog(today, note = "x".repeat(1001))))
         assertNull(repository.save(DayLog(today)))
         assertTrue(repository.logs.first().isEmpty())
+    }
+
+    @Test fun selectableArchivesContainOnlyRequestedCategoriesIncludingEmptyOnes() = runBlocking {
+        val backup = BackupRepository(database, clock)
+        database.profileSettings().save(ProfileSettings(language = "en"))
+        database.dayLogs().save(DayLogEntity.from(DayLog(today, note = "synthetic")))
+        for (category in BackupCategory.entries) {
+            val data = backup.preview(
+                backup.export(charArrayOf(), BackupSelection(setOf(category))),
+                charArrayOf()
+            )
+            assertEquals(setOf(category), data.available)
+            assertEquals(category == BackupCategory.SETTINGS, data.settings != null)
+            assertEquals(category == BackupCategory.JOURNAL, data.layout != null)
+            assertEquals(if (category == BackupCategory.DAYS) 1 else 0, data.logs.size)
+        }
+    }
+
+    @Test fun selectedImportReplacesSettingsButRecordConflictRollsEverythingBack() = runBlocking {
+        val backup = BackupRepository(database, clock)
+        val original = DayLog(today, note = "original synthetic note")
+        database.dayLogs().save(DayLogEntity.from(original))
+        database.profileSettings().save(ProfileSettings(language = "ru"))
+        val layout = app.ritela.domain.JournalLayout(title = "imported layout")
+        val source = BackupData(
+            emptyList(),
+            listOf(DayLogEntity.from(original.copy(note = "conflicting note"))),
+            layout,
+            ProfileSettings(language = "en")
+        )
+        assertTrue(runCatching { backup.import(source) }.isFailure)
+        assertEquals("ru", database.profileSettings().snapshot()?.language)
+        assertNull(database.journal().snapshot())
+        assertEquals(original, database.dayLogs().snapshot().single().toLog())
+        backup.import(
+            source,
+            BackupSelection(setOf(BackupCategory.SETTINGS, BackupCategory.JOURNAL))
+        )
+        assertEquals("en", database.profileSettings().snapshot()?.language)
+        assertEquals(layout, app.ritela.data.JournalRepository(database.journal()).layout.first())
+        assertEquals(original, database.dayLogs().snapshot().single().toLog())
+    }
+
+    @Test fun legacyV2ArchiveHasNoInventedSettingsAndFutureVersionsAreRejected() = runBlocking {
+        val backup = BackupRepository(database, clock)
+        val envelope = org.json.JSONObject(backup.export(charArrayOf()).toString(Charsets.UTF_8))
+        val root = envelope.getJSONObject("data")
+        root.put("version", 2).remove("settings")
+        root.remove("journal")
+        val old = backup.preview(envelope.toString().toByteArray(), charArrayOf())
+        assertEquals(setOf(BackupCategory.PERIODS, BackupCategory.DAYS), old.available)
+        assertNull(old.settings)
+        root.put("version", 4)
+        assertTrue(
+            runCatching {
+                backup.preview(envelope.toString().toByteArray(), charArrayOf())
+            }.isFailure
+        )
     }
 
     @Test fun encryptedBackupRoundTripsIntoAnotherDatabaseAndMergesIdempotently() = runBlocking {
@@ -209,7 +270,11 @@ class DayLogBackupTest {
             old.version = 1
         }
         val upgraded = Room.databaseBuilder(context, RitelaDatabase::class.java, name)
-            .addMigrations(RitelaDatabase.MIGRATION_1_2, RitelaDatabase.MIGRATION_2_3).build()
+            .addMigrations(
+                RitelaDatabase.MIGRATION_1_2,
+                RitelaDatabase.MIGRATION_2_3,
+                RitelaDatabase.MIGRATION_3_4
+            ).build()
         try {
             assertEquals(id, upgraded.periods().snapshot().single().id)
             assertTrue(upgraded.dayLogs().snapshot().isEmpty())
@@ -298,7 +363,7 @@ class DayLogBackupTest {
             old.version = 2
         }
         val upgraded = Room.databaseBuilder(context, RitelaDatabase::class.java, name)
-            .addMigrations(RitelaDatabase.MIGRATION_2_3).build()
+            .addMigrations(RitelaDatabase.MIGRATION_2_3, RitelaDatabase.MIGRATION_3_4).build()
         try {
             val log = upgraded.dayLogs().snapshot().single().toLog()
             assertEquals(Pain.NONE, log.headache)
