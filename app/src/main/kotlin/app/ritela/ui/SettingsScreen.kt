@@ -55,7 +55,7 @@ private fun SettingsContent(
         SettingsGroup {
             SettingsRow(
                 stringResource(R.string.language_title),
-                R.drawable.ic_note,
+                R.drawable.ic_language,
                 value = LocalConfiguration.current.locales[0].getDisplayLanguage(
                     LocalConfiguration.current.locales[0]
                 )
