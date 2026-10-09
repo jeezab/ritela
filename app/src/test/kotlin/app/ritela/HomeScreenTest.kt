@@ -214,9 +214,14 @@ class HomeScreenTest {
         saveRendering("period-delete", dialog = true)
         compose.onNodeWithText("Отмена").performClick()
         assertEquals(changed, runBlocking { repository.periods.first().single() })
-        compose.onNodeWithTag("calendar-history").performClick()
+        compose.onNodeWithTag("calendar-history-panel").assertIsDisplayed()
         compose.onNodeWithText("Удалить").performScrollTo().performClick()
         compose.onNodeWithText("Удалить запись").performClick()
+        compose.waitUntil(10_000) {
+            runBlocking { repository.periods.first().isEmpty() }
+        }
+        compose.onNodeWithTag("calendar-history-panel").assertIsDisplayed()
+        compose.onNodeWithText("Готово").performClick()
         compose.onNodeWithTag("nav-today").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
@@ -404,6 +409,14 @@ class HomeScreenTest {
         compose.onNodeWithText("Delete").performScrollTo().performClick()
         compose.onNodeWithText("Delete this period?").assertIsDisplayed()
         compose.onNodeWithText("Delete period").performClick()
+        compose.waitUntil(10_000) {
+            runBlocking {
+                val repository = (compose.activity.application as RitelaApplication).periods
+                repository.periods.first().isEmpty()
+            }
+        }
+        compose.onNodeWithTag("calendar-history-panel").assertIsDisplayed()
+        compose.onNodeWithText("Done").performClick()
         compose.onNodeWithTag("nav-today").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Start with a date").fetchSemanticsNodes().isNotEmpty()

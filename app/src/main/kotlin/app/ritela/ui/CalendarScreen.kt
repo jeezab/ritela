@@ -255,7 +255,7 @@ private fun CalendarContent(
                 usePlatformDefaultWidth = false
             )
         ) {
-            Surface(Modifier.fillMaxSize()) {
+            Surface(Modifier.fillMaxSize().testTag("calendar-history-panel")) {
                 Column(Modifier.padding(Spacing.medium)) {
                     Text(
                         stringResource(R.string.calendar_history),
@@ -302,7 +302,6 @@ private fun CalendarContent(
                                         }
                                         TextButton(
                                             onClick = {
-                                                historyOpen = false
                                                 onDelete(period)
                                             },
                                             enabled = !state.saving,
