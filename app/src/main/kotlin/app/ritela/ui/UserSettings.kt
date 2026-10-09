@@ -46,6 +46,7 @@ fun UserSettings(state: PeriodUiState) {
     val users by manager.registry.profiles.collectAsStateWithLifecycle()
     val switching by manager.switching.collectAsStateWithLifecycle()
     val backupBusy by session.backupActive.collectAsStateWithLifecycle()
+    val partnerBusy by session.partnerActive.collectAsStateWithLifecycle()
     val language by session.settings.language.collectAsStateWithLifecycle()
     var showingUsers by rememberSaveable { mutableStateOf(false) }
     var showingLanguage by rememberSaveable { mutableStateOf(false) }
@@ -55,7 +56,7 @@ fun UserSettings(state: PeriodUiState) {
     var error by rememberSaveable { mutableStateOf(false) }
     var working by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val enabled = !state.saving && !switching && !backupBusy && !working
+    val enabled = !state.saving && !switching && !backupBusy && !partnerBusy && !working
     SettingsGroup {
         SettingsRow(
             stringResource(R.string.language_title),

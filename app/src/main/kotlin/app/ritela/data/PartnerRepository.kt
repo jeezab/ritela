@@ -130,7 +130,7 @@ class PartnerRepository(
     suspend fun grant(identity: String, scope: ShareScope) = mutate { directory ->
         directory.copy(
             identities = directory.identities.map {
-                if (it.id == identity) it.copy(grants = scope) else it
+                if (it.id == identity) it.copy(grants = scope.normalized()) else it
             }
         )
     }
@@ -178,7 +178,8 @@ class PartnerRepository(
         database.withTransaction { dao.clearReceived(identity) }
     }
 
-    suspend fun preview(selection: ShareScope): JSONObject = database.withTransaction {
+    suspend fun preview(scope: ShareScope): JSONObject = database.withTransaction {
+        val selection = scope.normalized()
         val json = JSONObject().put("scope", PartnerCodec.scope(selection))
         val periods = database.periods().snapshot()
         if (ShareCategory.PERIODS in
@@ -318,7 +319,8 @@ class PartnerRepository(
         selection: ShareScope
     ): PartnerMessage {
         require(selection.categories.isNotEmpty())
-        return prepare(identity, device, "DATA", preview(selection), selection)
+        val normalized = selection.normalized()
+        return prepare(identity, device, "DATA", preview(normalized), normalized)
     }
     suspend fun prepareDoodle(identity: String, device: String, doodle: Doodle): PartnerMessage =
         prepare(identity, device, "DOODLE", PartnerCodec.doodle(doodle))
@@ -349,31 +351,26 @@ class PartnerRepository(
                     ).put("kind", kind).put("created", created).put("content", content).toString()
                 val secret = PartnerCrypto.random(32)
                 val iv = PartnerCrypto.random(12)
-                val ciphertext = try {
-                    PartnerCrypto.crypt(
-                        Cipher.ENCRYPT_MODE,
-                        SecretKeySpec(secret, "AES"),
-                        iv,
-                        "ritela.partner:1",
-                        body.toByteArray()
-                    )
-                } finally { /* cleared after RSA wrapping below */ }
-                val header = JSONObject().put(
-                    "format",
-                    "ritela.partner.encrypted"
-                ).put("v", 1).put("from", keys.identityId)
-                    .put("device", keys.deviceId).put("to", identity).put("targetDevice", device)
-                    .put(
-                        "key",
-                        PartnerCrypto.b64(
-                            PartnerCrypto.wrap(PartnerCrypto.publicKey(contact.publicKey), secret)
-                        )
-                    )
+                val key = SecretKeySpec(secret, "AES")
+                val wrapped = try {
+                    PartnerCrypto.wrap(PartnerCrypto.publicKey(contact.publicKey), secret)
+                } finally {
+                    secret.fill(0)
+                }
+                val ciphertext = PartnerCrypto.crypt(
+                    Cipher.ENCRYPT_MODE,
+                    key,
+                    iv,
+                    "ritela.partner:1",
+                    body.toByteArray()
+                )
+                val header = JSONObject().put("format", "ritela.partner.encrypted").put("v", 1)
+                    .put("from", keys.identityId).put("device", keys.deviceId).put("to", identity)
+                    .put("targetDevice", device).put("key", PartnerCrypto.b64(wrapped))
                     .put(
                         "iv",
                         PartnerCrypto.b64(iv)
                     ).put("data", PartnerCrypto.b64(ciphertext)).toString()
-                secret.fill(0)
                 val envelope = JSONObject().put("header", header).put(
                     "signature",
                     PartnerCrypto.sign(
@@ -481,7 +478,11 @@ class PartnerRepository(
                 }
                 val message =
                     PartnerMessage(
-                        id, sender.id, device.id, false, kind, body.getLong("created"), now(),
+                        id, sender.id, device.id, false, kind,
+                        body.getLong("created").also {
+                            require(it in 0..253402300799999L)
+                        },
+                        now(),
                         content.toString(), bytes.toString(Charsets.UTF_8), delivered = true
                     )
                 dao.insert(message)
@@ -498,17 +499,25 @@ class PartnerRepository(
             val message = dao.message(id) ?: error("Unknown doodle")
             require(message.kind == "DOODLE" && !message.outgoing && message.body.isNotEmpty())
             require(PartnerCodec.doodle(JSONObject(message.body)).canOpen(message.received, now()))
-            if (message.opened) return@run null
-            val receipt = dao.history(message.identity).firstOrNull {
+            val previousReceipt = dao.history(message.identity).firstOrNull {
                 it.outgoing && it.kind == "OPENED" && it.body.isNotEmpty() &&
                     JSONObject(it.body).optString("message") == id
             }
-                ?: prepare(
+            if (message.opened && previousReceipt != null) return@run null
+            val contact = snapshot().identities.firstOrNull { it.id == message.identity }
+            val canReply = contact?.exchangeEnabled == true && contact.devices.any {
+                it.id == message.device && it.enabled
+            }
+            val receipt = if (canReply) {
+                previousReceipt ?: prepare(
                     message.identity,
                     message.device,
                     "OPENED",
                     JSONObject().put("message", id)
                 )
+            } else {
+                null
+            }
             dao.opened(id)
             receipt
         }

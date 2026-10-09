@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -62,7 +63,11 @@ class PartnerReliabilityTest {
             )
             val r = repo(db, LocalPartnerKeys.create())
             val preview = r.preview(
-                ShareScope(setOf(ShareCategory.TAGS), tags = mapOf("discharge" to setOf("WATERY")))
+                ShareScope(
+                    setOf(ShareCategory.TAGS),
+                    sections = setOf("mood"),
+                    tags = mapOf("discharge" to setOf("WATERY"))
+                )
             )
             val text = preview.toString()
             assertTrue(text.contains("WATERY"))
@@ -264,4 +269,103 @@ class PartnerReliabilityTest {
         assertEquals(ExchangeEdge.TOP, PartnerBluetooth.receiveEdge(ExchangeEdge.RIGHT, 1, 0))
         assertEquals(ExchangeEdge.LEFT, PartnerBluetooth.receiveEdge(ExchangeEdge.RIGHT, 1, 1))
     }
+
+    @Test fun bluetoothFramesRejectOversizeAndTruncationWithoutPartialPayload() {
+        val output = java.io.ByteArrayOutputStream()
+        val data = "synthetic authenticated packet".toByteArray()
+        PartnerBluetooth.writeFrame(output, data)
+        assertArrayEquals(
+            data,
+            PartnerBluetooth.readFrame(java.io.ByteArrayInputStream(output.toByteArray()))
+        )
+        assertTrue(
+            runCatching {
+                PartnerBluetooth.readFrame(
+                    java.io.ByteArrayInputStream(output.toByteArray().dropLast(1).toByteArray())
+                )
+            }.isFailure
+        )
+        val invalid = java.io.ByteArrayOutputStream()
+        java.io.DataOutputStream(invalid).writeInt(Int.MAX_VALUE)
+        assertTrue(
+            runCatching {
+                PartnerBluetooth.readFrame(java.io.ByteArrayInputStream(invalid.toByteArray()))
+            }.isFailure
+        )
+    }
+
+    @Test fun deletedGroupSourceNeedsFreshConsent() = runBlocking {
+        var local = LocalPartnerKeys.create()
+        val a = LocalPartnerKeys.create()
+        val b = LocalPartnerKeys.create()
+        val database = db()
+        try {
+            val repository = PartnerRepository(database, { local }, { local = it })
+            repository.pair(repository.inspectInvitation(a.qr("A")))
+            repository.pair(repository.inspectInvitation(b.qr("B")))
+            repository.grant(a.identityId, ShareScope(setOf(ShareCategory.DIARY)))
+            val contacts = repository.snapshot().contacts
+            repository.merge(contacts[0].id, contacts[1].id, "Group", true)
+            repository.remove(contacts[0].id)
+            val retained = repository.snapshot().identities.single { it.id == a.identityId }
+            assertFalse(retained.exchangeEnabled)
+            assertTrue(retained.grants.categories.isEmpty())
+            repository.pair(repository.inspectInvitation(a.qr("A")))
+            val restored = repository.snapshot().identities.single { it.id == a.identityId }
+            assertTrue(restored.exchangeEnabled)
+            assertTrue(restored.grants.categories.isEmpty())
+            assertTrue(
+                repository.snapshot().contacts.any {
+                    !it.group &&
+                        a.identityId in it.identities
+                }
+            )
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test fun ownCycleForecastSnapshotKeepsCentralDatesAndUncertaintyWithoutChangingHistory() =
+        runBlocking {
+            val database = db()
+            try {
+                val today = LocalDate.now()
+                val starts = (0..7).map { today.minusDays(7 * 28L).plusDays(it * 28L) }
+                starts.forEach { date ->
+                    database.periods().addIfSeparate(
+                        app.ritela.data.PeriodEntity(
+                            UUID.randomUUID().toString(),
+                            date.toEpochDay(),
+                            date.plusDays(4).toEpochDay().coerceAtMost(today.toEpochDay()),
+                            0,
+                            0
+                        )
+                    )
+                }
+                val original = database.periods().snapshot()
+                val repository = repo(database, LocalPartnerKeys.create())
+                val shared = repository.preview(ShareScope(setOf(ShareCategory.FORECASTS)))
+                val expected = app.ritela.domain.analyzeCycles(
+                    original.map {
+                        it.toPeriod()
+                    },
+                    today
+                )
+                val forecast = shared.getJSONArray("forecasts").getJSONObject(0)
+                assertEquals(
+                    expected.forecasts.first().predictedStartDate.toEpochDay(),
+                    forecast.getLong("start")
+                )
+                assertEquals(forecast.getLong("start") - 14, forecast.getLong("ovulation"))
+                assertEquals(
+                    expected.forecasts.first().lowerBound.toEpochDay() - 16,
+                    forecast.getLong("ovulationLower")
+                )
+                assertEquals(original, database.periods().snapshot())
+                assertFalse(shared.has("periods"))
+                assertFalse(shared.has("days"))
+            } finally {
+                database.close()
+            }
+        }
 }

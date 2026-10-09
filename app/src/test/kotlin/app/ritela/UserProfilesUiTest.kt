@@ -167,7 +167,10 @@ class UserProfilesUiTest {
         assertEquals(2, app.profiles.registry.profiles.value.size)
         compose.onNodeWithTag("profile-delete-${second.id}").performClick()
         compose.onNodeWithTag("profile-delete-confirm").performClick()
-        compose.waitUntil(5000) { app.profiles.registry.profiles.value.size == 1 }
+        compose.waitUntil(5000) {
+            app.profiles.registry.profiles.value.size == 1 &&
+                compose.onAllNodesWithTag("profile-picker").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag("profile-picker").assertIsDisplayed()
         compose.onNodeWithTag("profile-delete-${second.id}").assertDoesNotExist()
         assertEquals(ProfileRegistry.FIRST_ID, app.profiles.registry.activeId)

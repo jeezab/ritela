@@ -48,8 +48,7 @@ class PartnerViewModel(
         run { identityId.value = repository.identity().identityId }
     }
     fun run(action: suspend () -> Unit) {
-        if (mutableBusy.value) return
-        mutableBusy.value = true
+        if (!mutableBusy.compareAndSet(false, true)) return
         error.value = false
         viewModelScope.launch(Dispatchers.IO) {
             try {

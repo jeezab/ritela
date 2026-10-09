@@ -9,6 +9,10 @@ data class ShareScope(
     val sections: Set<String> = emptySet(),
     val tags: Map<String, Set<String>> = emptyMap()
 ) {
+    fun normalized(): ShareScope = copy(
+        sections = if (ShareCategory.SECTIONS in categories) sections else emptySet(),
+        tags = if (ShareCategory.TAGS in categories) tags else emptyMap()
+    )
     fun permits(selection: ShareScope): Boolean = categories.containsAll(selection.categories) &&
         sections.containsAll(selection.sections) &&
         selection.tags.all { (id, values) -> tags[id].orEmpty().containsAll(values) }

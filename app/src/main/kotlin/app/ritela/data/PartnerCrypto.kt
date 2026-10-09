@@ -156,16 +156,21 @@ data class LocalPartnerKeys(
     }
 }
 
-class PartnerKeyVault(context: Context, private val profile: String) {
+class PartnerKeyVault(
+    context: Context,
+    private val profile: String,
+    private val wrappingOverride: (() -> SecretKey)? = null
+) {
     private val file = AtomicFile(File(context.filesDir, "partner-$profile.keys"))
     private fun hasIdentity(): Boolean =
         file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()
     private fun wrappingKey(): SecretKey {
+        wrappingOverride?.let { return it() }
         val store = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         val alias = "ritela.partner.$profile"
         val existing = store.getKey(alias, null) as? SecretKey
         if (existing != null) return existing
-        if (file.baseFile.exists()) {
+        if (hasIdentity()) {
             throw java.security.KeyStoreException(
                 "Identity wrapping key unavailable"
             )
@@ -201,11 +206,14 @@ class PartnerKeyVault(context: Context, private val profile: String) {
     }
 
     @Synchronized fun save(keys: LocalPartnerKeys) {
-        val iv = PartnerCrypto.random(12)
         val plain = keys.encode().toByteArray()
+        // Android Keystore requires provider-generated IVs for randomized encryption keys.
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, wrappingKey())
+        val iv = cipher.iv.also { require(it.size == 12) }
+        cipher.updateAAD(profile.toByteArray())
         val encrypted = try {
-            iv +
-                PartnerCrypto.crypt(Cipher.ENCRYPT_MODE, wrappingKey(), iv, profile, plain)
+            iv + cipher.doFinal(plain)
         } finally {
             plain.fill(0)
         }
