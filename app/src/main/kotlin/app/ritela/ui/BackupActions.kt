@@ -56,7 +56,8 @@ fun BackupActions() {
     val repository = session.backups
     val users by manager.registry.profiles.collectAsStateWithLifecycle()
     val switching by manager.switching.collectAsStateWithLifecycle()
-    val user = users.first { it.id == session.profileId }.name
+    val user = users.firstOrNull { it.id == session.profileId }?.name
+        ?: app.ritela.data.ProfileRegistry.DEFAULT_NAME
     fun begin(): Boolean {
         if (manager.switching.value || manager.session.value !== session ||
             session.model.uiState.value.saving

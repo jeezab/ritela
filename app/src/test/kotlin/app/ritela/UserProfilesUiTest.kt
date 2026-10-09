@@ -16,6 +16,7 @@ import androidx.compose.ui.test.performTextReplacement
 import app.ritela.data.BackupCategory
 import app.ritela.data.BackupSelection
 import app.ritela.data.ProfileRegistry
+import app.ritela.domain.DayLog
 import app.ritela.ui.BackupChoices
 import app.ritela.ui.HomeTheme
 import java.time.LocalDate
@@ -142,5 +143,53 @@ class UserProfilesUiTest {
         compose.onNodeWithTag("backup-choice-DAYS").performScrollTo().performClick()
         compose.onNodeWithTag("backup-confirm").assertIsDisplayed().performClick()
         assertEquals(setOf(BackupCategory.DAYS), chosen?.categories)
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "en-rUS-w390dp-h844dp")
+    fun deleteIsRightOfEditAndCancellationKeepsUserThenConfirmationRemovesOnlyThatUser() {
+        val app = compose.activity.application as RitelaApplication
+        val second = app.profiles.registry.add("Second")
+        waitForHome()
+        compose.onNodeWithTag("nav-settings").performClick()
+        compose.onNodeWithTag("profile-switch").performScrollTo().performClick()
+        val edit = compose.onNodeWithTag("profile-rename-${second.id}").performScrollTo()
+            .fetchSemanticsNode().boundsInRoot
+        val delete = compose.onNodeWithTag("profile-delete-${second.id}").performScrollTo()
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue(delete.left >= edit.right)
+        compose.onNodeWithTag(
+            "profile-delete-${second.id}"
+        ).assertTextEquals("Delete").performClick()
+        compose.onNodeWithTag("profile-delete-dialog").assertIsDisplayed()
+        compose.onNodeWithText("Delete user?").assertIsDisplayed()
+        compose.onNodeWithTag("profile-delete-cancel").performClick()
+        assertEquals(2, app.profiles.registry.profiles.value.size)
+        compose.onNodeWithTag("profile-delete-${second.id}").performClick()
+        compose.onNodeWithTag("profile-delete-confirm").performClick()
+        compose.waitUntil(5000) { app.profiles.registry.profiles.value.size == 1 }
+        compose.onNodeWithTag("profile-picker").assertIsDisplayed()
+        compose.onNodeWithTag("profile-delete-${second.id}").assertDoesNotExist()
+        assertEquals(ProfileRegistry.FIRST_ID, app.profiles.registry.activeId)
+    }
+
+    @Test
+    @Config(sdk = [35], qualifiers = "ru-rRU-w320dp-h640dp", fontScale = 2f)
+    fun deletingLastUserAtLargeTextOpensFreshHomeWithDefaultName() {
+        val app = compose.activity.application as RitelaApplication
+        runBlocking { app.days.save(DayLog(LocalDate.now(), note = "synthetic removal")) }
+        waitForHome()
+        compose.onNodeWithTag("nav-settings").performClick()
+        compose.onNodeWithTag("profile-switch").performScrollTo().performClick()
+        compose.onNodeWithTag(
+            "profile-delete-${ProfileRegistry.FIRST_ID}"
+        ).performScrollTo().performClick()
+        compose.onNodeWithText("Удалить пользователя?").assertIsDisplayed()
+        compose.onNodeWithTag("profile-delete-confirm").assertIsDisplayed().performClick()
+        compose.waitUntil(10_000) { app.profiles.registry.activeId != ProfileRegistry.FIRST_ID }
+        waitForHome()
+        compose.onNodeWithTag("nav-today").assertIsSelected()
+        assertEquals("qwerty", app.profiles.registry.profiles.value.single().name)
+        assertTrue(runBlocking { app.days.logs.first().isEmpty() })
     }
 }
