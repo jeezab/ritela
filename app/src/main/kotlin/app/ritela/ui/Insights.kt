@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -79,13 +80,14 @@ fun DaySummary(
         ) {
             Text(
                 stringResource(R.string.home_title),
-                Modifier.weight(1f),
+                Modifier.weight(1f).heightIn(min = 48.dp)
+                    .wrapContentHeight(Alignment.CenterVertically),
                 style = MaterialTheme.typography.titleLarge
             )
             TextButton(
                 onClick = onEdit,
                 enabled = enabled,
-                modifier = Modifier.testTag("log-day")
+                modifier = Modifier.heightIn(min = 48.dp).testTag("log-day")
             ) {
                 Icon(painterResource(R.drawable.ic_note), contentDescription = null)
                 Text(
