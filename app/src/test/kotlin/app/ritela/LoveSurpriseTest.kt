@@ -63,19 +63,19 @@ class LoveSurpriseTest {
     }
 
     @Test
-    fun letterIsRussianInEnglishAndCanBeClosedAndReopened() {
+    fun letterIsEnglishAndCanBeClosedAndReopened() {
         content()
         repeat(8) { compose.onNodeWithTag("with-love").performClick() }
         compose.onNodeWithTag("love-letter").assertDoesNotExist()
         compose.onNodeWithTag("with-love").performClick()
         compose.onNodeWithTag("love-letter").assertIsDisplayed()
         compose.onNodeWithTag("love-letter-text").assertTextEquals(
-            "Маргошенька!\n\n" +
-                "время вместе летит незаметно.. спасибо тебе за всё, " +
-                "что ты делаешь для меня, для нас.\n\n" +
-                "В честь нашей даты решил создать приложение для тебя!! " +
-                "Вдохновлён лишь тобою, твоими печеньками и заботой.\n\n" +
-                "Люблю тебя очень! Ты моё большое маленькое чудо.."
+            "Margoshhhhh!\n\n" +
+                "time flies by unnoticeably together.. " +
+                "Thank you for everything you do for me, for us.\n\n" +
+                "In honor of our date, I decided to create an app for you!! " +
+                "Inspired only by you, your cookies and your care.\n\n" +
+                "I love you very much! You're my big little miracle.."
         )
         compose.onNodeWithTag("love-letter-close").performClick()
         compose.onNodeWithTag("love-letter").assertDoesNotExist()
@@ -114,6 +114,14 @@ class LoveSurpriseTest {
             compose.mainClock.advanceTimeBy(32)
         }
         compose.mainClock.advanceTimeBy(300)
+        compose.onNodeWithTag("love-letter-text").assertTextEquals(
+            "Маргошенька!\n\n" +
+                "время вместе летит незаметно.. спасибо тебе за всё, " +
+                "что ты делаешь для меня, для нас.\n\n" +
+                "В честь нашей даты решил создать приложение для тебя!! " +
+                "Вдохновлён лишь тобою, твоими печеньками и заботой.\n\n" +
+                "Люблю тебя очень! Ты моё большое маленькое чудо.."
+        )
         compose.onNodeWithTag("love-letter-close").assertIsDisplayed().performClick()
         compose.mainClock.advanceTimeByFrame()
         compose.onNodeWithTag("love-letter").assertDoesNotExist()
