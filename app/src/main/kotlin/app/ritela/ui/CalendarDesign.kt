@@ -124,17 +124,23 @@ fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> U
                     }
                 }
                 CalendarSummaryCard {
-                    Text(
-                        stringResource(R.string.calendar_key),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    IconButton(onClick = {
-                        showInfo = true
-                    }, modifier = Modifier.testTag("calendar-forecast-info")) {
-                        Icon(
-                            painterResource(R.drawable.ic_info),
-                            stringResource(R.string.forecast_info)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.calendar_key),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelLarge
                         )
+                        IconButton(onClick = {
+                            showInfo = true
+                        }, modifier = Modifier.testTag("calendar-forecast-info")) {
+                            Icon(
+                                painterResource(R.drawable.ic_info),
+                                stringResource(R.string.forecast_info)
+                            )
+                        }
                     }
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
