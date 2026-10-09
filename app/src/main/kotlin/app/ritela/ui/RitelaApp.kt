@@ -97,6 +97,11 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
         }
     }
 
+    if (profile != null && !partnerMode.ready) {
+        Text(stringResource(if (partnerMode.failed) R.string.storage_error else R.string.loading))
+        return
+    }
+
     val darkTheme = when (state.themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false

@@ -2,6 +2,7 @@ package app.ritela.data
 
 import androidx.room.withTransaction
 import app.ritela.domain.Doodle
+import app.ritela.domain.EstimatedCyclePhase
 import app.ritela.domain.JournalLayout
 import app.ritela.domain.PartnerDevice
 import app.ritela.domain.PartnerDirectory
@@ -9,7 +10,9 @@ import app.ritela.domain.PartnerIdentity
 import app.ritela.domain.ShareCategory
 import app.ritela.domain.ShareScope
 import app.ritela.domain.analyzeCycles
+import app.ritela.domain.cycleSceneState
 import app.ritela.domain.journalSelections
+import app.ritela.domain.validJournalId
 import java.security.KeyPair
 import java.time.LocalDate
 import java.util.UUID
@@ -98,20 +101,32 @@ class PartnerRepository(
     }
 
     /** Call only after fingerprint comparison and explicit mutual-verification confirmation. */
-    suspend fun pair(invitation: PairInvitation) = mutate { directory ->
+    suspend fun pair(invitation: PairInvitation) {
+        require(PartnerCrypto.id(invitation.key) == invitation.identity)
         require(
-            directory.identities.size < 64 ||
-                directory.identities.any { it.id == invitation.identity }
-        )
-        directory.add(
-            PartnerIdentity(
-                invitation.identity,
-                invitation.key,
-                invitation.name,
-                listOf(invitation.device)
+            PartnerCrypto.verify(
+                PartnerCrypto.publicKey(invitation.key),
+                "${invitation.identity}:${invitation.device.id}:${invitation.device.publicKey}",
+                invitation.device.certificate
             )
         )
+        val nonce = identity().nonce
+        mutate { directory ->
+            require(
+                directory.identities.size < 64 ||
+                    directory.identities.any { it.id == invitation.identity }
+            )
+            directory.add(
+                PartnerIdentity(
+                    invitation.identity,
+                    invitation.key,
+                    invitation.name,
+                    listOf(invitation.device.copy(localNonce = nonce))
+                )
+            )
+        }
     }
+
     suspend fun grant(identity: String, scope: ShareScope) = mutate { directory ->
         directory.copy(
             identities = directory.identities.map {
@@ -153,7 +168,12 @@ class PartnerRepository(
     suspend fun merge(a: String, b: String, name: String, group: Boolean) =
         mutate { it.merge(a, b, name, group) }
     suspend fun split(contact: String) = mutate { it.split(contact) }
-    suspend fun remove(contact: String) = mutate { it.remove(contact) }
+    suspend fun remove(contact: String) {
+        withContext(Dispatchers.IO) {
+            saveKeys(loadKeys().copy(nonce = UUID.randomUUID().toString()))
+        }
+        mutate { it.remove(contact) }
+    }
     suspend fun clearReceived(identity: String) {
         database.withTransaction { dao.clearReceived(identity) }
     }
@@ -191,12 +211,16 @@ class PartnerRepository(
                                 "upper",
                                 it.upperBound.toEpochDay()
                             ).put("ovulation", it.predictedStartDate.minusDays(14).toEpochDay())
+                            .put("ovulationLower", it.lowerBound.minusDays(16).toEpochDay())
+                            .put("ovulationUpper", it.upperBound.minusDays(10).toEpochDay())
                     }
                 )
             ).put(
                 "cycleDay",
                 analysis.cycleDay ?: JSONObject.NULL
             ).put("duration", analysis.periodDuration)
+                .put("phase", cycleSceneState(analysis, LocalDate.now()).phase.name)
+                .put("asOf", LocalDate.now().toEpochDay())
         }
         val diary = ShareCategory.DIARY in selection.categories
         if (diary || ShareCategory.SECTIONS in selection.categories ||
@@ -467,18 +491,50 @@ class PartnerRepository(
     }
     suspend fun acknowledgement(message: PartnerMessage): PartnerMessage =
         prepare(message.identity, message.device, "ACK", JSONObject().put("message", message.id))
-    suspend fun openDoodle(id: String): PartnerMessage? {
-        val message = dao.message(id) ?: error("Unknown doodle")
-        require(message.kind == "DOODLE" && !message.outgoing && message.body.isNotEmpty())
-        require(PartnerCodec.doodle(JSONObject(message.body)).canOpen(message.received, now()))
-        if (message.opened) return null
-        val receipt =
-            prepare(message.identity, message.device, "OPENED", JSONObject().put("message", id))
-        dao.opened(id)
-        return receipt
+    private val openingMutex = Mutex()
+    suspend fun openDoodle(id: String): PartnerMessage? = openingMutex.withLock {
+        // prepare persists the receipt before marking opened; recovery reuses that receipt.
+        run {
+            val message = dao.message(id) ?: error("Unknown doodle")
+            require(message.kind == "DOODLE" && !message.outgoing && message.body.isNotEmpty())
+            require(PartnerCodec.doodle(JSONObject(message.body)).canOpen(message.received, now()))
+            if (message.opened) return@run null
+            val receipt = dao.history(message.identity).firstOrNull {
+                it.outgoing && it.kind == "OPENED" && it.body.isNotEmpty() &&
+                    JSONObject(it.body).optString("message") == id
+            }
+                ?: prepare(
+                    message.identity,
+                    message.device,
+                    "OPENED",
+                    JSONObject().put("message", id)
+                )
+            dao.opened(id)
+            receipt
+        }
     }
-    suspend fun retry(id: String): PartnerMessage = requireNotNull(dao.message(id)).also {
-        require(it.outgoing && it.envelope.isNotEmpty())
+    suspend fun retry(id: String): PartnerMessage {
+        val message = requireNotNull(dao.message(id))
+        require(message.outgoing && message.envelope.isNotEmpty())
+        val keys = identity()
+        val header = JSONObject(JSONObject(message.envelope).getString("header"))
+        require(
+            header.getString("from") == keys.identityId &&
+                header.getString("device") == keys.deviceId
+        )
+        val directory = snapshot()
+        val identity = directory.identities.single {
+            it.id == message.identity && it.exchangeEnabled
+        }
+        require(identity.devices.any { it.id == message.device && it.enabled })
+        if (message.kind == "DATA") {
+            require(
+                identity.grants.permits(
+                    PartnerCodec.scope(JSONObject(message.body).getJSONObject("scope"))
+                )
+            )
+        }
+        return message
     }
     suspend fun exportIdentity(password: CharArray): ByteArray = withContext(Dispatchers.IO) {
         try {
@@ -519,7 +575,7 @@ class PartnerRepository(
                     require(bytes.size <= 16000)
                     val json = JSONObject(bytes.toString(Charsets.UTF_8))
                     require(json.getString("format") == "ritela.identity" && json.getInt("v") == 1)
-                    // Replacing a live identity would orphan local trusted links/messages; require a fresh profile.
+                    // Restoring requires a fresh profile to avoid orphaning live links.
                     require(snapshot().identities.isEmpty())
                     val plain = PartnerCrypto.crypt(
                         Cipher.DECRYPT_MODE,
@@ -554,9 +610,79 @@ class PartnerRepository(
     private fun validateData(content: JSONObject) {
         val scope = PartnerCodec.scope(content.getJSONObject("scope"))
         require(scope.categories.isNotEmpty())
-        content.optJSONArray("periods")?.let { require(it.length() <= 10000) }
-        content.optJSONArray("days")?.let { require(it.length() <= 10000) }
-        content.optJSONArray("forecasts")?.let { require(it.length() <= 16) }
-        require(!content.has("identityPrivate") && !content.has("devicePrivate"))
+        fun day(value: Long) {
+            require(value in -25567L..376199L)
+        }
+        content.optJSONArray("periods")?.let { array ->
+            require(ShareCategory.PERIODS in scope.categories && array.length() <= 10000)
+            PartnerCodec.objects(array).forEach {
+                UUID.fromString(it.getString("id"))
+                day(it.getLong("start"))
+                if (!it.isNull("end")) {
+                    day(it.getLong("end"))
+                    require(it.getLong("end") >= it.getLong("start"))
+                }
+                require(it.getLong("updated") >= 0)
+            }
+        }
+        content.optJSONArray("days")?.let { array ->
+            require(
+                scope.categories.any {
+                    it in
+                        listOf(ShareCategory.DIARY, ShareCategory.SECTIONS, ShareCategory.TAGS)
+                }
+            )
+            require(array.length() <= 10000)
+            PartnerCodec.objects(array).forEach { entry ->
+                day(entry.getLong("day"))
+                require(entry.getString("note").length <= 5000)
+                val sections = entry.getJSONObject("sections")
+                require(sections.length() <= 64)
+                sections.keys().asSequence().forEach { id ->
+                    require(validJournalId(id))
+                    val tags = PartnerCodec.strings(sections.getJSONArray(id))
+                    require(tags.size <= 64 && tags.all(::validJournalId))
+                }
+            }
+        }
+        content.optJSONArray("forecasts")?.let { array ->
+            require(ShareCategory.FORECASTS in scope.categories && array.length() <= 16)
+            PartnerCodec.objects(array).forEach {
+                listOf("start", "lower", "upper", "ovulation").forEach { key ->
+                    day(it.getLong(key))
+                }
+                require(it.getLong("start") in it.getLong("lower")..it.getLong("upper"))
+            }
+        }
+        content.optJSONObject("settings")?.let {
+            require(ShareCategory.SETTINGS in scope.categories)
+            require(it.getString("language") in listOf("system", "ru", "en"))
+            ThemeMode.valueOf(it.getString("theme"))
+        }
+        require(
+            content.keys().asSequence().all {
+                it in setOf(
+                    "scope", "periods", "days", "labels", "forecasts",
+                    "cycleDay", "duration", "settings", "phase", "asOf"
+                )
+            }
+        )
+        content.optJSONObject("labels")?.let { labels ->
+            require(labels.length() <= 64)
+            labels.keys().asSequence().forEach { id ->
+                require(validJournalId(id))
+                val section = labels.getJSONObject(id)
+                require(section.getString("title").length <= 200)
+                val tags = section.getJSONObject("tags")
+                require(tags.length() <= 64)
+                tags.keys().asSequence().forEach { tag ->
+                    require(validJournalId(tag) && tags.getString(tag).length <= 200)
+                }
+            }
+        }
+        if (content.has("phase")) EstimatedCyclePhase.valueOf(content.getString("phase"))
+        if (content.has("asOf")) day(content.getLong("asOf"))
+        if (content.has("duration")) require(content.getInt("duration") in 1..60)
+        if (!content.isNull("cycleDay")) require(content.getLong("cycleDay") in 1..400000)
     }
 }

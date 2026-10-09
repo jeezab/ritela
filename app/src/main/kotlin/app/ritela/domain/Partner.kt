@@ -48,12 +48,40 @@ data class PartnerDirectory(
         require(previous == null || previous.publicKey == identity.publicKey)
         if (previous != null) {
             // New devices are individually approved; never inherit grants from a re-pair.
-            val devices = previous.devices + identity.devices.filter { incoming ->
-                previous.devices.none { it.id == incoming.id }
+            val incoming = identity.devices.associateBy { it.id }
+            previous.devices.forEach { existing ->
+                incoming[existing.id]?.let { require(it.publicKey == existing.publicKey) }
             }
+            val devices = previous.devices.map { existing ->
+                if (!existing.enabled &&
+                    existing.id in incoming
+                ) {
+                    incoming.getValue(existing.id)
+                } else {
+                    existing
+                }
+            } + identity.devices.filter { device -> previous.devices.none { it.id == device.id } }
+            val changed = devices != previous.devices || !previous.exchangeEnabled
+            val hasContact = contacts.any { !it.group && identity.id in it.identities }
             return copy(
                 identities = identities.map {
-                    if (it.id == identity.id) it.copy(devices = devices) else it
+                    if (it.id == identity.id) {
+                        it.copy(
+                            devices = devices,
+                            exchangeEnabled = true,
+                            grants = if (changed) ShareScope() else it.grants
+                        )
+                    } else {
+                        it
+                    }
+                },
+                contacts = if (hasContact) {
+                    contacts
+                } else {
+                    contacts + PartnerContact(
+                        name = identity.name,
+                        identities = setOf(identity.id)
+                    )
                 }
             )
         }
@@ -113,7 +141,19 @@ data class PartnerDirectory(
         val retained = remaining.flatMap { it.identities }.toSet()
         return copy(
             contacts = remaining,
-            identities = identities.filterNot { it.id in contact.identities && it.id !in retained }
+            identities = identities.filterNot {
+                it.id in contact.identities && it.id !in retained
+            }.map {
+                if (!contact.group && it.id in contact.identities) {
+                    it.copy(
+                        grants = ShareScope(),
+                        exchangeEnabled = false,
+                        devices = it.devices.map { device -> device.copy(enabled = false) }
+                    )
+                } else {
+                    it
+                }
+            }
         )
     }
 }

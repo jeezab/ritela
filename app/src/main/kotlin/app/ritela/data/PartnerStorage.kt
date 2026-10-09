@@ -17,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -77,7 +78,8 @@ interface PartnerDao {
 data class PartnerMode(
     val show: Boolean = false,
     val recipient: Boolean = false,
-    val ready: Boolean = false
+    val ready: Boolean = false,
+    val failed: Boolean = false
 )
 
 class PartnerPreferences(context: Context, profile: String) {
@@ -86,7 +88,10 @@ class PartnerPreferences(context: Context, profile: String) {
         context.preferencesDataStoreFile("partner-$profile")
     }
     val mode = store.data.map { PartnerMode(it[SHOW] ?: false, it[RECIPIENT] ?: false, true) }
-        .stateIn(scope, SharingStarted.Eagerly, PartnerMode())
+        .catch { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            emit(PartnerMode(failed = true))
+        }.stateIn(scope, SharingStarted.Eagerly, PartnerMode())
     suspend fun show(value: Boolean) {
         store.edit { it[SHOW] = value }
     }

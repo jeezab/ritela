@@ -193,6 +193,34 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
     val partner by lazy {
         PartnerRepository(database, partnerVault::loadOrCreate, partnerVault::save)
     }
+    private val partnerKeyScope =
+        CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    private val partnerKeyInitialization = partnerKeyScope.launch {
+        try {
+            partner.identity()
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: java.security.GeneralSecurityException) {
+            // Own records remain usable; Partner reports a vault error when opened.
+        } catch (_: java.io.IOException) {
+            // Retry on explicit Partner use; never replace an unreadable identity.
+        }
+    }
+    val partnerActive = MutableStateFlow(false)
+    val partnerModel by lazy {
+        ViewModelProvider(
+            this,
+            viewModelFactory {
+                initializer {
+                    app.ritela.ui.PartnerViewModel(
+                        context.applicationContext,
+                        partner,
+                        partnerActive
+                    )
+                }
+            }
+        )[app.ritela.ui.PartnerViewModel::class.java]
+    }
     val backups = BackupRepository(database)
     val backupActive = MutableStateFlow(false)
     val model by lazy {
@@ -207,6 +235,9 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
     suspend fun close() {
         withContext(Dispatchers.Main.immediate) { viewModelStore.clear() }
         settings.close()
+        partnerKeyInitialization.cancel()
+        partnerKeyInitialization.join()
+        partnerKeyScope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         partnerPreferences.close()
         withContext(Dispatchers.IO) { database.close() }
     }
@@ -230,7 +261,10 @@ class ProfileManager(private val context: Context) {
 
     suspend fun delete(id: String) = mutex.withLock {
         val previous = active.value
-        check(!previous.backupActive.value && !previous.model.uiState.value.saving)
+        check(
+            !previous.backupActive.value && !previous.partnerActive.value &&
+                !previous.model.uiState.value.saving
+        )
         val users = registry.profiles.value
         require(users.any { it.id == id })
         val remaining = users.filterNot { it.id == id }
@@ -248,7 +282,10 @@ class ProfileManager(private val context: Context) {
                 next = withContext(Dispatchers.IO) { ProfileSession(context, target.id) }
                 next.settings.awaitReady()
             }
-            check(!previous.backupActive.value && !previous.model.uiState.value.saving)
+            check(
+                !previous.backupActive.value && !previous.partnerActive.value &&
+                    !previous.model.uiState.value.saving
+            )
             withContext(kotlinx.coroutines.NonCancellable) {
                 withContext(Dispatchers.IO) { registry.delete(id, replacement) }
                 if (deletingActive) {
@@ -290,6 +327,10 @@ class ProfileManager(private val context: Context) {
                 "datastore/partner-$id.preferences_pb"
             )
             check(!partnerPrefs.exists() || partnerPrefs.delete())
+            val exchangeCache = java.io.File(context.cacheDir, "partner/$id").canonicalFile
+            val cacheRoot = java.io.File(context.cacheDir, "partner").canonicalFile
+            check(exchangeCache.parentFile == cacheRoot)
+            if (exchangeCache.exists()) check(exchangeCache.deleteRecursively())
             registry.completeDeletion(id)
         }
     }
@@ -297,14 +338,20 @@ class ProfileManager(private val context: Context) {
     suspend fun switchTo(id: String) = mutex.withLock {
         val previous = active.value
         if (previous.profileId == id) return@withLock
-        check(!previous.backupActive.value && !previous.model.uiState.value.saving)
+        check(
+            !previous.backupActive.value && !previous.partnerActive.value &&
+                !previous.model.uiState.value.saving
+        )
         require(registry.profiles.value.any { it.id == id })
         changing.value = true
         var next: ProfileSession? = null
         try {
             next = withContext(Dispatchers.IO) { ProfileSession(context, id) }
             next.settings.awaitReady()
-            check(!previous.backupActive.value && !previous.model.uiState.value.saving)
+            check(
+                !previous.backupActive.value && !previous.partnerActive.value &&
+                    !previous.model.uiState.value.saving
+            )
             withContext(kotlinx.coroutines.NonCancellable) {
                 withContext(Dispatchers.IO) { registry.select(id) }
                 active.value = requireNotNull(next)
