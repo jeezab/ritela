@@ -1,0 +1,15 @@
+<resources>
+    <string name="profile_switch">Сменить пользователя</string>
+    <string name="profile_add">Добавить пользователя</string>
+    <string name="profile_rename">Изменить имя</string>
+    <string name="profile_name">Имя</string>
+    <string name="profile_error">Введите уникальное имя от 1 до 80 символов. Если сохранить не удалось, попробуйте ещё раз.</string>
+    <string name="language_system">Системный язык</string>
+    <string name="backup_user">Пользователь: %1$s</string>
+    <string name="backup_all">Всё</string>
+    <string name="backup_category_periods">Месячные</string>
+    <string name="backup_category_days">Записи дневника</string>
+    <string name="backup_category_journal">Разделы и теги дневника</string>
+    <string name="backup_category_settings">Настройки приложения</string>
+    <string name="backup_settings_replace">Выбранные настройки и разделы заменят текущую конфигурацию. Существующие записи дневника останутся.</string>
+</resources>

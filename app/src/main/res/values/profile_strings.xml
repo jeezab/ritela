@@ -1,0 +1,15 @@
+<resources>
+    <string name="profile_switch">Switch user</string>
+    <string name="profile_add">Add user</string>
+    <string name="profile_rename">Rename user</string>
+    <string name="profile_name">Name</string>
+    <string name="profile_error">Use a unique name of 1–80 characters. If saving failed, try again.</string>
+    <string name="language_system">System language</string>
+    <string name="backup_user">User: %1$s</string>
+    <string name="backup_all">Everything</string>
+    <string name="backup_category_periods">Periods</string>
+    <string name="backup_category_days">Day records</string>
+    <string name="backup_category_journal">Journal sections and tags</string>
+    <string name="backup_category_settings">App settings</string>
+    <string name="backup_settings_replace">Selected settings and journal sections will replace the current configuration. Existing day records will remain.</string>
+</resources>

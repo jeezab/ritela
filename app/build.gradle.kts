@@ -62,6 +62,12 @@ android {
         compose = true
     }
 
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     androidResources {
         generateLocaleConfig = true
         localeFilters += listOf("en", "ru")
