@@ -158,28 +158,36 @@ data class LocalPartnerKeys(
 
 class PartnerKeyVault(context: Context, private val profile: String) {
     private val file = AtomicFile(File(context.filesDir, "partner-$profile.keys"))
+    private fun hasIdentity(): Boolean =
+        file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()
     private fun wrappingKey(): SecretKey {
         val store = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         val alias = "ritela.partner.$profile"
-        return (store.getKey(alias, null) as? SecretKey)
-            ?: KeyGenerator.getInstance("AES", "AndroidKeyStore").run {
-                init(
-                    KeyGenParameterSpec.Builder(
-                        alias,
-                        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                    )
-                        .setBlockModes(
-                            KeyProperties.BLOCK_MODE_GCM
-                        ).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .setKeySize(256).build()
+        val existing = store.getKey(alias, null) as? SecretKey
+        if (existing != null) return existing
+        if (file.baseFile.exists()) {
+            throw java.security.KeyStoreException(
+                "Identity wrapping key unavailable"
+            )
+        }
+        return KeyGenerator.getInstance("AES", "AndroidKeyStore").run {
+            init(
+                KeyGenParameterSpec.Builder(
+                    alias,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                 )
-                generateKey()
-            }
+                    .setBlockModes(
+                        KeyProperties.BLOCK_MODE_GCM
+                    ).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .setKeySize(256).build()
+            )
+            generateKey()
+        }
     }
 
     @Synchronized fun loadOrCreate(): LocalPartnerKeys {
         val key = wrappingKey()
-        if (!file.baseFile.exists()) return LocalPartnerKeys.create().also { save(it) }
+        if (!hasIdentity()) return LocalPartnerKeys.create().also { save(it) }
         val data = file.readFully()
         return LocalPartnerKeys.decode(
             PartnerCrypto.crypt(
@@ -215,10 +223,11 @@ class PartnerKeyVault(context: Context, private val profile: String) {
     companion object {
         fun delete(context: Context, profile: String) {
             require(UUID.fromString(profile).toString() == profile)
-            if (!File(context.filesDir, "partner-$profile.keys").exists()) return
-            AtomicFile(File(context.filesDir, "partner-$profile.keys")).delete()
+            val identity = File(context.filesDir, "partner-$profile.keys")
+            if (!identity.exists() && !File(identity.path + ".bak").exists()) return
             val store = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
             store.deleteEntry("ritela.partner.$profile")
+            AtomicFile(File(context.filesDir, "partner-$profile.keys")).delete()
         }
     }
 }
