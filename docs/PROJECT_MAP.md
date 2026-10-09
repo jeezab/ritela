@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-09, выбор месячных: `domain/PeriodRangeSelection.kt` — закрытый первый клик, упорядоченная пара в любом направлении, проверка пересечений и возможности открытого периода. PeriodEntry использует HomeTheme/MonthGrid и LazyColumn месяцев 1900..сегодня, фиксированные одинаковые по высоте действия и safeDrawing/IME. RitelaApp различает обычное сохранение и сохранение с продолжением, сбрасывает выбор только после state.saved. PeriodRangeSelectionTest/PeriodEntryUiTest проверяют границы, редактирование, 320dp/200%, последовательные Room-записи.
+
 2026-10-09: `ui/DayFieldEntry.kt` — быстрый выбор одного поля, RitelaApp разделяет поле и полный редактор. `domain/JournalPresentation.kt` — независимые record/intimacy маркеры, совместимый selectable-модель и общий toggle. `ic_mood.xml` / JournalIcon.MOOD — настроение без сердца. CalendarScreen рисует до двух символов, сохраняет цвет и держит Сегодня/История под лентой. JournalPresentationTest/DaySelectionUiTest покрывают сохранение других значений, NONE и значки.
 
 Settings 0.3.4: `ui/LoveSurprise.kt` — Canvas overlay и прокручиваемое письмо; `ui/LoveAnimation.kt` — временный счётчик и генерация частиц без Android. `love_strings.xml` EN/RU содержит кнопку; письмо только в default resources с translatable=false. LoveAnimationTest/LoveSurpriseTest проверяют последовательность, частицы, английскую локаль, закрытие, reduced motion и 320dp/200%.

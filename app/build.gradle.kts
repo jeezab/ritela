@@ -70,6 +70,10 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
+            it.systemProperty(
+                "ritela.skipScreenshots",
+                providers.gradleProperty("ritela.skipScreenshots").getOrElse("false")
+            )
             // PNGs must be restored together with test reports on FROM-CACHE runs.
             if (it.name == "testDebugUnitTest") {
                 it.outputs.dir(layout.buildDirectory.dir("reports/screenshots"))

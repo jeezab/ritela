@@ -18,8 +18,6 @@
     <string name="period_range">%1$s — %2$s</string>
     <string name="start_date">Start: %1$s</string>
     <string name="end_date">End: %1$s</string>
-    <string name="choose_end">End date</string>
-    <string name="end_optional">Leave the end date empty if your period is still ongoing.</string>
     <string name="ongoing">Ongoing</string>
     <string name="finish_period">Finish period</string>
     <string name="save">Save</string>
@@ -51,7 +49,7 @@
     <string name="default_forecast_basis">Based on a %d-day cycle</string>
     <string name="choose_month">Month and year</string>
     <string name="year">Year</string>
-    <string name="range_entry_hint">Tap the first day, then the last. The selected days are highlighted.</string>
+    <string name="range_entry_hint">Choose the start and end in either order.</string>
     <plurals name="period_duration_days">
         <item quantity="one">Estimated duration: %d day</item>
         <item quantity="other">Estimated duration: %d days</item>

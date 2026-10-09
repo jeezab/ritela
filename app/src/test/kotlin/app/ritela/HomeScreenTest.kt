@@ -102,7 +102,7 @@ class HomeScreenTest {
         }
         compose.onNodeWithText("Отметить месячные").performClick()
         saveRendering("period-entry", dialog = true)
-        compose.onNodeWithText("Сохранить").performClick()
+        compose.onNodeWithTag("entry-ongoing").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isNotEmpty()
         }
@@ -201,8 +201,7 @@ class HomeScreenTest {
             compose.onAllNodesWithText("Изменить даты").fetchSemanticsNodes().isNotEmpty()
         }
         saveRendering("period-edit", dialog = true)
-        compose.onNodeWithText("Ещё идут").performClick()
-        compose.onNodeWithText("Сохранить").performClick()
+        compose.onNodeWithTag("entry-ongoing").performClick()
         compose.waitUntil(10_000) {
             runBlocking { repository.periods.first().single().end == null }
         }
@@ -242,9 +241,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("calendar-day-$day").performClick()
         saveRendering("calendar-day-details", dialog = true)
         compose.onNodeWithText("Отметить месячные").performScrollTo().performClick()
-        compose.onNodeWithText("Дата окончания").performClick()
-        compose.onNodeWithText("Готово").performClick()
-        compose.onNodeWithText("Сохранить").performClick()
+        compose.onNodeWithTag("entry-save").performClick()
         compose.waitUntil(10_000) { runBlocking { repository.periods.first().size == 2 } }
         val saved = runBlocking { repository.periods.first().first { it.start == day } }
         assertEquals(day, saved.end)
@@ -388,9 +385,7 @@ class HomeScreenTest {
         saveRendering("home-english")
         compose.onNodeWithText("Log period").performClick()
         saveRendering("period-entry-english", dialog = true)
-        compose.onNodeWithText("End date").performClick()
-        compose.onNodeWithText("Done").assertIsDisplayed().performClick()
-        compose.onNodeWithText("Save").performClick()
+        compose.onNodeWithTag("entry-save").performClick()
         compose.onNodeWithTag("nav-calendar").performClick()
         compose.onNodeWithTag("calendar-history").performClick()
         compose.waitUntil(10_000) {
@@ -398,8 +393,7 @@ class HomeScreenTest {
         }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithText("Edit dates").assertIsDisplayed()
-        compose.onNodeWithText("Still ongoing").performClick()
-        compose.onNodeWithText("Save").performClick()
+        compose.onNodeWithTag("entry-ongoing").performClick()
         compose.waitUntil(10_000) {
             runBlocking {
                 (compose.activity.application as RitelaApplication)
@@ -508,10 +502,11 @@ class HomeScreenTest {
         compose.onNodeWithTag("select-year-2024").performClick()
         compose.onNodeWithTag("select-month-2").performClick()
         compose.onNodeWithTag("entry-day-2024-02-27").performScrollTo().performClick()
-        compose.onNodeWithTag("next-month").performClick()
+        compose.onNodeWithTag("entry-month-grid")
+            .performScrollToNode(hasTestTag("entry-day-2024-03-01"))
         compose.onNodeWithTag("entry-day-2024-03-01").performClick()
         saveRendering("period-range", dialog = true)
-        compose.onNodeWithText("Сохранить").performClick()
+        compose.onNodeWithTag("entry-save").performClick()
         compose.waitUntil(10_000) {
             runBlocking {
                 (compose.activity.application as RitelaApplication)
@@ -707,9 +702,10 @@ class HomeScreenTest {
         saveRendering("period-occupied", dialog = true)
         compose.onNodeWithTag("entry-day-2026-10-08").performClick()
         compose.onNodeWithTag("entry-day-2026-10-16").assertIsNotEnabled()
-        compose.onNodeWithText("Сохранить").assertIsNotEnabled()
+        compose.onNodeWithTag("entry-ongoing").assertIsNotEnabled()
+        compose.onNodeWithTag("entry-save").assertIsEnabled()
         compose.onNodeWithTag("entry-day-2026-10-09").performClick()
-        compose.onNodeWithText("Сохранить").assertIsEnabled()
+        compose.onNodeWithTag("entry-save").assertIsEnabled()
         compose.activity.runOnUiThread {
             compose.activity.setContent {
                 RitelaTheme {
@@ -729,7 +725,7 @@ class HomeScreenTest {
             }
         }
         compose.onNodeWithTag("entry-day-2026-10-10").performScrollTo().assertIsEnabled()
-        compose.onNodeWithText("Сохранить").assertIsEnabled()
+        compose.onNodeWithTag("entry-save").assertIsEnabled()
     }
 
     @Test
@@ -1657,6 +1653,7 @@ class HomeScreenTest {
     }
 
     private fun saveRendering(name: String, dialog: Boolean = false) {
+        if (System.getProperty("ritela.skipScreenshots") == "true") return
         compose.waitForIdle()
         val bitmap = if (dialog) {
             // Robolectric PixelCopy can sample the Activity behind a separate dialog window.

@@ -18,8 +18,6 @@
     <string name="period_range">%1$s — %2$s</string>
     <string name="start_date">Начало: %1$s</string>
     <string name="end_date">Окончание: %1$s</string>
-    <string name="choose_end">Дата окончания</string>
-    <string name="end_optional">Если ещё идут, оставьте дату окончания пустой.</string>
     <string name="ongoing">Продолжается</string>
     <string name="finish_period">Завершить</string>
     <string name="save">Сохранить</string>
@@ -53,7 +51,7 @@
     <string name="default_forecast_basis">На основе цикла в %d дней</string>
     <string name="choose_month">Месяц и год</string>
     <string name="year">Год</string>
-    <string name="range_entry_hint">Нажмите на первый день, затем на последний. Выбранные дни выделятся.</string>
+    <string name="range_entry_hint">Выберите начало и конец периода в любом порядке.</string>
     <plurals name="period_duration_days">
         <item quantity="one">Ожидаемая длительность: %d день</item>
         <item quantity="few">Ожидаемая длительность: %d дня</item>
