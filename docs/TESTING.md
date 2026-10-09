@@ -1,5 +1,7 @@
 # Проверки
 
+Если пользователь просит проверить взаимодействия без генерации PNG, передай Gradle `'-Pritela.skipScreenshots=true'` в PowerShell (в кавычках). HomeScreenTest пропускает только сохранение изображений, все assertions остаются; по умолчанию false, поэтому CI продолжает генерировать прежние артефакты. Новые DaySelectionUiTest/PeriodEntryUiTest не сохраняют PNG. Не использовать флаг для заявленной визуальной проверки.
+
 Windows, из корня проекта:
 
 ```powershell

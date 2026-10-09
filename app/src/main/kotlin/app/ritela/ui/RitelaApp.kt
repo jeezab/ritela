@@ -27,6 +27,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -55,6 +57,9 @@ import java.util.UUID
 fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Factory)) {
     val state by model.uiState.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
+    var saveMore by rememberSaveable { mutableStateOf(false) }
+    var addingEmpty by rememberSaveable { mutableStateOf(false) }
+    var entrySession by rememberSaveable { mutableIntStateOf(0) }
     var finishingId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -66,15 +71,25 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.refreshToday() }
     LaunchedEffect(state.saved) {
         if (state.saved) {
-            loggingDay = null
-            loggingField = null
-            adding = false
-            finishingId = null
-            editingId = null
-            deletingId = null
+            if (adding && saveMore) {
+                // Only reset after the local transaction succeeded; failure retains the range.
+                saveMore = false
+                addingEmpty = true
+                entrySession++
+            } else {
+                loggingDay = null
+                loggingField = null
+                adding = false
+                addingEmpty = false
+                saveMore = false
+                finishingId = null
+                editingId = null
+                deletingId = null
+            }
             model.clearResult()
         }
     }
+
     val darkTheme = when (state.themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
@@ -215,18 +230,29 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
             )
         }
         if (adding) {
-            PeriodEntry(
-                state,
-                onDismiss = {
-                    adding = false
-                    model.clearResult()
-                },
-                onSave = model::save,
-                initialStart = LocalDate.ofEpochDay(
-                    addingDay
-                ),
-                onChange = model::clearResult
-            )
+            key(entrySession) {
+                PeriodEntry(
+                    state,
+                    onDismiss = {
+                        adding = false
+                        addingEmpty = false
+                        saveMore = false
+                        model.clearResult()
+                    },
+                    onSave = { start, end ->
+                        saveMore = false
+                        model.save(start, end)
+                    },
+                    initialStart = LocalDate.ofEpochDay(addingDay),
+                    startEmpty = addingEmpty,
+                    onSaveAndContinue = { start, end ->
+                        saveMore = true
+                        addingDay = end.toEpochDay()
+                        model.save(start, end)
+                    },
+                    onChange = model::clearResult
+                )
+            }
         }
         finishingId?.let { id ->
             PickDate(

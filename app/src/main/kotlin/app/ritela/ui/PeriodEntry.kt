@@ -1,12 +1,24 @@
 package app.ritela.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -17,25 +29,39 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import app.ritela.R
+import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.PeriodRangeSelection
+import app.ritela.domain.calendarDay
 import app.ritela.domain.periodConflict
-import app.ritela.domain.validatePeriod
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlinx.coroutines.launch
 
 @Composable
 fun formattedDate(date: LocalDate): String = CalendarDayFormatter(
@@ -63,162 +89,213 @@ fun PeriodEntry(
     editing: Boolean = false,
     editingId: java.util.UUID? = null,
     onDelete: (() -> Unit)? = null,
-    onChange: () -> Unit = {}
+    onChange: () -> Unit = {},
+    startEmpty: Boolean = false,
+    onSaveAndContinue: ((LocalDate, LocalDate) -> Unit)? = null
+) {
+    HomeTheme {
+        PeriodEntryContent(
+            state, onDismiss, onSave, initialStart, initialEnd, editing,
+            editingId, onDelete, onChange, startEmpty, onSaveAndContinue
+        )
+    }
+}
+
+@Composable
+private fun PeriodEntryContent(
+    state: PeriodUiState,
+    onDismiss: () -> Unit,
+    onSave: (LocalDate, LocalDate?) -> Unit,
+    initialStart: LocalDate,
+    initialEnd: LocalDate?,
+    editing: Boolean,
+    editingId: java.util.UUID?,
+    onDelete: (() -> Unit)?,
+    onChange: () -> Unit,
+    startEmpty: Boolean,
+    onSaveAndContinue: ((LocalDate, LocalDate) -> Unit)?
 ) {
     var startDay by rememberSaveable { mutableStateOf(initialStart.toEpochDay()) }
-    var endDay by rememberSaveable { mutableStateOf(initialEnd?.toEpochDay()) }
-    var choosingEnd by rememberSaveable { mutableStateOf<Boolean?>(null) }
-    var monthDay by rememberSaveable {
-        mutableStateOf(java.time.YearMonth.from(initialStart).atDay(1).toEpochDay())
+    var endDay by rememberSaveable {
+        mutableStateOf(
+            if (editing) initialEnd?.toEpochDay() else (initialEnd ?: initialStart).toEpochDay()
+        )
     }
+    var anchorDay by rememberSaveable { mutableStateOf<Long?>(null) }
+    var hasSelection by rememberSaveable { mutableStateOf(!startEmpty) }
     var choosingMonth by rememberSaveable { mutableStateOf(false) }
-    var awaitingEnd by rememberSaveable { mutableStateOf(false) }
-    val month = java.time.YearMonth.from(LocalDate.ofEpochDay(monthDay))
-    val start = LocalDate.ofEpochDay(startDay)
-    val end = endDay?.let(LocalDate::ofEpochDay)
+    val selection = PeriodRangeSelection(
+        LocalDate.ofEpochDay(startDay),
+        endDay?.let(LocalDate::ofEpochDay),
+        anchorDay?.let(LocalDate::ofEpochDay)
+    )
     val others = state.periods.filter { it.id != editingId }
-    val conflict = periodConflict(others, start, end)
-    val valid = validatePeriod(start, end, state.today) == null && conflict == null
-    fun free(day: LocalDate): Boolean = periodConflict(others, day, day) == null
-    val cellHeight =
-        maxOf(48.dp, (36 * androidx.compose.ui.platform.LocalDensity.current.fontScale).dp)
-    androidx.compose.ui.window.Dialog(onDismissRequest = {
-        if (!state.saving) onDismiss()
-    }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-        androidx.compose.material3.Surface {
-            Column(Modifier.fillMaxSize().padding(Spacing.medium)) {
-                Text(
-                    stringResource(if (editing) R.string.edit_period else R.string.new_period),
-                    style = MaterialTheme.typography.headlineMedium
+    val closedValid =
+        hasSelection && selection.end != null && selection.canSave(others, state.today)
+    val ongoingValid = hasSelection && selection.canKeepOngoing(others, state.today)
+    val conflict = if (hasSelection) {
+        periodConflict(
+            others,
+            selection.start,
+            selection.end
+        )
+    } else {
+        null
+    }
+    val firstMonth = YearMonth.of(1900, 1)
+    val monthCount = (state.today.year - 1900) * 12 + state.today.monthValue
+    fun indexOf(month: YearMonth): Int = ((month.year - 1900) * 12 + month.monthValue - 1)
+        .coerceIn(0, monthCount - 1)
+    val list =
+        rememberLazyListState(initialFirstVisibleItemIndex = indexOf(YearMonth.from(initialStart)))
+    val visibleIndex by remember { derivedStateOf { list.firstVisibleItemIndex } }
+    val month = firstMonth.plusMonths(visibleIndex.toLong())
+    val scope = rememberCoroutineScope()
+    fun showMonth(value: YearMonth) {
+        scope.launch { list.scrollToItem(indexOf(value)) }
+    }
+    fun setSelection(value: PeriodRangeSelection) {
+        startDay = value.start.toEpochDay()
+        endDay = value.end?.toEpochDay()
+        anchorDay = value.anchor?.toEpochDay()
+        hasSelection = true
+        onChange()
+    }
+    val cellHeight = maxOf(56.dp, (40 * LocalDensity.current.fontScale).dp)
+    val count = ((selection.end ?: selection.start).toEpochDay() - selection.start.toEpochDay() + 1)
+        .coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
+    JournalDialog(
+        onDismissRequest = { if (!state.saving) onDismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = HomeColors.bottom,
+            contentColor = HomeColors.text
+        ) {
+            Column(
+                Modifier.fillMaxSize().background(HomeColors.background).windowInsetsPadding(
+                    WindowInsets.safeDrawing.union(WindowInsets.ime)
                 )
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.small)
-                ) {
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        stringResource(R.string.range_entry_hint),
-                        style = MaterialTheme.typography.bodySmall
+                        stringResource(if (editing) R.string.edit_period else R.string.new_period),
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleLarge
                     )
-                    Row {
-                        OutlinedButton(
-                            onClick = {
-                                choosingEnd = false
-                            },
-                            enabled = !state.saving,
-                            modifier = Modifier.weight(
-                                1f
-                            ).heightIn(min = Spacing.actionHeight)
-                        ) {
-                            Text(stringResource(R.string.start_date, formattedDate(start)))
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                choosingEnd = true
-                            },
-                            enabled = !state.saving,
-                            modifier = Modifier.weight(
-                                1f
-                            ).heightIn(min = Spacing.actionHeight)
-                        ) {
-                            Text(
-                                end?.let { stringResource(R.string.end_date, formattedDate(it)) }
-                                    ?: stringResource(R.string.choose_end)
-                            )
-                        }
-                    }
-                    Row {
-                        TextButton(onClick = {
-                            endDay = null
-                            awaitingEnd = false
-                            onChange()
-                        }, enabled = !state.saving) { Text(stringResource(R.string.clear_end)) }
-                        TextButton(
-                            onClick = {
-                                endDay =
-                                    start.plusDays(state.analysis.periodDuration - 1L).toEpochDay()
-                                awaitingEnd =
-                                    false
-                                onChange()
-                            },
-                            enabled =
-                                !state.saving &&
-                                    start.plusDays(state.analysis.periodDuration - 1L) <=
-                                    state.today && periodConflict(
-                                        others,
-                                        start,
-                                        start.plusDays(state.analysis.periodDuration - 1L)
-                                    ) == null
-                        ) {
-                            Text(
-                                androidx.compose.ui.res.pluralStringResource(
-                                    R.plurals.quick_duration,
-                                    state.analysis.periodDuration,
-                                    state.analysis.periodDuration
-                                )
-                            )
-                        }
-                    }
-                    Text(
-                        stringResource(R.string.end_optional),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    MonthHeader(month, { monthDay = month.minusMonths(1).atDay(1).toEpochDay() }, {
-                        monthDay =
-                            month.plusMonths(1).atDay(1).toEpochDay()
-                    }, { choosingMonth = true })
-                    MonthGrid(
-                        month, state.today, start,
-                        cellHeight = cellHeight,
-                        tagPrefix = "entry-day",
-                        rangeStart = start, rangeEnd = end,
-                        futureEnabled = false,
-                        info = {
-                            app.ritela.domain.calendarDay(
-                                others,
-                                app.ritela.domain.CycleAnalysis(),
-                                it,
-                                state.today
-                            )
-                        },
-                        dayEnabled = { day ->
-                            free(day) && (
-                                !awaitingEnd || day < start ||
-                                    periodConflict(others, start, day) == null
-                                )
-                        },
-                        onDay = { day ->
-                            if (!state.saving) {
-                                if (awaitingEnd &&
-                                    day >= start
-                                ) {
-                                    endDay = day.toEpochDay()
-                                    awaitingEnd = false
-                                } else {
-                                    startDay = day.toEpochDay()
-                                    endDay = null
-                                    awaitingEnd = true
-                                }
-                                onChange()
-                            }
-                        }
-                    )
-                    Text(
-                        stringResource(R.string.entry_existing_hint),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    if (conflict != null) {
-                        Text(
-                            stringResource(R.string.overlap_error),
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    state.problem?.let {
-                        Text(problemText(it), color = MaterialTheme.colorScheme.error)
+                    TextButton(onDismiss, enabled = !state.saving) {
+                        Text(stringResource(R.string.cancel))
                     }
                 }
+                Text(
+                    stringResource(R.string.range_entry_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeColors.muted
+                )
+                if (hasSelection) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextButton(
+                            {
+                                anchorDay = (selection.end ?: selection.start).toEpochDay()
+                                showMonth(YearMonth.from(selection.start))
+                            },
+                            enabled = !state.saving,
+                            modifier = Modifier.weight(
+                                1f
+                            ).testTag("entry-start")
+                        ) {
+                            Text(
+                                stringResource(R.string.start_date, formattedDate(selection.start))
+                            )
+                        }
+                        TextButton(
+                            {
+                                anchorDay = selection.start.toEpochDay()
+                                showMonth(YearMonth.from(selection.end ?: selection.start))
+                            },
+                            enabled = !state.saving,
+                            modifier = Modifier.weight(
+                                1f
+                            ).testTag("entry-end")
+                        ) {
+                            Text(
+                                selection.end?.let {
+                                    stringResource(R.string.end_date, formattedDate(it))
+                                }
+                                    ?: stringResource(R.string.ongoing)
+                            )
+                        }
+                    }
+                } else {
+                    Text(stringResource(R.string.entry_choose_days), color = HomeColors.peach)
+                }
+                TextButton({
+                    choosingMonth = true
+                }, modifier = Modifier.fillMaxWidth().testTag("month-selector")) {
+                    Text(
+                        month.format(
+                            DateTimeFormatter.ofPattern(
+                                "LLLL yyyy",
+                                LocalConfiguration.current.locales[0]
+                            )
+                        ),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+                LazyColumn(
+                    state = list,
+                    modifier = Modifier.weight(1f).testTag("entry-month-grid")
+                ) {
+                    items(monthCount, key = { it }) { index ->
+                        val displayed = firstMonth.plusMonths(index.toLong())
+                        Column {
+                            Text(
+                                displayed.format(
+                                    DateTimeFormatter.ofPattern(
+                                        "LLLL yyyy",
+                                        LocalConfiguration.current.locales[0]
+                                    )
+                                ),
+                                Modifier.padding(vertical = 12.dp),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            MonthGrid(
+                                displayed, state.today,
+                                if (hasSelection) selection.start else null,
+                                atmospheric = true,
+                                cellHeight = cellHeight,
+                                tagPrefix = "entry-day",
+                                rangeStart = if (hasSelection) selection.start else null,
+                                rangeEnd = selection.end, futureEnabled = false,
+                                info = { calendarDay(others, CycleAnalysis(), it, state.today) },
+                                dayEnabled = {
+                                    !state.saving &&
+                                        selection.canPick(others, it, state.today)
+                                },
+                                onDay = { setSelection(selection.pick(it)) }
+                            )
+                        }
+                    }
+                }
+                if (conflict !=
+                    null
+                ) {
+                    Text(
+                        stringResource(R.string.overlap_error),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                state.problem?.let {
+                    Text(problemText(it), color = MaterialTheme.colorScheme.error)
+                }
                 onDelete?.let { action ->
-                    TextButton(onClick = action, enabled = !state.saving) {
+                    TextButton(action, enabled = !state.saving) {
                         Text(
                             stringResource(R.string.delete),
                             color = MaterialTheme.colorScheme.error
@@ -226,67 +303,62 @@ fun PeriodEntry(
                     }
                 }
                 Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
+                    Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    TextButton(onClick = onDismiss, enabled = !state.saving) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                    Button(
-                        onClick = {
-                            onSave(start, end)
-                        },
-                        enabled = !state.saving && valid,
+                    OutlinedButton(
+                        { onSave(selection.start, null) },
+                        enabled = !state.saving && ongoingValid,
                         modifier = Modifier.weight(
                             1f
-                        ).heightIn(min = Spacing.actionHeight)
+                        ).fillMaxHeight().heightIn(min = 56.dp).testTag("entry-ongoing"),
+                        contentPadding = PaddingValues(6.dp)
                     ) {
-                        Text(stringResource(if (state.saving) R.string.saving else R.string.save))
+                        Text(stringResource(R.string.clear_end), textAlign = TextAlign.Center)
+                    }
+                    Button(
+                        { onSave(selection.start, selection.end) },
+                        enabled = !state.saving && closedValid,
+                        modifier = Modifier.weight(
+                            1f
+                        ).fillMaxHeight().heightIn(min = 56.dp).testTag("entry-save"),
+                        contentPadding = PaddingValues(6.dp)
+                    ) {
+                        Text(
+                            if (state.saving) {
+                                stringResource(R.string.saving)
+                            } else {
+                                pluralStringResource(R.plurals.quick_duration, count, count)
+                            },
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                    if (!editing && onSaveAndContinue != null) {
+                        OutlinedButton(
+                            {
+                                onSaveAndContinue(selection.start, requireNotNull(selection.end))
+                            },
+                            enabled = !state.saving && closedValid,
+                            modifier = Modifier.weight(
+                                1f
+                            ).fillMaxHeight().heightIn(min = 56.dp).testTag("entry-save-more"),
+                            contentPadding = PaddingValues(6.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.entry_save_more),
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
         }
     }
     if (choosingMonth) {
-        MonthYearPicker(month, 1900..(state.today.year + 1), { choosingMonth = false }) {
-            monthDay =
-                it.atDay(1).toEpochDay()
+        MonthYearPicker(month, 1900..state.today.year, { choosingMonth = false }) {
             choosingMonth = false
+            showMonth(it)
         }
-    }
-    choosingEnd?.let { isEnd ->
-        PickDate(
-            initial = if (isEnd) end ?: start else start,
-            minimum = if (isEnd) start else null,
-            maximum = state.today,
-            selectable = { candidate ->
-                free(candidate) && (
-                    !isEnd ||
-                        periodConflict(others, start, candidate) == null
-                    )
-            },
-            onDismiss = {
-                choosingEnd =
-                    null
-            },
-            onChoose = { date ->
-                if (isEnd) {
-                    endDay = date.toEpochDay()
-                } else {
-                    startDay = date.toEpochDay()
-                    if (end !=
-                        null &&
-                        end < date
-                    ) {
-                        endDay = null
-                    }
-                }
-                monthDay = java.time.YearMonth.from(date).atDay(1).toEpochDay()
-                choosingEnd = null
-                awaitingEnd = false
-                onChange()
-            }
-        )
     }
 }
 
