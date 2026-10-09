@@ -593,13 +593,16 @@ class HomeScreenTest {
     }
 
     @Test
-    fun quickJournalActionOpensTheEditableDay() {
+    fun quickJournalActionOpensOnlyTheSelectedField() {
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText(compose.activity.getString(R.string.empty_title))
                 .fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("quick-discharge").performScrollTo().performClick()
-        compose.onNodeWithTag("day-note").assertExists()
+        compose.onNodeWithTag("quick-entry-discharge").assertExists()
+        compose.onNodeWithTag("day-note").assertDoesNotExist()
+        compose.onNodeWithTag("journal-edit-discharge").assertDoesNotExist()
+        compose.onNodeWithTag("discharge-WATERY").assertExists()
     }
 
     @Test
@@ -1552,10 +1555,10 @@ class HomeScreenTest {
         // Room collection and prediction run outside Compose's idling resources.
         // Both initial launch and recreation must finish loading before tapping.
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithTag("quick-discharge").fetchSemanticsNodes().singleOrNull()
+            compose.onAllNodesWithTag("log-day").fetchSemanticsNodes().singleOrNull()
                 ?.config?.contains(SemanticsProperties.Disabled) == false
         }
-        compose.onNodeWithTag("quick-discharge")
+        compose.onNodeWithTag("log-day")
             .performScrollTo().assertIsEnabled().performClick()
         compose.onNodeWithTag("journal-edit-discharge").assertExists()
     }

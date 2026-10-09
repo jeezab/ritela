@@ -11,7 +11,7 @@ class LoveTapSequence {
     private var count = 0
 
     fun tap(elapsedMillis: Long): Boolean {
-        if (previous?.let { elapsedMillis - it > 3_000 || elapsedMillis < it } != false) count = 0
+        if (previous?.let { elapsedMillis - it > 1_000 || elapsedMillis < it } != false) count = 0
         previous = elapsedMillis
         count++
         if (count < 9) return false

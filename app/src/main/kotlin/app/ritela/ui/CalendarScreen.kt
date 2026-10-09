@@ -62,9 +62,9 @@ import app.ritela.domain.CalendarDayInfo
 import app.ritela.domain.CalendarDayKind
 import app.ritela.domain.Period
 import app.ritela.domain.calendarDisplayDay
+import app.ritela.domain.calendarMarkers
 import app.ritela.domain.calendarSelection
 import app.ritela.domain.compactFertilityWindows
-import app.ritela.domain.journalSelections
 import app.ritela.domain.monthDays
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -98,6 +98,12 @@ private fun CalendarContent(
     val compactWindows = remember(state.periods, state.analysis) {
         compactFertilityWindows(state.periods, state.analysis)
     }
+    val markers = remember(state.dayLogs) {
+        state.dayLogs.associate {
+            it.date to
+                it.calendarMarkers()
+        }
+    }
     val list = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
     val scope = rememberCoroutineScope()
     var selectedDay by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -125,32 +131,6 @@ private fun CalendarContent(
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-        }
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            TextButton(onClick = {
-                showMonth(1200)
-            }, modifier = Modifier.weight(1f).testTag("calendar-today")) {
-                if (LocalDensity.current.fontScale > 1.3f) {
-                    Icon(painterResource(R.drawable.ic_today), stringResource(R.string.home_title))
-                } else {
-                    Text(stringResource(R.string.home_title))
-                }
-            }
-            TextButton(onClick = {
-                historyOpen = true
-            }, modifier = Modifier.weight(1f).testTag("calendar-history")) {
-                if (LocalDensity.current.fontScale > 1.3f) {
-                    Icon(
-                        painterResource(R.drawable.ic_chart),
-                        stringResource(R.string.history_short)
-                    )
-                } else {
-                    Text(stringResource(R.string.history_short))
-                }
-            }
         }
         LazyColumn(
             state = list,
@@ -197,17 +177,10 @@ private fun CalendarContent(
                                 compactWindows
                             )
                         },
-                        hasLog = { day -> state.dayLogs.any { it.date == day } },
-                        logIcon = { day ->
-                            val log = state.dayLogs.firstOrNull { it.date == day }
-                            val icon =
-                                log?.calendarIcon ?: state.journalLayout.sections.firstOrNull {
-                                    it.id in
-                                        log?.journalSelections().orEmpty().filterValues { tags ->
-                                            tags.isNotEmpty()
-                                        }
-                                }?.icon ?: app.ritela.domain.JournalIcon.NOTE
-                            journalIcon(icon)
+                        hasLog = { markers[it]?.record != null },
+                        hasSex = { markers[it]?.intimacy == true },
+                        logIcon = {
+                            journalIcon(markers[it]?.record ?: app.ritela.domain.JournalIcon.NOTE)
                         },
                         onDay = { selectedDay = it.toEpochDay() }
                     )
@@ -216,6 +189,32 @@ private fun CalendarContent(
                             summariesExpanded = !summariesExpanded
                         }
                     }
+                }
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(onClick = {
+                showMonth(1200)
+            }, modifier = Modifier.weight(1f).testTag("calendar-today")) {
+                if (LocalDensity.current.fontScale > 1.3f) {
+                    Icon(painterResource(R.drawable.ic_today), stringResource(R.string.home_title))
+                } else {
+                    Text(stringResource(R.string.home_title))
+                }
+            }
+            TextButton(onClick = {
+                historyOpen = true
+            }, modifier = Modifier.weight(1f).testTag("calendar-history")) {
+                if (LocalDensity.current.fontScale > 1.3f) {
+                    Icon(
+                        painterResource(R.drawable.ic_chart),
+                        stringResource(R.string.history_short)
+                    )
+                } else {
+                    Text(stringResource(R.string.history_short))
                 }
             }
         }
@@ -578,6 +577,7 @@ fun MonthGrid(
     futureEnabled: Boolean = true,
     info: (LocalDate) -> CalendarDayInfo = { CalendarDayInfo(CalendarDayKind.NONE) },
     hasLog: (LocalDate) -> Boolean = { false },
+    hasSex: (LocalDate) -> Boolean = { false },
     dayEnabled: (LocalDate) -> Boolean = { true },
     logIcon: (LocalDate) -> Int = { R.drawable.ic_note },
     onDay: (LocalDate) -> Unit
@@ -630,7 +630,13 @@ fun MonthGrid(
                                 day <= (rangeEnd ?: rangeStart)
                         val selected = day == chosen || inRange
                         val description = formattedDate(day) + ", " + dayKindText(detail.kind) +
-                            if (hasLog(day)) ", " + stringResource(R.string.day_has_log) else ""
+                            if (hasLog(day) ||
+                                hasSex(day)
+                            ) {
+                                ", " + stringResource(R.string.day_has_log)
+                            } else {
+                                ""
+                            }
                         Surface(
                             onClick = {
                                 onDay(day)
@@ -728,40 +734,48 @@ fun MonthGrid(
                                         null
                                     }
                                 )
-                                if ((detail.kind == CalendarDayKind.OBSERVED || inRange) &&
-                                    !hasLog(day)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        painterResource(R.drawable.ic_drop),
-                                        contentDescription = null,
-                                        modifier = Modifier.height(12.dp)
-                                    )
-                                } else if (detail.kind == CalendarDayKind.OVULATION_ESTIMATE) {
-                                    Icon(
-                                        painterResource(R.drawable.ic_flower),
-                                        null,
-                                        Modifier.height(12.dp)
-                                    )
-                                } else if (hasLog(day)) {
-                                    Icon(
-                                        painterResource(logIcon(day)),
-                                        contentDescription = null,
-                                        modifier = Modifier.height(12.dp)
-                                    )
-                                } else {
-                                    Text(
-                                        when (detail.kind) {
-                                            CalendarDayKind.PREDICTED -> "\u25c7"
-                                            CalendarDayKind.APPROXIMATE -> "\u2248"
-                                            CalendarDayKind.UNCERTAIN -> "\u00b7"
-                                            CalendarDayKind.ESTIMATED_PERIOD -> "\u25cb"
-                                            CalendarDayKind.OVULATION_ESTIMATE -> "\u273f"
-                                            CalendarDayKind.FERTILE_LIKELY -> "\u273f"
-                                            CalendarDayKind.FERTILE_ESTIMATE -> "\u273f"
-                                            else -> " "
-                                        },
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
+                                    val primaryIcon = when {
+                                        hasLog(day) -> logIcon(day)
+
+                                        detail.kind == CalendarDayKind.OBSERVED || inRange ->
+                                            R.drawable.ic_drop
+
+                                        detail.kind == CalendarDayKind.OVULATION_ESTIMATE ||
+                                            detail.kind == CalendarDayKind.FERTILE_LIKELY ||
+                                            detail.kind == CalendarDayKind.FERTILE_ESTIMATE ->
+                                            R.drawable.ic_flower
+
+                                        else -> null
+                                    }
+                                    if (primaryIcon != null) {
+                                        Icon(
+                                            painterResource(primaryIcon),
+                                            null,
+                                            Modifier.height(12.dp).testTag("day-record-icon-$day")
+                                        )
+                                    } else if (!hasSex(day)) {
+                                        Text(
+                                            when (detail.kind) {
+                                                CalendarDayKind.PREDICTED -> "\u25c7"
+                                                CalendarDayKind.APPROXIMATE -> "\u2248"
+                                                CalendarDayKind.UNCERTAIN -> "\u00b7"
+                                                CalendarDayKind.ESTIMATED_PERIOD -> "\u25cb"
+                                                else -> " "
+                                            },
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                    if (hasSex(day)) {
+                                        Icon(
+                                            painterResource(R.drawable.ic_heart),
+                                            stringResource(R.string.sex_title),
+                                            Modifier.height(12.dp).testTag("day-sex-icon-$day")
+                                        )
+                                    }
                                 }
                             }
                         }

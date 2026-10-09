@@ -63,7 +63,9 @@ import app.ritela.domain.JournalTag
 import app.ritela.domain.Mood
 import app.ritela.domain.Pain
 import app.ritela.domain.Sex
+import app.ritela.domain.forSelection
 import app.ritela.domain.journalSelections
+import app.ritela.domain.toggleSelection
 import app.ritela.domain.withJournalSelections
 import java.util.UUID
 
@@ -105,6 +107,7 @@ fun journalIcon(icon: JournalIcon): Int = when (icon) {
     JournalIcon.ENERGY -> R.drawable.ic_energy
     JournalIcon.FLOWER -> R.drawable.ic_flower
     JournalIcon.STAR -> R.drawable.ic_star
+    JournalIcon.MOOD -> R.drawable.ic_mood
 }
 
 @Composable
@@ -169,14 +172,32 @@ private fun DayLogContent(
     onSave: (DayLog) -> Unit,
     onLayoutChange: (JournalLayout) -> Unit = {}
 ) {
-    var layoutText by rememberSaveable { mutableStateOf(JournalCodec.encode(state.journalLayout)) }
+    var layoutText by rememberSaveable {
+        mutableStateOf(
+            JournalCodec.encode(
+                state.journalLayout.copy(
+                    sections = state.journalLayout.sections.map { it.forSelection() }
+                )
+            )
+        )
+    }
     val layout = remember(layoutText) { JournalCodec.decode(layoutText) }
     var selectionText by rememberSaveable {
         mutableStateOf(JournalCodec.encodeSelections(initial.journalSelections()))
     }
     val selections = remember(selectionText) { JournalCodec.decodeSelections(selectionText) }
     var note by rememberSaveable { mutableStateOf(initial.note) }
-    var calendarIcon by rememberSaveable { mutableStateOf(initial.calendarIcon?.name) }
+    var calendarIcon by rememberSaveable {
+        mutableStateOf(
+            (
+                initial.calendarIcon?.takeUnless {
+                    it ==
+                        JournalIcon.HEART
+                }
+                    ?: JournalIcon.NOTE
+                ).name
+        )
+    }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     // Dialog targets: title, add-section, section:<id>, add-tag:<id>, tag:<section>:<tag>.
     var target by rememberSaveable { mutableStateOf<String?>(null) }
@@ -271,13 +292,7 @@ private fun DayLogContent(
                                     !state.saving,
                                     onSelect = { tag ->
                                         val old = selections[section.id].orEmpty()
-                                        val next = when {
-                                            tag in old -> old - tag
-                                            section.id == "sex" && tag == "NONE" -> setOf(tag)
-                                            section.id == "sex" -> (old - "NONE") + tag
-                                            section.multiple -> old + tag
-                                            else -> setOf(tag)
-                                        }
+                                        val next = section.toggleSelection(old, tag)
                                         selectionText =
                                             JournalCodec.encodeSelections(
                                                 selections + (section.id to next)
@@ -353,7 +368,9 @@ private fun DayLogContent(
                         stringResource(R.string.journal_calendar_icon),
                         style = MaterialTheme.typography.titleMedium
                     )
-                    IconChoices(calendarIcon, !state.saving) { calendarIcon = it }
+                    IconChoices(calendarIcon, !state.saving, allowAutomatic = false) {
+                        calendarIcon = it ?: JournalIcon.NOTE.name
+                    }
                     state.problem?.let {
                         Text(problemText(it), color = MaterialTheme.colorScheme.error)
                     }
@@ -370,7 +387,7 @@ private fun DayLogContent(
                             onSave(
                                 initial.withJournalSelections(selections).copy(
                                     note = note,
-                                    calendarIcon = calendarIcon?.let(JournalIcon::valueOf)
+                                    calendarIcon = JournalIcon.valueOf(calendarIcon)
                                 )
                             )
                         },
@@ -520,7 +537,7 @@ private fun DayLogContent(
 }
 
 @Composable
-private fun JournalDialog(
+internal fun JournalDialog(
     onDismissRequest: () -> Unit,
     properties: DialogProperties,
     content: @Composable () -> Unit
@@ -550,7 +567,7 @@ private fun IconChoices(
                 label = { Text(stringResource(R.string.journal_automatic)) }
             )
         }
-        JournalIcon.entries.forEach { icon ->
+        JournalIcon.entries.filter { it != JournalIcon.HEART }.forEach { icon ->
             FilterChip(
                 value == icon.name,
                 { onChange(icon.name) },
@@ -568,6 +585,7 @@ private fun IconChoices(
                                 JournalIcon.ENERGY -> R.string.energy_title
                                 JournalIcon.FLOWER -> R.string.journal_flower
                                 JournalIcon.STAR -> R.string.journal_star
+                                JournalIcon.MOOD -> R.string.mood_title
                             }
                         )
                     )
@@ -676,7 +694,7 @@ private fun JournalChips(
                         )
                     }
                 )
-                if (editing) {
+                if (editing && !(section.id == "sex" && tag.id == "NONE")) {
                     IconButton(
                         onClick = { onRemove(tag.id) },
                         enabled = enabled && section.tags.size > 1,

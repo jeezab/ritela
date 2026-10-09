@@ -58,6 +58,7 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     var finishingId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var loggingField by rememberSaveable { mutableStateOf<String?>(null) }
     var loggingDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var page by rememberSaveable { mutableStateOf(0) }
     var addingDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
@@ -66,6 +67,7 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     LaunchedEffect(state.saved) {
         if (state.saved) {
             loggingDay = null
+            loggingField = null
             adding = false
             finishingId = null
             editingId = null
@@ -104,6 +106,7 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                         },
                         onLogDay = {
                             model.clearResult()
+                            loggingField = null
                             loggingDay = it.toEpochDay()
                         }
                     )
@@ -128,6 +131,12 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                     },
                     onLogDay = {
                         model.clearResult()
+                        loggingField = null
+                        loggingDay = state.today.toEpochDay()
+                    },
+                    onQuickLog = { field ->
+                        model.clearResult()
+                        loggingField = field
                         loggingDay = state.today.toEpochDay()
                     },
                     today = state.today
@@ -136,17 +145,19 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
         }
         loggingDay?.let { epoch ->
             val date = LocalDate.ofEpochDay(epoch)
-            DayLogEntry(
-                state.dayLogs.firstOrNull { it.date == date } ?: DayLog(date),
-                state,
-                onDismiss = {
-                    loggingDay = null
-                    model.clearResult()
-                },
-                onSave = model::saveDay,
-                onLayoutChange = model::saveJournalLayout
-            )
+            val initial = state.dayLogs.firstOrNull { it.date == date } ?: DayLog(date)
+            val dismiss = {
+                loggingDay = null
+                loggingField = null
+                model.clearResult()
+            }
+            if (loggingField != null) {
+                DayFieldEntry(initial, state, requireNotNull(loggingField), dismiss, model::saveDay)
+            } else {
+                DayLogEntry(initial, state, dismiss, model::saveDay, model::saveJournalLayout)
+            }
         }
+
         state.periods.firstOrNull { it.id.toString() == editingId }?.let { period ->
             PeriodEntry(
                 state,
@@ -245,7 +256,8 @@ fun HomeScreen(
     onFinish: (Period) -> Unit = {},
     onEdit: (Period) -> Unit = {},
     onLogDay: () -> Unit = {},
-    today: LocalDate = LocalDate.now()
+    today: LocalDate = LocalDate.now(),
+    onQuickLog: ((String) -> Unit)? = null
 ) {
     HomeTheme {
         Column(
@@ -360,7 +372,8 @@ fun HomeScreen(
                 onLogDay,
                 !state.loading && !state.saving,
                 layout = state.journalLayout,
-                homeStyle = true
+                homeStyle = true,
+                onQuickLog = onQuickLog
             )
             CycleInsights(
                 state.periods,

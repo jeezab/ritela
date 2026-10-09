@@ -87,7 +87,7 @@ class LoveSurpriseTest {
     fun longGapResetsUiSequenceWithReducedMotion() {
         content(reducedMotion = true)
         repeat(8) { compose.onNodeWithTag("with-love").performClick() }
-        now = 3001
+        now = 1001
         compose.onNodeWithTag("with-love").performClick()
         compose.onNodeWithTag("love-letter").assertDoesNotExist()
         repeat(8) { compose.onNodeWithTag("with-love").performClick() }
@@ -108,8 +108,14 @@ class LoveSurpriseTest {
         compose.onNodeWithTag("backup-export").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("backup-import").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("with-love").performScrollTo().assertIsDisplayed()
-        repeat(9) { compose.onNodeWithTag("with-love").performClick() }
+        compose.mainClock.autoAdvance = false
+        repeat(9) {
+            compose.onNodeWithTag("with-love").performClick()
+            compose.mainClock.advanceTimeBy(32)
+        }
+        compose.mainClock.advanceTimeBy(300)
         compose.onNodeWithTag("love-letter-close").assertIsDisplayed().performClick()
+        compose.mainClock.advanceTimeByFrame()
         compose.onNodeWithTag("love-letter").assertDoesNotExist()
     }
 
