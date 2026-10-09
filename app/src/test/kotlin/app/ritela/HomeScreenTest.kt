@@ -58,6 +58,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -72,6 +73,12 @@ import org.robolectric.shadows.ShadowDialog
 class HomeScreenTest {
     @get:Rule
     val compose = createAndroidComposeRule<MainActivity>()
+
+    @Before fun awaitProfileInitialization() {
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
 
     @Test
     fun emptyHomeExplainsLocalPrivacy() {
@@ -660,6 +667,7 @@ class HomeScreenTest {
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithTag("nav-settings").performClick()
         compose.onNodeWithTag("backup-export").performScrollTo().performClick()
+        compose.onNodeWithTag("backup-confirm").performClick()
         compose.onNodeWithText(
             "Leave blank to export without a password. Keep the password if you set one."
         )

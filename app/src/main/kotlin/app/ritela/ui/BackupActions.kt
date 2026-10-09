@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -24,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,10 +33,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ritela.R
 import app.ritela.RitelaApplication
+import app.ritela.data.BackupCategory
 import app.ritela.data.BackupData
 import app.ritela.data.BackupRepository
+import app.ritela.data.BackupSelection
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
@@ -47,7 +50,28 @@ import kotlinx.coroutines.withContext
 @Composable
 fun BackupActions() {
     val context = LocalContext.current
-    val repository = (context.applicationContext as RitelaApplication).backups
+    val manager = (context.applicationContext as RitelaApplication).profiles
+    val activeSession by manager.session.collectAsStateWithLifecycle()
+    val session = LocalProfileSession.current ?: activeSession
+    val repository = session.backups
+    val users by manager.registry.profiles.collectAsStateWithLifecycle()
+    val switching by manager.switching.collectAsStateWithLifecycle()
+    val user = users.first { it.id == session.profileId }.name
+    fun begin(): Boolean {
+        if (manager.switching.value || manager.session.value !== session ||
+            session.model.uiState.value.saving
+        ) {
+            return false
+        }
+        session.backupActive.value = true
+        return true
+    }
+    fun release() {
+        session.backupActive.value = false
+    }
+    var exportChoices by remember { mutableStateOf(false) }
+    var exportSelection by remember { mutableStateOf(BackupSelection()) }
+    var documentSession by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     var exportPassword by remember { mutableStateOf<CharArray?>(null) }
@@ -56,20 +80,28 @@ fun BackupActions() {
     var preview by remember { mutableStateOf<BackupData?>(null) }
     var result by remember { mutableStateOf<Int?>(null) }
     DisposableEffect(Unit) {
-        onDispose { exportPassword?.fill('\u0000') }
+        onDispose {
+            exportPassword?.fill('\u0000')
+            release()
+        }
     }
     val exportFile = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
+        val target = documentSession
+        documentSession = null
         val password = exportPassword
         exportPassword = null
-        if (uri == null || password == null) {
+        if (uri == null || password == null || manager.session.value !== session ||
+            target != session.token
+        ) {
             password?.fill('\u0000')
+            release()
         } else {
             busy = true
             scope.launch {
                 try {
-                    val bytes = repository.export(password)
+                    val bytes = repository.export(password, exportSelection)
                     withContext(Dispatchers.IO) {
                         requireNotNull(context.contentResolver.openOutputStream(uri, "wt"))
                             .use { it.write(bytes) }
@@ -82,34 +114,44 @@ fun BackupActions() {
                 } finally {
                     password.fill('\u0000')
                     busy = false
+                    release()
                 }
             }
         }
     }
     val importFile =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            if (uri != null) {
+            val target = documentSession
+            documentSession = null
+            if (uri != null && manager.session.value === session && target == session.token) {
                 importUri = uri
                 passwordMode = "import"
                 result = null
+            } else {
+                release()
             }
         }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
         Text(stringResource(R.string.backup_title), style = MaterialTheme.typography.titleLarge)
         TextButton(
             onClick = {
-                passwordMode = "export"
+                if (begin()) exportChoices = true
                 result = null
             },
-            enabled = !busy,
+            enabled = !busy && !switching,
             modifier = Modifier.testTag("backup-export")
         ) {
             Icon(painterResource(R.drawable.ic_export), contentDescription = null)
             Text(stringResource(R.string.backup_export), Modifier.padding(start = Spacing.small))
         }
         TextButton(
-            onClick = { importFile.launch(arrayOf("*/*")) },
-            enabled = !busy,
+            onClick = {
+                if (begin()) {
+                    documentSession = session.token
+                    importFile.launch(arrayOf("*/*"))
+                }
+            },
+            enabled = !busy && !switching,
             modifier = Modifier.testTag("backup-import")
         ) {
             Icon(painterResource(R.drawable.ic_import), contentDescription = null)
@@ -118,14 +160,32 @@ fun BackupActions() {
         if (busy) Text(stringResource(R.string.loading))
         result?.let { Text(stringResource(it), modifier = Modifier.testTag("backup-result")) }
     }
+    if (exportChoices) {
+        BackupChoices(
+            true,
+            user,
+            BackupCategory.entries.toSet(),
+            onDismiss = {
+                exportChoices = false
+                release()
+            },
+            onConfirm = {
+                exportSelection = it
+                exportChoices = false
+                passwordMode = "export"
+            }
+        )
+    }
     passwordMode?.let { mode ->
         BackupPasswordDialog(exporting = mode == "export", onDismiss = {
             passwordMode = null
             importUri = null
+            release()
         }) { password ->
             passwordMode = null
             if (mode == "export") {
                 exportPassword = password
+                documentSession = session.token
                 exportFile.launch("Ritela-${LocalDate.now()}.ritela")
             } else {
                 val uri = importUri
@@ -159,45 +219,42 @@ fun BackupActions() {
                     } finally {
                         password.fill('\u0000')
                         busy = false
+                        if (preview == null) release()
                     }
                 }
             }
         }
     }
     preview?.let { data ->
-        AlertDialog(
-            onDismissRequest = { if (!busy) preview = null },
-            title = { Text(stringResource(R.string.backup_import)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.medium)) {
-                    Text(stringResource(R.string.backup_preview, data.periods.size, data.logs.size))
-                    Text(stringResource(R.string.backup_merge_hint))
-                }
+        BackupChoices(
+            false,
+            user,
+            data.available,
+            data,
+            busy,
+            result,
+            onDismiss = {
+                preview = null
+                release()
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    busy = true
-                    scope.launch {
-                        try {
-                            repository.import(data)
-                            result = R.string.backup_imported
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (_: Exception) {
-                            result = R.string.backup_conflict
-                        } finally {
-                            preview = null
-                            busy = false
-                        }
+            onConfirm = { selection ->
+                busy = true
+                result = null
+                scope.launch {
+                    try {
+                        check(manager.session.value === session)
+                        repository.import(data, selection)
+                        result = R.string.backup_imported
+                        preview = null
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        result = R.string.backup_conflict
+                    } finally {
+                        busy = false
+                        if (preview == null) release()
                     }
-                }, enabled = !busy, modifier = Modifier.testTag("backup-confirm")) {
-                    Text(stringResource(R.string.backup_confirm))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    preview = null
-                }, enabled = !busy) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
