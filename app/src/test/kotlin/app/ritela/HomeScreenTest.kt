@@ -76,7 +76,9 @@ class HomeScreenTest {
 
     @Before fun awaitProfileInitialization() {
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodesWithTag("log-day").fetchSemanticsNodes().singleOrNull()
+                    ?.config?.contains(SemanticsProperties.Disabled) == false
         }
     }
 
@@ -110,6 +112,9 @@ class HomeScreenTest {
         compose.onNodeWithText("Отметить месячные").performClick()
         saveRendering("period-entry", dialog = true)
         compose.onNodeWithTag("entry-ongoing").performClick()
+        val repository = (compose.activity.application as RitelaApplication).periods
+        assertTrue(runBlocking { repository.periods.first().isEmpty() })
+        compose.onNodeWithTag("entry-save").assertIsEnabled().performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isNotEmpty()
         }
@@ -660,7 +665,12 @@ class HomeScreenTest {
     @Test
     @Config(sdk = [35], qualifiers = "en-rUS-w411dp-h891dp")
     fun englishDayFormAndBackupPasswordAreLocalized() {
-        compose.onNodeWithTag("log-day").performScrollTo().performClick()
+        compose.onNodeWithTag("log-day").assertIsEnabled().performScrollTo().performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("How was your day?").fetchSemanticsNodes().any {
+                it.boundsInRoot.width > 0f && it.boundsInRoot.height > 0f
+            }
+        }
         compose.onNodeWithText("How was your day?").assertIsDisplayed()
         compose.onNodeWithTag("mood-HAPPY").performClick()
         saveRendering("day-entry-english", dialog = true)
