@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -26,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -235,9 +238,21 @@ fun HelpCards(log: DayLog?, analysis: CycleAnalysis, date: LocalDate) {
         modifier = Modifier.testTag("help-cards"),
         verticalArrangement = Arrangement.spacedBy(Spacing.small)
     ) {
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.help_title), style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = { libraryOpen = true }, modifier = Modifier.testTag("help-all")) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                stringResource(R.string.help_title),
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    .wrapContentHeight(Alignment.CenterVertically),
+                style = MaterialTheme.typography.titleLarge
+            )
+            TextButton(
+                onClick = { libraryOpen = true },
+                modifier = Modifier.heightIn(min = 48.dp).testTag("help-all")
+            ) {
                 Text(stringResource(R.string.help_all))
             }
         }
