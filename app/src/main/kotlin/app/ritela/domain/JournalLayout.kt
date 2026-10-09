@@ -1,6 +1,6 @@
 package app.ritela.domain
 
-enum class JournalIcon { NOTE, HEAD, DROP, HEART, ENERGY, FLOWER, STAR }
+enum class JournalIcon { NOTE, HEAD, DROP, HEART, ENERGY, FLOWER, STAR, MOOD }
 
 data class JournalTag(val id: String, val title: String = "")
 data class JournalSection(
@@ -20,6 +20,7 @@ data class JournalLayout(
 
     fun removeTag(sectionId: String, tagId: String): JournalLayout {
         require(sectionId != "discharge")
+        require(sectionId != "sex" || tagId != "NONE")
         val section = sections.first { it.id == sectionId }
         require(section.tags.size > 1)
         return replace(section.copy(tags = section.tags.filterNot { it.id == tagId }))
@@ -54,7 +55,7 @@ fun builtInJournalSections(): List<JournalSection> {
         section("cramps", JournalIcon.DROP, Pain.entries),
         section("backache", JournalIcon.DROP, Pain.entries),
         section("flow", JournalIcon.DROP, FlowLevel.entries),
-        section("mood", JournalIcon.HEART, Mood.entries),
+        section("mood", JournalIcon.MOOD, Mood.entries),
         section("energy", JournalIcon.ENERGY, Energy.entries),
         section("sex", JournalIcon.HEART, Sex.entries, true)
     )

@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-09: `ui/DayFieldEntry.kt` — быстрый выбор одного поля, RitelaApp разделяет поле и полный редактор. `domain/JournalPresentation.kt` — независимые record/intimacy маркеры, совместимый selectable-модель и общий toggle. `ic_mood.xml` / JournalIcon.MOOD — настроение без сердца. CalendarScreen рисует до двух символов, сохраняет цвет и держит Сегодня/История под лентой. JournalPresentationTest/DaySelectionUiTest покрывают сохранение других значений, NONE и значки.
+
 Settings 0.3.4: `ui/LoveSurprise.kt` — Canvas overlay и прокручиваемое письмо; `ui/LoveAnimation.kt` — временный счётчик и генерация частиц без Android. `love_strings.xml` EN/RU содержит кнопку; письмо только в default resources с translatable=false. LoveAnimationTest/LoveSurpriseTest проверяют последовательность, частицы, английскую локаль, закрытие, reduced motion и 320dp/200%.
 
 Уточнение Calendar 0.3.3: compactFertilityWindows больше не фильтрует ориентир по объёму/устойчивости истории — возвращает оценки fertilityWindows, сетка использует исключительно их центральное семидневное likely. PredictionMethodInfo принимает includeOrbit; Calendar передаёт false, Home сохраняет default true.

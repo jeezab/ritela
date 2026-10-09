@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import app.ritela.R
 import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.JournalLayout
+import app.ritela.domain.forSelection
 
 /** Shared screen tokens: Home is the source of truth for Calendar and Settings. */
 object HomeColors {
@@ -152,7 +153,7 @@ fun HomeInsightTiles(analysis: CycleAnalysis) {
 }
 
 @Composable
-fun HomeTodayActions(layout: JournalLayout, enabled: Boolean, onEdit: () -> Unit) {
+fun HomeTodayActions(layout: JournalLayout, enabled: Boolean, onSelect: (String) -> Unit) {
     val ordered = listOf("mood", "discharge", "sex").mapNotNull { id ->
         layout.sections.firstOrNull { it.id == id }
     }
@@ -173,7 +174,7 @@ fun HomeTodayActions(layout: JournalLayout, enabled: Boolean, onEdit: () -> Unit
                         else -> journalSectionLabel(section)
                     }
                 },
-                journalIcon(section.icon),
+                journalIcon(section.forSelection().icon),
                 "quick-${section.id}",
                 listOf(
                     HomeColors.peach,
@@ -182,7 +183,7 @@ fun HomeTodayActions(layout: JournalLayout, enabled: Boolean, onEdit: () -> Unit
                     HomeColors.blush
                 )[index],
                 enabled,
-                onEdit,
+                { onSelect(section.id) },
                 Modifier.weight(1f)
             )
         }
@@ -192,7 +193,7 @@ fun HomeTodayActions(layout: JournalLayout, enabled: Boolean, onEdit: () -> Unit
             "quick-note",
             HomeColors.blush,
             enabled,
-            onEdit,
+            { onSelect("note") },
             Modifier.weight(1f)
         )
     }

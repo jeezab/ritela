@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import app.ritela.R
 import app.ritela.domain.DayLog
 import app.ritela.domain.Period
+import app.ritela.domain.forSelection
 import app.ritela.domain.journalSelections
 import java.time.LocalDate
 
@@ -67,15 +68,20 @@ fun DaySummary(
     onEdit: () -> Unit,
     enabled: Boolean = true,
     layout: app.ritela.domain.JournalLayout = app.ritela.domain.JournalLayout(),
-    homeStyle: Boolean = false
+    homeStyle: Boolean = false,
+    onQuickLog: ((String) -> Unit)? = null
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-        FlowRow(
+        Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.spacedBy(Spacing.small)
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(stringResource(R.string.home_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.home_title),
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.titleLarge
+            )
             TextButton(
                 onClick = onEdit,
                 enabled = enabled,
@@ -89,7 +95,7 @@ fun DaySummary(
             }
         }
         if (homeStyle) {
-            HomeTodayActions(layout, enabled, onEdit)
+            HomeTodayActions(layout, enabled) { id -> onQuickLog?.invoke(id) ?: onEdit() }
         } else {
             JournalQuickActions(layout, onEdit, enabled)
         }
@@ -105,7 +111,7 @@ fun DaySummary(
                         horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                     ) {
                         Icon(
-                            painterResource(journalIcon(section.icon)),
+                            painterResource(journalIcon(section.forSelection().icon)),
                             null,
                             Modifier.height(20.dp)
                         )
@@ -143,15 +149,7 @@ fun CalendarDayRecords(
             if (editable) {
                 TextButton(onClick = onEdit, modifier = Modifier.testTag("log-day")) {
                     Text(
-                        stringResource(
-                            if (log == null ||
-                                log.empty
-                            ) {
-                                R.string.selected_day_add_record
-                            } else {
-                                R.string.edit
-                            }
-                        )
+                        stringResource(R.string.selected_day_add_record)
                     )
                 }
             }
@@ -214,7 +212,7 @@ private fun JournalQuickActions(
         sections.forEach { section ->
             JournalQuickAction(
                 journalSectionLabel(section),
-                journalIcon(section.icon),
+                journalIcon(section.forSelection().icon),
                 "quick-${section.id}",
                 onEdit,
                 enabled
