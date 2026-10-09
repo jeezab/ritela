@@ -1,0 +1,9 @@
+<resources>
+    <string name="partner_title">Партнёр</string>
+    <string name="partner_mode">Режим партнёра</string>
+    <string name="partner_show">Показывать раздел «Партнёр»</string>
+    <string name="partner_normal">Вернуться к своему календарю</string>
+    <string name="partner_login">Вход для партнёра</string>
+    <string name="partner_private">Ничего не передаётся автоматически. Ваши записи остаются на этом устройстве.</string>
+    <string name="partner_empty">Добавьте близкого человека. Отсканируйте приглашения друг друга и сравните отпечатки личности перед подтверждением.</string>
+</resources>

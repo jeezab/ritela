@@ -10,6 +10,8 @@ room = "2.8.5"
 ksp = "2.3.12"
 lifecycle = "2.11.0"
 coroutines = "1.10.2"
+datastore = "1.2.1"
+zxing = "4.3.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
@@ -26,6 +28,9 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+zxing-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

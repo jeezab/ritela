@@ -165,7 +165,8 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
     ).addMigrations(
         RitelaDatabase.MIGRATION_1_2,
         RitelaDatabase.MIGRATION_2_3,
-        RitelaDatabase.MIGRATION_3_4
+        RitelaDatabase.MIGRATION_3_4,
+        RitelaDatabase.MIGRATION_4_5
     ).build()
     val periods = PeriodRepository(database.periods())
     val days = DayLogRepository(database.dayLogs())
@@ -187,6 +188,11 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
             "system"
         }
     )
+    val partnerPreferences = PartnerPreferences(context.applicationContext, profileId)
+    private val partnerVault by lazy { PartnerKeyVault(context.applicationContext, profileId) }
+    val partner by lazy {
+        PartnerRepository(database, partnerVault::loadOrCreate, partnerVault::save)
+    }
     val backups = BackupRepository(database)
     val backupActive = MutableStateFlow(false)
     val model by lazy {
@@ -201,6 +207,7 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
     suspend fun close() {
         withContext(Dispatchers.Main.immediate) { viewModelStore.clear() }
         settings.close()
+        partnerPreferences.close()
         withContext(Dispatchers.IO) { database.close() }
     }
 }
@@ -277,6 +284,12 @@ class ProfileManager(private val context: Context) {
                     clear()
                 }
             }
+            PartnerKeyVault.delete(context, id)
+            val partnerPrefs = java.io.File(
+                context.filesDir,
+                "datastore/partner-$id.preferences_pb"
+            )
+            check(!partnerPrefs.exists() || partnerPrefs.delete())
             registry.completeDeletion(id)
         }
     }

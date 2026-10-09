@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.ritela.R
+import app.ritela.data.PartnerMode
 import app.ritela.data.ThemeMode
 import app.ritela.domain.DayLog
 import app.ritela.domain.Period
@@ -50,10 +52,17 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import kotlinx.coroutines.flow.flowOf
 
 @Composable
 fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Factory)) {
     val state by model.uiState.collectAsStateWithLifecycle()
+    val profile = LocalProfileSession.current
+    val partnerModes = remember(profile) {
+        profile?.partnerPreferences?.mode
+            ?: flowOf(PartnerMode(ready = true))
+    }
+    val partnerMode by partnerModes.collectAsStateWithLifecycle(initialValue = PartnerMode())
     var adding by rememberSaveable { mutableStateOf(false) }
     var finishingId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -76,6 +85,18 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
         }
     }
 
+    LaunchedEffect(partnerMode.show, partnerMode.recipient) {
+        if ((page == 3 && !partnerMode.show) || (page == 1 && partnerMode.recipient)) page = 0
+        if (partnerMode.recipient) {
+            adding = false
+            loggingDay = null
+            editingId = null
+            finishingId =
+                null
+            deletingId = null
+        }
+    }
+
     val darkTheme = when (state.themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
@@ -83,10 +104,12 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     }
     RitelaTheme(darkTheme = darkTheme) {
         Scaffold(bottomBar = {
-            HomeTheme { AppNavigation(page) { page = it } }
+            HomeTheme { AppNavigation(page, partnerMode.show, partnerMode.recipient) { page = it } }
         }) { contentPadding ->
             if (page == 2) {
                 SettingsScreen(contentPadding, state)
+            } else if (page == 3 || (page == 0 && partnerMode.recipient)) {
+                PartnerScreen(contentPadding)
             } else if (page == 1) {
                 pageStates.SaveableStateProvider("calendar") {
                     CalendarScreen(
@@ -392,9 +415,20 @@ fun HomeScreen(
 }
 
 @Composable
-fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
+fun AppNavigation(
+    page: Int,
+    showPartner: Boolean = false,
+    recipient: Boolean = false,
+    onPage: (Int) -> Unit
+) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
-        for (index in 0..2) {
+        val pages = buildList {
+            add(0)
+            if (!recipient) add(1)
+            if (showPartner) add(3)
+            add(2)
+        }
+        for (index in pages) {
             NavigationBarItem(
                 selected = page == index,
                 onClick = { onPage(index) },
@@ -402,6 +436,7 @@ fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
                     when (index) {
                         0 -> "nav-today"
                         1 -> "nav-calendar"
+                        3 -> "nav-partner"
                         else -> "nav-settings"
                     }
                 ),
@@ -411,6 +446,7 @@ fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
                             when (index) {
                                 0 -> R.drawable.ic_today
                                 1 -> R.drawable.ic_calendar
+                                3 -> R.drawable.ic_partner
                                 else -> R.drawable.ic_settings
                             }
                         ),
@@ -423,6 +459,7 @@ fun AppNavigation(page: Int, onPage: (Int) -> Unit) {
                             when (index) {
                                 0 -> R.string.home_title
                                 1 -> R.string.calendar_title
+                                3 -> R.string.partner_title
                                 else -> R.string.settings_title
                             }
                         ),
