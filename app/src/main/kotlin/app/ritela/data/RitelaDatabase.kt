@@ -6,16 +6,27 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [PeriodEntity::class, DayLogEntity::class, JournalLayoutEntity::class],
-    version = 3,
+    entities = [
+        PeriodEntity::class, DayLogEntity::class, JournalLayoutEntity::class, ProfileSettings::class
+    ],
+    version = 4,
     exportSchema = true
 )
 abstract class RitelaDatabase : RoomDatabase() {
     abstract fun periods(): PeriodDao
     abstract fun dayLogs(): DayLogDao
     abstract fun journal(): JournalDao
+    abstract fun profileSettings(): ProfileSettingsDao
 
     companion object {
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE profile_settings (id INTEGER NOT NULL, language TEXT NOT NULL, " +
+                        "theme TEXT NOT NULL, PRIMARY KEY(id))"
+                )
+            }
+        }
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE day_logs ADD COLUMN custom TEXT NOT NULL DEFAULT '{}'")
