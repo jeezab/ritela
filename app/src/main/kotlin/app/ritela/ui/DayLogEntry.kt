@@ -188,15 +188,7 @@ private fun DayLogContent(
     val selections = remember(selectionText) { JournalCodec.decodeSelections(selectionText) }
     var note by rememberSaveable { mutableStateOf(initial.note) }
     var calendarIcon by rememberSaveable {
-        mutableStateOf(
-            (
-                initial.calendarIcon?.takeUnless {
-                    it ==
-                        JournalIcon.HEART
-                }
-                    ?: JournalIcon.NOTE
-                ).name
-        )
+        mutableStateOf(initial.calendarIcon?.name)
     }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     // Dialog targets: title, add-section, section:<id>, add-tag:<id>, tag:<section>:<tag>.
@@ -368,8 +360,13 @@ private fun DayLogContent(
                         stringResource(R.string.journal_calendar_icon),
                         style = MaterialTheme.typography.titleMedium
                     )
-                    IconChoices(calendarIcon, !state.saving, allowAutomatic = false) {
-                        calendarIcon = it ?: JournalIcon.NOTE.name
+                    IconChoices(
+                        calendarIcon?.takeUnless { it == JournalIcon.HEART.name }
+                            ?: JournalIcon.NOTE.name,
+                        !state.saving,
+                        allowAutomatic = false
+                    ) {
+                        calendarIcon = it
                     }
                     state.problem?.let {
                         Text(problemText(it), color = MaterialTheme.colorScheme.error)
@@ -387,7 +384,7 @@ private fun DayLogContent(
                             onSave(
                                 initial.withJournalSelections(selections).copy(
                                     note = note,
-                                    calendarIcon = JournalIcon.valueOf(calendarIcon)
+                                    calendarIcon = calendarIcon?.let(JournalIcon::valueOf)
                                 )
                             )
                         },

@@ -15,6 +15,7 @@ import app.ritela.domain.Mood
 import app.ritela.domain.Period
 import app.ritela.domain.Sex
 import app.ritela.domain.analyzeCycles
+import app.ritela.domain.calendarMarkers
 import app.ritela.ui.CalendarScreen
 import app.ritela.ui.DayFieldEntry
 import app.ritela.ui.DayLogEntry
@@ -23,6 +24,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -71,6 +73,30 @@ class DaySelectionUiTest {
         compose.onNodeWithTag("journal-icon-NOTE").performScrollTo().assertIsSelected()
         compose.onNodeWithTag("journal-icon-HEART").assertDoesNotExist()
         compose.onNodeWithText("Автоматически").assertDoesNotExist()
+    }
+
+    @Test fun savingOnlySexDoesNotCreateAnImplicitNoteMarker() {
+        var saved: DayLog? = null
+        compose.activity.setContent {
+            DayLogEntry(DayLog(today), PeriodUiState(loading = false), {}, { saved = it })
+        }
+        compose.onNodeWithTag("sex-CONDOM").performScrollTo().performClick()
+        compose.onNodeWithTag("save-day").performClick()
+        assertNull(saved?.calendarIcon)
+        assertNull(saved?.calendarMarkers()?.record)
+        assertTrue(saved?.calendarMarkers()?.intimacy == true)
+    }
+
+    @Test fun savingLegacyHeartKeepsStoredChoiceButUsesNoteForRecord() {
+        val initial = DayLog(today, note = "fixture", calendarIcon = JournalIcon.HEART)
+        var saved: DayLog? = null
+        compose.activity.setContent {
+            DayLogEntry(initial, PeriodUiState(loading = false), {}, { saved = it })
+        }
+        compose.onNodeWithTag("journal-icon-NOTE").performScrollTo().assertIsSelected()
+        compose.onNodeWithTag("save-day").performClick()
+        assertEquals(initial, saved)
+        assertEquals(JournalIcon.NOTE, saved?.calendarMarkers()?.record)
     }
 
     @Test fun calendarShowsIndependentSymbolsAndFooterStaysBelowMonths() {
