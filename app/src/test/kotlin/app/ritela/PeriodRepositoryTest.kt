@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.ritela.data.PeriodRepository
 import app.ritela.data.RitelaDatabase
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.PeriodRange
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -72,6 +73,54 @@ class PeriodRepositoryTest {
         assertEquals(1, results.count { it == null })
         assertEquals(1, results.count { it == PeriodProblem.OVERLAP })
         assertEquals(1, repository.periods.first().size)
+    }
+
+    @Test fun batchSavesAllRangesAndRejectsOverlapsWithoutPartialWrites() = runBlocking {
+        val first = LocalDate.of(2024, 1, 30)
+        val second = LocalDate.of(2024, 2, 27)
+        val ranges = listOf(
+            PeriodRange(first, first.plusDays(4)),
+            PeriodRange(second, second.plusDays(3))
+        )
+        assertNull(repository.addAll(ranges.reversed()))
+        val original = repository.periods.first()
+        assertEquals(listOf(second, first), original.map { it.start })
+        assertEquals(
+            PeriodProblem.OVERLAP,
+            repository.addAll(
+                listOf(PeriodRange(first.minusDays(10), first.minusDays(8)), ranges.last())
+            )
+        )
+        assertEquals(original, repository.periods.first())
+        assertEquals(
+            PeriodProblem.OVERLAP,
+            repository.addAll(
+                listOf(
+                    PeriodRange(first.minusDays(10), first.minusDays(8)),
+                    PeriodRange(first.minusDays(8), first.minusDays(6))
+                )
+            )
+        )
+        assertEquals(original, repository.periods.first())
+        assertEquals(
+            PeriodProblem.FUTURE_DATE,
+            repository.addAll(
+                listOf(
+                    PeriodRange(first.minusDays(10), first.minusDays(8)),
+                    PeriodRange(LocalDate.of(2024, 3, 11), null)
+                )
+            )
+        )
+        assertEquals(original, repository.periods.first())
+    }
+
+    @Test fun concurrentBatchesCannotPartiallyInsertOrOverlap() = runBlocking {
+        val day = LocalDate.of(2024, 2, 1)
+        val ranges = listOf(PeriodRange(day, day), PeriodRange(day.plusDays(4), null))
+        val results = List(2) { async { repository.addAll(ranges) } }.awaitAll()
+        assertEquals(1, results.count { it == null })
+        assertEquals(1, results.count { it == PeriodProblem.OVERLAP })
+        assertEquals(2, repository.periods.first().size)
     }
 
     @Test fun recordsSurviveDatabaseReopening() = runBlocking {

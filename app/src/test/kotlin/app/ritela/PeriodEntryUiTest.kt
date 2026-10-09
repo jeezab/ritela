@@ -1,5 +1,6 @@
 package app.ritela
 
+import androidx.activity.ComponentDialog
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
@@ -52,7 +53,7 @@ class PeriodEntryUiTest {
                 {},
                 { start, end -> saved = start to end },
                 initialStart = first.plusDays(2),
-                onSaveAndContinue = { _, _ -> }
+                onSaveBatch = { saved = it.single().start to it.single().end }
             )
         }
         compose.onNodeWithTag("entry-day-${first.plusDays(2)}").performClick()
@@ -75,7 +76,7 @@ class PeriodEntryUiTest {
                 initialEnd = period.end,
                 editing = true,
                 editingId = period.id,
-                onSaveAndContinue = { _, _ -> }
+                onSaveBatch = { }
             )
         }
         compose.onNodeWithTag("entry-day-${period.start}").assertIsEnabled()
@@ -113,7 +114,7 @@ class PeriodEntryUiTest {
                     { _, _ -> },
                     initialStart = today.minusDays(3),
                     initialEnd = today,
-                    onSaveAndContinue = { _, _ -> }
+                    onSaveBatch = { }
                 )
             }
         }
@@ -127,7 +128,7 @@ class PeriodEntryUiTest {
         )
     }
 
-    @Test fun saveMorePersistsThenClearsSelectionAndSecondSaveCloses() {
+    @Test fun markingKeepsDraftAndScrollUntilSavePersistsAllRanges() {
         val repository = (compose.activity.application as RitelaApplication).periods
         val now = LocalDate.now()
         compose.waitUntil(10_000) {
@@ -146,14 +147,26 @@ class PeriodEntryUiTest {
         val firstStart = now.minusMonths(1).withDayOfMonth(5)
         val firstEnd = firstStart.plusDays(2)
         choose(firstStart, firstEnd)
+        val viewport = compose.onNodeWithTag("entry-month-grid").fetchSemanticsNode().boundsInRoot
+        val dayBounds = compose.onNodeWithTag(
+            "entry-day-$firstEnd"
+        ).fetchSemanticsNode().boundsInRoot
         compose.onNodeWithTag("entry-save-more").performClick()
-        compose.waitUntil(10_000) {
-            runBlocking { repository.periods.first().size == 1 } &&
-                compose.onAllNodesWithTag("entry-save").fetchSemanticsNodes().singleOrNull()
-                    ?.config?.contains(SemanticsProperties.Disabled) == true
-        }
         compose.onNodeWithTag("entry-save-more").assertIsNotEnabled()
-        compose.onNodeWithTag("entry-day-$firstEnd").assertIsDisplayed()
+        compose.onNodeWithTag("entry-save").assertIsEnabled()
+        compose.onNodeWithTag("entry-day-$firstEnd").assertIsDisplayed().assertIsNotEnabled()
+        assertEquals(
+            viewport,
+            compose.onNodeWithTag("entry-month-grid").fetchSemanticsNode().boundsInRoot
+        )
+        assertEquals(
+            dayBounds,
+            compose.onNodeWithTag("entry-day-$firstEnd").fetchSemanticsNode().boundsInRoot
+        )
+        assertTrue(runBlocking { repository.periods.first().isEmpty() })
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("entry-day-$firstEnd").assertIsDisplayed().assertIsNotEnabled()
+        assertTrue(runBlocking { repository.periods.first().isEmpty() })
         choose(now.minusDays(2), now.minusDays(1))
         compose.onNodeWithTag("entry-save").performClick()
         compose.waitUntil(10_000) {
@@ -165,5 +178,79 @@ class PeriodEntryUiTest {
         assertEquals(firstEnd, records[0].end)
         assertEquals(now.minusDays(2), records[1].start)
         assertEquals(now.minusDays(1), records[1].end)
+    }
+
+    @Test fun cancelAndBackAskBeforeDiscardingMarkedRanges() {
+        val repository = (compose.activity.application as RitelaApplication).periods
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Отметить месячные").fetchSemanticsNodes().singleOrNull()
+                ?.config?.contains(SemanticsProperties.Disabled) == false
+        }
+        compose.onNodeWithText("Отметить месячные").performClick()
+        compose.onNodeWithTag("entry-save-more").performClick()
+        val entryDialog = org.robolectric.shadows.ShadowDialog.getLatestDialog()
+        compose.onNodeWithTag("entry-cancel").performClick()
+        compose.onNodeWithTag("entry-discard-dialog").assertIsDisplayed()
+        compose.onNodeWithTag("entry-discard-cancel").performClick()
+        compose.onNodeWithTag("entry-save").assertIsEnabled()
+        assertTrue(runBlocking { repository.periods.first().isEmpty() })
+        compose.runOnIdle {
+            (entryDialog as ComponentDialog).onBackPressedDispatcher.onBackPressed()
+        }
+        compose.onNodeWithTag("entry-discard-dialog").assertIsDisplayed()
+        compose.onNodeWithTag("entry-discard-continue").performClick()
+        compose.onNodeWithTag("entry-save").assertDoesNotExist()
+        assertTrue(runBlocking { repository.periods.first().isEmpty() })
+    }
+
+    @Test fun ongoingDraftBlocksFollowingDaysAndSavesOnlyOnConfirmation() {
+        val repository = (compose.activity.application as RitelaApplication).periods
+        val start = LocalDate.now().minusDays(2)
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Отметить месячные").fetchSemanticsNodes().singleOrNull()
+                ?.config?.contains(SemanticsProperties.Disabled) == false
+        }
+        compose.onNodeWithText("Отметить месячные").performClick()
+        compose.onNodeWithTag("entry-day-$start").performClick()
+        compose.onNodeWithTag("entry-ongoing").performClick()
+        compose.onNodeWithTag("entry-day-${LocalDate.now()}").assertIsNotEnabled()
+        assertTrue(runBlocking { repository.periods.first().isEmpty() })
+        compose.onNodeWithTag("entry-save").performClick()
+        compose.waitUntil(10_000) {
+            runBlocking { repository.periods.first().size == 1 } &&
+                compose.onAllNodesWithTag("entry-save").fetchSemanticsNodes().isEmpty()
+        }
+        val period = runBlocking { repository.periods.first().single() }
+        assertEquals(start, period.start)
+        assertEquals(null, period.end)
+    }
+
+    @Test fun failedSaveKeepsMarkedRangesForRetry() {
+        val state = androidx.compose.runtime.mutableStateOf(
+            PeriodUiState(today = today, loading = false)
+        )
+        val attempts = mutableListOf<List<app.ritela.domain.PeriodRange>>()
+        compose.activity.setContent {
+            PeriodEntry(
+                state.value,
+                {},
+                { _, _ -> },
+                initialStart = today.minusDays(3),
+                initialEnd = today.minusDays(1),
+                onSaveBatch = {
+                    attempts += it
+                    state.value =
+                        state.value.copy(problem = app.ritela.domain.PeriodProblem.STORAGE)
+                }
+            )
+        }
+        compose.onNodeWithTag("entry-save-more").performClick()
+        compose.onNodeWithTag("entry-save").performClick()
+        compose.onNodeWithTag("entry-day-${today.minusDays(2)}").assertIsNotEnabled()
+        compose.onNodeWithTag("entry-save").assertIsEnabled().performClick()
+        assertEquals(2, attempts.size)
+        assertEquals(attempts[0], attempts[1])
+        assertEquals(today.minusDays(3), attempts[1].single().start)
+        assertEquals(today.minusDays(1), attempts[1].single().end)
     }
 }

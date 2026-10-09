@@ -14,6 +14,9 @@ data class Period(
 
 enum class PeriodProblem { FUTURE_DATE, END_BEFORE_START, OVERLAP, STORAGE }
 
+/** Dates awaiting a single explicit save; these are not stored records. */
+data class PeriodRange(val start: LocalDate, val end: LocalDate?)
+
 fun validatePeriod(start: LocalDate, end: LocalDate?, today: LocalDate): PeriodProblem? = when {
     start > today || (end != null && end > today) -> PeriodProblem.FUTURE_DATE
     end != null && end < start -> PeriodProblem.END_BEFORE_START

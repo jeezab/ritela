@@ -16,6 +16,7 @@ import app.ritela.domain.DayLog
 import app.ritela.domain.JournalLayout
 import app.ritela.domain.Period
 import app.ritela.domain.PeriodProblem
+import app.ritela.domain.PeriodRange
 import app.ritela.domain.PredictionDefaults
 import app.ritela.domain.analyzeCycles
 import java.time.LocalDate
@@ -106,6 +107,10 @@ class PeriodViewModel(
 
     fun save(start: LocalDate, end: LocalDate?) {
         persist { repository.add(start, end) }
+    }
+
+    fun savePeriods(ranges: List<PeriodRange>) {
+        persist { repository.addAll(ranges) }
     }
 
     fun finish(id: UUID, end: LocalDate) {
