@@ -114,7 +114,10 @@ object JournalCodec {
                     JournalTag(
                         tag.getString("id"),
                         tag.getString("title"),
-                        tag.optBoolean("withoutPenetration", tag.getString("id") == "MASTURBATION")
+                        tag.optBoolean(
+                            "withoutPenetration",
+                            tag.getString("id") in setOf("MASTURBATION", "ORAL")
+                        )
                     )
                 },
                 section.getBoolean("multiple")

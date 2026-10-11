@@ -5,7 +5,7 @@ enum class JournalIcon { NOTE, HEAD, DROP, HEART, ENERGY, FLOWER, STAR, MOOD }
 data class JournalTag(
     val id: String,
     val title: String = "",
-    val withoutPenetration: Boolean = id == "MASTURBATION"
+    val withoutPenetration: Boolean = id in setOf("MASTURBATION", "ORAL")
 )
 data class JournalSection(
     val id: String,

@@ -82,7 +82,7 @@ class JournalChangesTest {
         sexStatusTags.forEach { assertTrue(runCatching { layout.removeTag("sex", it) }.isFailure) }
         assertFalse(sex.tags.any { it.id == "VAGINAL" })
         assertTrue(sex.tags.single { it.id == "MASTURBATION" }.withoutPenetration)
-        assertFalse(sex.tags.single { it.id == "ORAL" }.withoutPenetration)
+        assertTrue(sex.tags.single { it.id == "ORAL" }.withoutPenetration)
     }
 
     @Test fun heartOutlineAndFillRespectCustomMetadataAndNoneIsNotAHeart() {
@@ -100,7 +100,10 @@ class JournalChangesTest {
             ).calendarMarkers(custom).filledHeart
         )
         assertTrue(
-            DayLog(day, sex = setOf(Sex.MASTURBATION, Sex.ORAL)).calendarMarkers(custom).filledHeart
+            DayLog(
+                day,
+                sex = setOf(Sex.MASTURBATION, Sex.CONDOM)
+            ).calendarMarkers(custom).filledHeart
         )
         assertTrue(
             DayLog(
