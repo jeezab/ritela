@@ -840,7 +840,18 @@ class HomeScreenTest {
         }
         val app = compose.activity.application as RitelaApplication
         fun awaitLayout(predicate: (app.ritela.domain.JournalLayout) -> Boolean) {
-            compose.waitUntil(10_000) { runBlocking { predicate(app.journal.layout.first()) } }
+            try {
+                compose.waitUntil(10_000) { runBlocking { predicate(app.journal.layout.first()) } }
+            } catch (timeout: androidx.compose.ui.test.ComposeTimeoutException) {
+                val actual = runBlocking { app.journal.layout.first() }
+                throw AssertionError(
+                    "Journal update did not finish: " +
+                        actual.sections.map { it.id to it.tags.map { tag -> tag.id } } +
+                        "; saving=" + app.profiles.session.value.model.uiState.value.saving +
+                        "; problem=" + app.profiles.session.value.model.uiState.value.problem,
+                    timeout
+                )
+            }
             compose.waitForIdle()
         }
         compose.onNodeWithTag("log-day").performScrollTo().performClick()
@@ -1492,12 +1503,16 @@ class HomeScreenTest {
 
     private fun useLegacyJournal() {
         val application = compose.activity.application as RitelaApplication
-        runBlocking {
-            application.journal.save(
-                app.ritela.domain.JournalLayout(
-                    sections = app.ritela.domain.builtInJournalSections()
-                )
-            )
+        val layout = app.ritela.domain.JournalLayout(
+            sections = app.ritela.domain.builtInJournalSections()
+        )
+        runBlocking { application.journal.save(layout) }
+        // Room commit precedes the model's asynchronous configuration/prediction refresh.
+        compose.waitUntil(10_000) {
+            val action = compose.onAllNodesWithTag("log-day").fetchSemanticsNodes().singleOrNull()
+            action != null && !action.config.contains(SemanticsProperties.Disabled) &&
+                application.profiles.session.value.model.uiState.value.journalLayout.sections ==
+                layout.sections
         }
         compose.waitForIdle()
     }
@@ -1546,7 +1561,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("calendar-summaries").assertExists()
     }
 
-    @Test fun dischargeTagsAreFixedAndSelectionsSurviveRecreation() {
+    @Test fun dischargeDefaultsAreProtectedAndSelectionsSurviveRecreation() {
         val application = compose.activity.application as RitelaApplication
         openDischargeJournal()
         assertEquals(
@@ -1557,7 +1572,9 @@ class HomeScreenTest {
         compose.onNodeWithTag("journal-remove-discharge-DRY").assertDoesNotExist()
         compose.onNodeWithText(
             compose.activity.getString(R.string.journal_add_tag)
-        ).assertDoesNotExist()
+        ).assertExists()
+        compose.onNodeWithTag("discharge-UNUSUAL").assertDoesNotExist()
+        compose.onNodeWithTag("journal-edit-discharge").performScrollTo().performClick()
         compose.onNodeWithTag("discharge-WATERY").performScrollTo().performClick()
         compose.onNodeWithTag("save-day").performClick()
         compose.waitUntil(10_000) {
@@ -1565,6 +1582,9 @@ class HomeScreenTest {
                 application.days.logs.first().firstOrNull()?.custom?.get("discharge") ==
                     setOf("WATERY")
             }
+        }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("save-day").fetchSemanticsNodes().isEmpty()
         }
         compose.activityRule.scenario.recreate()
         openDischargeJournal()
@@ -1645,7 +1665,16 @@ class HomeScreenTest {
             loading = false,
             today = today,
             dayLogs = listOf(log),
-            journalLayout = app.ritela.domain.JournalLayout(sections = emptyList())
+            journalLayout = app.ritela.domain.JournalLayout(
+                sections = emptyList(),
+                archivedSections = listOf(
+                    app.ritela.domain.JournalSection(
+                        "archived",
+                        "Saved section",
+                        tags = listOf(app.ritela.domain.JournalTag("saved-tag", "Saved tag"))
+                    )
+                )
+            )
         )
         var opened: LocalDate? = null
         compose.activity.runOnUiThread {
@@ -1668,7 +1697,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("calendar-day-$date").performScrollTo().performClick()
         compose.onNodeWithText("Day records").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Mood: Happy").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("archived: saved-tag").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Saved section: Saved tag").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(log.note).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("day-details-close").performScrollTo().assertIsDisplayed()
         val frame = compose.onNodeWithTag("day-details-frame").fetchSemanticsNode().boundsInRoot

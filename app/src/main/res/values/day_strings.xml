@@ -26,8 +26,8 @@
     <string name="energy_normal">Usual</string>
     <string name="energy_high">High</string>
     <string name="sex_none">No sex</string>
-    <string name="sex_condom">With a condom</string>
-    <string name="sex_no_barrier">Without a condom</string>
+    <string name="sex_condom">Sex with protection</string>
+    <string name="sex_no_barrier">Sex without protection</string>
     <string name="sex_oral">Oral sex</string>
     <string name="sex_vaginal">Vaginal sex</string>
     <string name="sex_anal">Anal sex</string>

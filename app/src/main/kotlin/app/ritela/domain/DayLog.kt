@@ -28,7 +28,7 @@ data class DayLog(
 
 fun validateDayLog(log: DayLog, today: LocalDate): Boolean =
     log.date <= today && log.date.year in 1900..9999 && log.note.length <= 1000 &&
-        (Sex.NONE !in log.sex || log.sex.size == 1) && log.custom.size <= 64 &&
+        log.custom.size <= 64 &&
         log.custom.all { (id, tags) ->
             validJournalId(id) && tags.size <= 64 &&
                 tags.all(::validJournalId)

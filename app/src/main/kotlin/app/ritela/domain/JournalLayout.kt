@@ -2,7 +2,11 @@ package app.ritela.domain
 
 enum class JournalIcon { NOTE, HEAD, DROP, HEART, ENERGY, FLOWER, STAR, MOOD }
 
-data class JournalTag(val id: String, val title: String = "")
+data class JournalTag(
+    val id: String,
+    val title: String = "",
+    val withoutPenetration: Boolean = id == "MASTURBATION"
+)
 data class JournalSection(
     val id: String,
     val title: String = "",
@@ -13,21 +17,26 @@ data class JournalSection(
 
 data class JournalLayout(
     val title: String = "",
-    val sections: List<JournalSection> = defaultJournalSections()
+    val sections: List<JournalSection> = defaultJournalSections(),
+    val archivedSections: List<JournalSection> = emptyList()
 ) {
     fun replace(section: JournalSection): JournalLayout =
         copy(sections = sections.map { if (it.id == section.id) section else it })
 
     fun removeTag(sectionId: String, tagId: String): JournalLayout {
-        require(sectionId != "discharge")
-        require(sectionId != "sex" || tagId != "NONE")
+        require(!isProtectedJournalTag(sectionId, tagId))
         val section = sections.first { it.id == sectionId }
         require(section.tags.size > 1)
-        return replace(section.copy(tags = section.tags.filterNot { it.id == tagId }))
+        return replace(
+            section.copy(
+                tags = section.tags.filterNot {
+                    it.id == tagId
+                }
+            )
+        ).withHistoryFrom(this)
     }
 
     fun moveTag(sectionId: String, tagId: String, targetId: String): JournalLayout {
-        require(sectionId != "discharge")
         val section = sections.first { it.id == sectionId }
         val tags = section.tags.toMutableList()
         val index = tags.indexOfFirst { it.id == targetId }
@@ -55,7 +64,7 @@ fun builtInJournalSections(): List<JournalSection> {
         section("cramps", JournalIcon.DROP, Pain.entries),
         section("backache", JournalIcon.DROP, Pain.entries),
         section("flow", JournalIcon.DROP, FlowLevel.entries),
-        section("mood", JournalIcon.MOOD, Mood.entries),
+        section("mood", JournalIcon.MOOD, Mood.entries, true),
         section("energy", JournalIcon.ENERGY, Energy.entries),
         section("sex", JournalIcon.HEART, Sex.entries, true)
     )
@@ -66,8 +75,7 @@ fun dischargeTags(): List<JournalTag> = listOf(
     "STICKY",
     "CREAMY",
     "WATERY",
-    "CLEAR_STRETCHY",
-    "UNUSUAL"
+    "CLEAR_STRETCHY"
 ).map(::JournalTag)
 
 fun defaultJournalSections(): List<JournalSection> {
@@ -75,7 +83,12 @@ fun defaultJournalSections(): List<JournalSection> {
     return listOf(
         builtins.getValue("mood"),
         JournalSection("discharge", icon = JournalIcon.DROP, tags = dischargeTags()),
-        builtins.getValue("sex"),
+        builtins.getValue("sex").copy(
+            tags = builtins.getValue("sex").tags.filterNot {
+                it.id ==
+                    "VAGINAL"
+            }
+        ),
         builtins.getValue("energy")
     )
 }
@@ -84,12 +97,23 @@ fun validJournalId(id: String): Boolean = id.matches(Regex("[A-Za-z0-9_-]{1,80}"
 
 fun validateJournalLayout(layout: JournalLayout): Boolean =
     layout.title.length <= 200 && layout.sections.size <= 64 &&
+        layout.archivedSections.size <= 256 &&
+        layout.archivedSections.map { it.id }.distinct().size == layout.archivedSections.size &&
+        layout.archivedSections.all { section ->
+            validJournalId(section.id) && section.title.length <= 200 &&
+                section.tags.size <= 256 &&
+                section.tags.map { it.id }.distinct().size == section.tags.size &&
+                section.tags.all { validJournalId(it.id) && it.title.length <= 200 }
+        } &&
         layout.sections.map { it.id }.distinct().size == layout.sections.size &&
         layout.sections.all { section ->
             validJournalId(section.id) && section.title.length <= 200 &&
                 (
                     section.id != "discharge" ||
-                        (section.tags == dischargeTags() && !section.multiple)
+                        (
+                            section.tags.map { it.id }.containsAll(dischargeTags().map { it.id }) &&
+                                !section.multiple
+                            )
                     ) &&
                 section.tags.size in 1..64 &&
                 section.tags.map { it.id }.distinct().size == section.tags.size &&
@@ -122,7 +146,53 @@ fun DayLog.withJournalSelections(selections: Map<String, Set<String>>): DayLog {
         mood = selected("mood", Mood.entries),
         energy = selected("energy", Energy.entries),
         sex = Sex.entries.filter { it.name in selections["sex"].orEmpty() }.toSet(),
-        custom = selections.mapValues { (id, values) -> values - builtins[id].orEmpty() }
+        custom = selections.mapValues { (id, values) ->
+            if (id == "mood") {
+                values - setOfNotNull(selected("mood", Mood.entries)?.name)
+            } else {
+                values - builtins[id].orEmpty()
+            }
+        }
             .filterValues { it.isNotEmpty() }
     )
+}
+
+val sexStatusTags: Set<String> = setOf("NONE", "CONDOM", "NO_BARRIER")
+
+fun isProtectedJournalTag(section: String, tag: String): Boolean =
+    (section == "sex" && tag in sexStatusTags) ||
+        (section == "discharge" && dischargeTags().any { it.id == tag })
+
+/** Retain names and properties independently of selectable tags and sections. */
+fun JournalLayout.withHistoryFrom(previous: JournalLayout): JournalLayout {
+    val history = (archivedSections + previous.archivedSections + previous.sections)
+        .groupBy { it.id }.map { (_, versions) ->
+            versions.last().copy(
+                tags = versions.flatMap {
+                    it.tags
+                }.associateBy { it.id }.values.toList()
+            )
+        }
+    return copy(archivedSections = history)
+}
+
+fun JournalLayout.historySections(): List<JournalSection> = (
+    builtInJournalSections() +
+        listOf(JournalSection("discharge", tags = dischargeTags() + JournalTag("UNUSUAL"))) +
+        archivedSections + sections
+    ).groupBy { it.id }.map { (_, versions) ->
+    versions.last().copy(
+        tags = versions.flatMap {
+            it.tags
+        }.associateBy { it.id }.values.toList()
+    )
+}
+
+fun JournalLayout.restoreDefaultTags(): JournalLayout {
+    val defaults = (builtInJournalSections() + defaultJournalSections()).associateBy { it.id }
+    val restored = sections.map { section ->
+        defaults[section.id]?.let { section.copy(tags = it.tags, multiple = it.multiple) }
+            ?: section
+    }
+    return copy(sections = restored).withHistoryFrom(this)
 }

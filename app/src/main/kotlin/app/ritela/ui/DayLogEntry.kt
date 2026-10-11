@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,8 +65,11 @@ import app.ritela.domain.Mood
 import app.ritela.domain.Pain
 import app.ritela.domain.Sex
 import app.ritela.domain.forSelection
+import app.ritela.domain.isProtectedJournalTag
 import app.ritela.domain.journalSelections
+import app.ritela.domain.restoreDefaultTags
 import app.ritela.domain.toggleSelection
+import app.ritela.domain.withHistoryFrom
 import app.ritela.domain.withJournalSelections
 import java.util.UUID
 
@@ -129,7 +133,10 @@ fun journalSectionLabel(section: JournalSection): String = section.title.ifBlank
 
 @Composable
 fun journalTagLabel(section: JournalSection, tag: JournalTag): String {
-    if (section.id == "discharge") {
+    if (tag.title.isNotBlank()) return tag.title
+    if (section.id == "discharge" &&
+        tag.id in setOf("DRY", "STICKY", "CREAMY", "WATERY", "CLEAR_STRETCHY", "UNUSUAL")
+    ) {
         return stringResource(
             when (tag.id) {
                 "DRY" -> R.string.discharge_dry
@@ -141,7 +148,6 @@ fun journalTagLabel(section: JournalSection, tag: JournalTag): String {
             }
         )
     }
-    if (tag.title.isNotBlank()) return tag.title
     val values: List<Enum<*>> = when (section.id) {
         "headache", "cramps", "backache" -> Pain.entries
         "flow" -> FlowLevel.entries
@@ -150,7 +156,8 @@ fun journalTagLabel(section: JournalSection, tag: JournalTag): String {
         "sex" -> Sex.entries
         else -> emptyList()
     }
-    return values.firstOrNull { it.name == tag.id }?.let { eventLabel(it) } ?: tag.id
+    return values.firstOrNull { it.name == tag.id }?.let { eventLabel(it) }
+        ?: stringResource(R.string.journal_archived_tag)
 }
 
 @Composable
@@ -177,7 +184,7 @@ private fun DayLogContent(
             JournalCodec.encode(
                 state.journalLayout.copy(
                     sections = state.journalLayout.sections.map { it.forSelection() }
-                )
+                ).withHistoryFrom(state.journalLayout)
             )
         )
     }
@@ -195,15 +202,23 @@ private fun DayLogContent(
     var target by rememberSaveable { mutableStateOf<String?>(null) }
     var label by rememberSaveable { mutableStateOf("") }
     var newTag by rememberSaveable { mutableStateOf("") }
+    var withoutPenetration by rememberSaveable { mutableStateOf(false) }
     var sectionIcon by rememberSaveable { mutableStateOf(JournalIcon.NOTE.name) }
     fun update(value: JournalLayout) {
-        layoutText = JournalCodec.encode(value)
-        onLayoutChange(value)
+        val retained = value.withHistoryFrom(layout)
+        layoutText = JournalCodec.encode(retained)
+        onLayoutChange(retained)
     }
     fun editLabel(key: String, value: String) {
         target = key
         label = value
         newTag = ""
+        withoutPenetration = if (key.startsWith("tag:sex:")) {
+            layout.sections.firstOrNull { it.id == "sex" }?.tags
+                ?.firstOrNull { it.id == key.substringAfterLast(':') }?.withoutPenetration == true
+        } else {
+            false
+        }
         sectionIcon = layout.sections.firstOrNull { it.id == key.substringAfter(':') }?.icon?.name
             ?: JournalIcon.NOTE.name
     }
@@ -280,7 +295,7 @@ private fun DayLogContent(
                                 JournalChips(
                                     section,
                                     selections[section.id].orEmpty(),
-                                    editing == section.id && section.id != "discharge",
+                                    editing == section.id,
                                     !state.saving,
                                     onSelect = { tag ->
                                         val old = selections[section.id].orEmpty()
@@ -304,7 +319,7 @@ private fun DayLogContent(
                                     }, enabled = !state.saving) {
                                         Text(stringResource(R.string.journal_section_settings))
                                     }
-                                    if (section.id != "discharge") {
+                                    run {
                                         TextButton(
                                             onClick = { editLabel("add-tag:${section.id}", "") },
                                             enabled = !state.saving && section.tags.size < 64
@@ -368,6 +383,18 @@ private fun DayLogContent(
                     ) {
                         calendarIcon = it
                     }
+                    TextButton(
+                        {
+                            update(layout.restoreDefaultTags())
+                            editing = null
+                        },
+                        enabled = !state.saving,
+                        modifier = Modifier.testTag(
+                            "journal-restore-tags"
+                        )
+                    ) {
+                        Text(stringResource(R.string.journal_restore_tags))
+                    }
                     state.problem?.let {
                         Text(problemText(it), color = MaterialTheme.colorScheme.error)
                     }
@@ -428,6 +455,18 @@ private fun DayLogContent(
                             },
                             modifier = Modifier.testTag("journal-name")
                         )
+                        if (sectionId == "sex" &&
+                            (key.startsWith("tag:") || key.startsWith("add-tag:"))
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    withoutPenetration,
+                                    { withoutPenetration = it },
+                                    modifier = Modifier.testTag("journal-without-penetration")
+                                )
+                                Text(stringResource(R.string.journal_without_penetration))
+                            }
+                        }
                         if (key == "add-section") {
                             OutlinedTextField(
                                 newTag,
@@ -457,7 +496,16 @@ private fun DayLogContent(
                         }
                         TextButton(
                             modifier = Modifier.testTag("journal-confirm"),
-                            enabled = !state.saving && (key == "title" || label.isNotBlank()) &&
+                            enabled = !state.saving && (
+                                key == "title" || label.isNotBlank() ||
+                                    (
+                                        key.startsWith("tag:sex:") &&
+                                            section?.tags?.any {
+                                                it.id == key.substringAfterLast(':')
+                                            } ==
+                                            true
+                                        )
+                                ) &&
                                 (key != "add-section" || newTag.isNotBlank()),
                             onClick = {
                                 val value = label.trim()
@@ -498,7 +546,10 @@ private fun DayLogContent(
                                                     section.tags +
                                                         JournalTag(
                                                             UUID.randomUUID().toString(),
-                                                            value
+                                                            value,
+                                                            withoutPenetration =
+                                                                section.id == "sex" &&
+                                                                    withoutPenetration
                                                         )
                                             )
                                         )
@@ -506,6 +557,15 @@ private fun DayLogContent(
 
                                     key.startsWith("tag:") && section != null -> {
                                         val tagId = key.split(':')[2]
+                                        val originalTag = section.tags.first { it.id == tagId }
+                                        val changedTag = originalTag.copy(
+                                            title = value,
+                                            withoutPenetration = if (section.id == "sex") {
+                                                withoutPenetration
+                                            } else {
+                                                originalTag.withoutPenetration
+                                            }
+                                        )
                                         update(
                                             layout.replace(
                                                 section.copy(
@@ -513,7 +573,7 @@ private fun DayLogContent(
                                                         if (it.id ==
                                                             tagId
                                                         ) {
-                                                            it.copy(title = value)
+                                                            changedTag
                                                         } else {
                                                             it
                                                         }
@@ -691,7 +751,7 @@ private fun JournalChips(
                         )
                     }
                 )
-                if (editing && !(section.id == "sex" && tag.id == "NONE")) {
+                if (editing && !isProtectedJournalTag(section.id, tag.id)) {
                     IconButton(
                         onClick = { onRemove(tag.id) },
                         enabled = enabled && section.tags.size > 1,

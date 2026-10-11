@@ -58,7 +58,7 @@ class JournalPresentationTest {
         val legacy = section.copy(tags = section.tags.filterNot { it.id == "NONE" })
         assertTrue(legacy.forSelection().tags.any { it.id == "NONE" })
         assertEquals(setOf("NONE"), section.toggleSelection(setOf("CONDOM"), "NONE"))
-        assertEquals(setOf("ORAL"), section.toggleSelection(setOf("NONE"), "ORAL"))
+        assertEquals(setOf("NONE", "ORAL"), section.toggleSelection(setOf("NONE"), "ORAL"))
     }
 
     @Test fun quickSelectionKeepsOtherAndHiddenFields() {

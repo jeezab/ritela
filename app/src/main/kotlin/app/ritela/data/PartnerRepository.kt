@@ -11,6 +11,7 @@ import app.ritela.domain.ShareCategory
 import app.ritela.domain.ShareScope
 import app.ritela.domain.analyzeCycles
 import app.ritela.domain.cycleSceneState
+import app.ritela.domain.historySections
 import app.ritela.domain.journalSelections
 import app.ritela.domain.validJournalId
 import java.security.KeyPair
@@ -282,7 +283,7 @@ class PartnerRepository(
             json.put(
                 "labels",
                 JSONObject().apply {
-                    layout.sections.forEach { section ->
+                    layout.historySections().forEach { section ->
                         if (diary || section.id in selection.sections ||
                             section.id in selection.tags
                         ) {
