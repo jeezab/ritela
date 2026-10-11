@@ -20,6 +20,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import app.ritela.ui.HomeTheme
 import app.ritela.ui.PartnerCaptureActivity
+import app.ritela.ui.PartnerConnectionCard
+import app.ritela.ui.PartnerReceiveCard
 import app.ritela.ui.PartnerVerificationContent
 import app.ritela.ui.PartnerWelcome
 import app.ritela.ui.partnerScanOptions
@@ -81,6 +83,41 @@ class PartnerControlsTest {
         compose.onNodeWithText(details).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("partner-confirm-code").performScrollTo().performClick()
         assertTrue(confirmed)
+    }
+
+    @Test fun cardActionsAreDirectAndRemainAccessibleWithLargeText() {
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty()
+        }
+        var opened = 0
+        var received = 0
+        var invited = 0
+        var scanned = 0
+        compose.activity.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(LocalDensity.current.density, 2f)
+            ) {
+                HomeTheme {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        PartnerConnectionCard(true, { invited++ }, { scanned++ })
+                        PartnerReceiveCard(true, { opened++ }, { received++ })
+                    }
+                }
+            }
+        }
+        listOf(
+            R.string.partner_invite,
+            R.string.partner_scan,
+            R.string.partner_import,
+            R.string.partner_receive
+        ).forEach { label ->
+            compose.onNodeWithText(
+                compose.activity.getString(label)
+            ).performScrollTo().performClick()
+        }
+        assertEquals(listOf(1, 1, 1, 1), listOf(invited, scanned, opened, received))
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_manual_exchange))
+            .performScrollTo().assertIsDisplayed()
     }
 
     @Test fun scannerUsesOwnActivityAndDoesNotForceLandscape() {

@@ -84,7 +84,7 @@ object PartnerCrypto {
             doFinal(data)
         }
     fun passwordKey(password: CharArray, salt: ByteArray): SecretKey {
-        require(password.size in 8..256)
+        require(password.size in 4..256)
         val spec = PBEKeySpec(password, salt, 600000, 256)
         return try {
             SecretKeySpec(

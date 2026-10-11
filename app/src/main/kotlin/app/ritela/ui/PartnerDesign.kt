@@ -62,6 +62,72 @@ internal fun PartnerWelcome(add: () -> Unit) {
 }
 
 @Composable
+internal fun PartnerConnectionCard(enabled: Boolean, invite: () -> Unit, scan: () -> Unit) {
+    SettingsGroup {
+        Text(
+            stringResource(R.string.partner_add_close),
+            style = MaterialTheme.typography.titleMedium
+        )
+        PartnerCardActions(
+            stringResource(R.string.partner_invite),
+            stringResource(R.string.partner_scan),
+            enabled,
+            invite,
+            scan
+        )
+        Text(
+            stringResource(R.string.partner_empty),
+            style = MaterialTheme.typography.bodySmall,
+            color = HomeColors.muted
+        )
+    }
+}
+
+@Composable
+internal fun PartnerReceiveCard(enabled: Boolean, openFile: () -> Unit, bluetooth: () -> Unit) {
+    SettingsGroup {
+        Text(
+            stringResource(R.string.partner_exchange_card),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Text(
+            stringResource(R.string.partner_exchange_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = HomeColors.muted
+        )
+        PartnerCardActions(
+            stringResource(R.string.partner_import),
+            stringResource(R.string.partner_receive),
+            enabled,
+            openFile,
+            bluetooth
+        )
+        Text(
+            stringResource(R.string.partner_manual_exchange),
+            style = MaterialTheme.typography.bodySmall,
+            color = HomeColors.muted
+        )
+    }
+}
+
+@Composable
+private fun PartnerCardActions(
+    first: String,
+    second: String,
+    enabled: Boolean,
+    firstAction: () -> Unit,
+    secondAction: () -> Unit
+) {
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Button(firstAction, enabled = enabled) { Text(first) }
+        Button(secondAction, enabled = enabled) { Text(second) }
+    }
+}
+
+@Composable
 internal fun PartnerActionCard(
     title: String,
     description: String,
