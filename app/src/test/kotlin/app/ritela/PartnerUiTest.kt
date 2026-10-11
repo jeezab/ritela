@@ -58,8 +58,11 @@ class PartnerUiTest {
         }
         compose.onNodeWithTag("nav-today").performClick()
         compose.onNodeWithTag("log-day").assertDoesNotExist()
+        compose.onNodeWithTag("partner-connection-info").assertDoesNotExist()
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_invite))
+            .assertDoesNotExist()
         compose.onNodeWithText(
-            compose.activity.getString(R.string.partner_invite)
+            compose.activity.getString(R.string.partner_add_close)
         ).performScrollTo().assertIsDisplayed()
         assertEquals("synthetic own", runBlocking { app.days.logs.first().single().note })
         compose.onNodeWithTag("nav-settings").performClick()

@@ -285,9 +285,6 @@ fun PartnerScreen(padding: PaddingValues) {
                 PartnerWelcome { onboarding = true }
             }
             if (directory.contacts.isEmpty()) {
-                PartnerConnectionCard(!busy, { model.qr(profileName) }, {
-                    scan.launch(partnerScanOptions())
-                })
                 PartnerReceiveCard(!busy, { importFile.launch(arrayOf("*/*")) }, {
                     requestBluetooth(true)
                 })
