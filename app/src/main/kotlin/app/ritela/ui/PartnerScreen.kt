@@ -111,6 +111,17 @@ fun PartnerScreen(padding: PaddingValues) {
     val packet by model.packet.collectAsStateWithLifecycle()
     val exchange by model.bluetooth.state.collectAsStateWithLifecycle()
     val ownId by model.identityId.collectAsStateWithLifecycle()
+    val code by model.verificationCode.collectAsStateWithLifecycle()
+    val pairingTarget by model.pairingTarget.collectAsStateWithLifecycle()
+    val connectedNotice by model.connectedNotice.collectAsStateWithLifecycle()
+    val legacyInvitation by model.legacyInvitation.collectAsStateWithLifecycle()
+    var onboarding by remember { mutableStateOf(false) }
+    var exchangeChoices by remember { mutableStateOf(false) }
+    var technical by remember { mutableStateOf(false) }
+    val profileName = (context.applicationContext as RitelaApplication).profiles.registry.profiles
+        .collectAsStateWithLifecycle().value.firstOrNull {
+            it.id == session.profileId
+        }?.name.orEmpty()
     val periodState by session.model.uiState.collectAsStateWithLifecycle()
     var selected by remember { mutableStateOf<String?>(null) }
     var deviceSelection by remember { mutableStateOf<String?>(null) }
@@ -244,8 +255,12 @@ fun PartnerScreen(padding: PaddingValues) {
         directory.contacts.firstOrNull { it.id == selected } ?: directory.contacts.firstOrNull()
     val identities = directory.identities.filter { it.id in contact?.identities.orEmpty() }
     val identity = identities.firstOrNull { it.id == identitySelection } ?: identities.firstOrNull()
-    val device = identity?.devices?.firstOrNull { it.id == deviceSelection && it.enabled }
-        ?: identity?.devices?.firstOrNull { it.enabled }
+    val device =
+        identity?.devices?.firstOrNull {
+            it.id == deviceSelection && it.enabled &&
+                it.mutualConfirmed
+        }
+            ?: identity?.devices?.firstOrNull { it.enabled && it.mutualConfirmed }
     HomeTheme {
         Column(
             Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
@@ -267,34 +282,36 @@ fun PartnerScreen(padding: PaddingValues) {
                 )
             }
             if (busy) Text(stringResource(R.string.loading))
-            if (directory.contacts.isEmpty()) Text(stringResource(R.string.partner_empty))
-            FlowRow {
-                TextButton({
-                    model.qr(
-                        (context.applicationContext as RitelaApplication)
-                            .profiles.registry.profiles.value.first {
-                                it.id ==
-                                    session.profileId
-                            }.name
-                    )
-                }, enabled = !busy) {
-                    Text(stringResource(R.string.partner_invite))
+            if (directory.contacts.isEmpty()) {
+                PartnerWelcome { onboarding = true }
+                Text(
+                    stringResource(R.string.partner_empty),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            if (directory.contacts.isEmpty()) {
+                PartnerActionCard(
+                    stringResource(R.string.partner_invite),
+                    stringResource(R.string.partner_invite_hint),
+                    !busy
+                ) {
+                    model.qr(profileName)
                 }
-                TextButton({
-                    scan.launch(
-                        ScanOptions().setDesiredBarcodeFormats(
-                            ScanOptions.QR_CODE
-                        ).setBeepEnabled(false).setOrientationLocked(false)
-                    )
-                }, enabled = !busy) { Text(stringResource(R.string.partner_scan)) }
-                TextButton({
-                    importFile.launch(
-                        arrayOf("application/octet-stream", "application/json", "*/*")
-                    )
-                }, enabled = !busy) { Text(stringResource(R.string.partner_import)) }
-                TextButton({
-                    requestBluetooth(true)
-                }, enabled = !busy) { Text(stringResource(R.string.partner_receive)) }
+                PartnerActionCard(
+                    stringResource(R.string.partner_scan),
+                    stringResource(R.string.partner_scan_hint),
+                    !busy
+                ) {
+                    scan.launch(partnerScanOptions())
+                }
+                PartnerActionCard(
+                    stringResource(R.string.partner_exchange_card),
+                    stringResource(R.string.partner_exchange_hint),
+                    !busy
+                ) {
+                    exchangeChoices =
+                        true
+                }
             }
             directory.contacts.forEach { item ->
                 TextButton({
@@ -308,30 +325,32 @@ fun PartnerScreen(padding: PaddingValues) {
             }
             contact?.let { item ->
                 SettingsGroup {
-                    Text(item.name, style = MaterialTheme.typography.titleLarge)
+                    PartnerContactHeading(
+                        item.name,
+                        stringResource(
+                            if (identity?.exchangeEnabled == true &&
+                                device != null
+                            ) {
+                                R.string.partner_linked
+                            } else if (identity?.exchangeEnabled ==
+                                true
+                            ) {
+                                R.string.partner_pending_connection
+                            } else {
+                                R.string.partner_disabled
+                            }
+                        )
+                    )
                     if (identities.size > 1) {
                         identities.forEach { source ->
                             TextButton({
                                 identitySelection = source.id
-                            }) { Text(source.name + " · " + source.id.take(12)) }
+                            }) { Text(source.name) }
                         }
                     }
                     identity?.let { source ->
-                        Text(
-                            source.id.chunked(8).joinToString(" "),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            stringResource(
-                                if (source.exchangeEnabled) {
-                                    R.string.partner_linked
-                                } else {
-                                    R.string.partner_disabled
-                                }
-                            )
-                        )
                         messages.firstOrNull {
-                            it.identity == source.id
+                            it.identity == source.id && (!it.outgoing || it.delivered || it.opened)
                         }?.let {
                             Text(
                                 PartnerFormatter(resources).exchange(it.received),
@@ -343,30 +362,64 @@ fun PartnerScreen(padding: PaddingValues) {
                                 it.kind == "DATA" &&
                                 it.body.isNotEmpty()
                         }.firstOrNull()
-                        latest?.let { ReadOnlyPartnerData(it.body) }
+                        latest?.let { message ->
+                            PartnerActionCard(
+                                stringResource(R.string.partner_close_data),
+                                stringResource(R.string.partner_readonly)
+                            ) {
+                                dataViewing =
+                                    message
+                            }
+                        }
+                        if (latest == null) {
+                            PartnerActionCard(
+                                stringResource(R.string.partner_close_data),
+                                stringResource(R.string.partner_no_received_data),
+                                false
+                            ) {
+                            }
+                        }
+                        if (source.exchangeEnabled &&
+                            (
+                                device == null ||
+                                    source.devices.any { it.enabled && !it.mutualConfirmed }
+                                )
+                        ) {
+                            Text(stringResource(R.string.partner_pending_hint))
+                            Button({
+                                if (source.devices.any { it.enabled && !it.mutualConfirmed }) {
+                                    model.resumePairing(source.id, profileName)
+                                } else {
+                                    scan.launch(partnerScanOptions())
+                                }
+                            }, enabled = !busy) {
+                                Text(stringResource(R.string.partner_finish_connection))
+                            }
+                        }
                         FlowRow {
                             TextButton({
                                 granting = true
-                            }, enabled = !busy && !item.group) {
+                            }, enabled = !busy && !item.group && device != null) {
                                 Text(stringResource(R.string.partner_access))
                             }
-                            TextButton(
+                            Button(
                                 { sharing = true },
                                 enabled =
                                     !busy && !item.group && device != null && source.exchangeEnabled
                             ) {
                                 Text(stringResource(R.string.partner_exchange))
                             }
-                            TextButton(
-                                { drawing = true },
-                                enabled =
-                                    !busy && !item.group && device != null && source.exchangeEnabled
-                            ) {
-                                Text(stringResource(R.string.partner_doodle))
-                            }
                             TextButton({
                                 manage = true
                             }, enabled = !busy) { Text(stringResource(R.string.partner_manage)) }
+                        }
+                        PartnerActionCard(
+                            stringResource(R.string.partner_doodle),
+                            stringResource(R.string.partner_doodle_hint),
+                            !busy && !item.group && device != null && source.exchangeEnabled
+                        ) {
+                            drawing =
+                                true
                         }
                     }
                 }
@@ -452,14 +505,87 @@ fun PartnerScreen(padding: PaddingValues) {
             ) {
                 TextButton({ galleryLimit += 24 }) { Text(stringResource(R.string.partner_more)) }
             }
+            if (directory.contacts.isNotEmpty()) {
+                PartnerActionCard(
+                    stringResource(R.string.partner_add_close),
+                    stringResource(R.string.partner_scan_hint),
+                    !busy
+                ) {
+                    onboarding =
+                        true
+                }
+                PartnerActionCard(
+                    stringResource(R.string.partner_exchange_card),
+                    stringResource(R.string.partner_exchange_hint),
+                    !busy
+                ) {
+                    exchangeChoices =
+                        true
+                }
+            }
             TextButton({
                 keyTransfer = true
             }, enabled = !busy) { Text(stringResource(R.string.partner_identity)) }
-            Text(ownId.chunked(8).joinToString(" "), style = MaterialTheme.typography.bodySmall)
             Text(
                 stringResource(R.string.partner_limits),
                 style = MaterialTheme.typography.bodySmall
             )
+        }
+        if (onboarding) {
+            PartnerModal(stringResource(R.string.partner_add_close), {
+                onboarding =
+                    false
+            }) {
+                Text(stringResource(R.string.partner_onboarding_steps))
+                Button({
+                    onboarding = false
+                    model.qr(profileName, fresh = true)
+                }, enabled = !busy) { Text(stringResource(R.string.partner_invite)) }
+                Button({
+                    onboarding = false
+                    scan.launch(partnerScanOptions())
+                }, enabled = !busy) { Text(stringResource(R.string.partner_scan)) }
+            }
+        }
+        if (exchangeChoices) {
+            PartnerModal(stringResource(R.string.partner_exchange_card), {
+                exchangeChoices =
+                    false
+            }) {
+                Text(stringResource(R.string.partner_manual_exchange))
+                PartnerActionCard(
+                    stringResource(R.string.partner_import),
+                    stringResource(R.string.partner_file_hint),
+                    !busy
+                ) {
+                    exchangeChoices = false
+                    importFile.launch(arrayOf("*/*"))
+                }
+                PartnerActionCard(
+                    stringResource(R.string.partner_receive),
+                    stringResource(R.string.partner_bluetooth_hint),
+                    !busy
+                ) {
+                    exchangeChoices = false
+                    requestBluetooth(true)
+                }
+            }
+        }
+        if (connectedNotice) {
+            PartnerModal(stringResource(R.string.partner_linked), {
+                model.connectedNotice.value =
+                    false
+            }) {
+                Text(stringResource(R.string.partner_connected_body))
+            }
+        }
+        if (legacyInvitation) {
+            PartnerModal(stringResource(R.string.partner_code_label), {
+                model.legacyInvitation.value =
+                    false
+            }) {
+                Text(stringResource(R.string.partner_update_needed))
+            }
         }
         qr?.let { value ->
             PartnerModal(stringResource(R.string.partner_invite), {
@@ -494,8 +620,50 @@ fun PartnerScreen(padding: PaddingValues) {
                         Modifier.fillMaxWidth()
                     )
                 }
-                Text(ownId.chunked(8).joinToString(" "))
-                Text(stringResource(R.string.partner_verify))
+                Text(
+                    stringResource(
+                        if (pairingTarget ==
+                            null
+                        ) {
+                            R.string.partner_show_qr_step
+                        } else {
+                            R.string.partner_confirm_qr_step
+                        }
+                    )
+                )
+                if (pairingTarget != null) {
+                    Text(code, style = MaterialTheme.typography.headlineLarge)
+                    val complete =
+                        directory.identities.firstOrNull { it.id == pairingTarget?.identity }
+                            ?.devices?.firstOrNull {
+                                it.id == pairingTarget?.device?.id
+                            }?.mutualConfirmed ==
+                            true
+                    Text(
+                        stringResource(
+                            if (complete) {
+                                R.string.partner_connected_body
+                            } else {
+                                R.string.partner_pending_hint
+                            }
+                        )
+                    )
+                }
+                TextButton({
+                    technical = !technical
+                }) { Text(stringResource(R.string.partner_technical)) }
+                if (technical) {
+                    Text(
+                        ownId.chunked(8).joinToString(" "),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Button({
+                    model.invitation.value = null
+                    scan.launch(partnerScanOptions())
+                }, enabled = !busy) {
+                    Text(stringResource(R.string.partner_scan))
+                }
             }
         }
         candidate?.let { invite ->
@@ -503,12 +671,14 @@ fun PartnerScreen(padding: PaddingValues) {
                 model.candidate.value =
                     null
             }) {
-                Text(invite.name)
-                Text(invite.identity.chunked(8).joinToString(" "))
-                Text(stringResource(R.string.partner_verify))
-                Button({
-                    model.pair()
-                }, enabled = !busy) { Text(stringResource(R.string.partner_verified)) }
+                PartnerVerificationContent(
+                    invite.name,
+                    code,
+                    invite.identity,
+                    !busy,
+                    { model.pair(profileName) },
+                    { model.candidate.value = null }
+                )
             }
         }
         identity?.let { source ->
@@ -635,12 +805,21 @@ fun PartnerScreen(padding: PaddingValues) {
             }
         }
         if (keyTransfer) {
-            PartnerModal(stringResource(R.string.partner_identity), {
+            PartnerModal(stringResource(R.string.partner_your_devices), {
                 keyPassword = ""
                 keyTransfer =
                     false
             }) {
                 Text(stringResource(R.string.partner_identity_hint))
+                TextButton({
+                    technical = !technical
+                }) { Text(stringResource(R.string.partner_technical)) }
+                if (technical) {
+                    Text(
+                        ownId.chunked(8).joinToString(" "),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 OutlinedTextField(
                     keyPassword,
                     {
@@ -730,3 +909,7 @@ internal fun PartnerModal(
         }
     }
 }
+
+internal fun partnerScanOptions(): ScanOptions = ScanOptions()
+    .setDesiredBarcodeFormats(ScanOptions.QR_CODE).setBeepEnabled(false)
+    .setCaptureActivity(PartnerCaptureActivity::class.java).setOrientationLocked(false)

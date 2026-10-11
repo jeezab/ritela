@@ -44,6 +44,10 @@ class PartnerViewModel(
     val candidate = MutableStateFlow<PairInvitation?>(null)
     val packet = MutableStateFlow<PartnerMessage?>(null)
     val identityId = MutableStateFlow("")
+    val verificationCode = MutableStateFlow("")
+    val pairingTarget = MutableStateFlow<PairInvitation?>(null)
+    val connectedNotice = MutableStateFlow(false)
+    val legacyInvitation = MutableStateFlow(false)
     init {
         run { identityId.value = repository.identity().identityId }
     }
@@ -66,11 +70,40 @@ class PartnerViewModel(
             }
         }
     }
-    fun qr(name: String) = run { invitation.value = repository.invitation(name) }
-    fun inspect(qr: String) = run { candidate.value = repository.inspectInvitation(qr) }
-    fun pair() = run {
-        repository.pair(requireNotNull(candidate.value))
+    fun qr(name: String, fresh: Boolean = false) = run {
+        if (fresh) pairingTarget.value = null
+        invitation.value = repository.invitation(name, pairingTarget.value)
+    }
+    fun inspect(qr: String) = run {
+        val inspected = repository.inspectInvitation(qr)
+        if (repository.acceptKnown(inspected)) {
+            candidate.value = null
+            invitation.value = null
+            pairingTarget.value = null
+            connectedNotice.value = true
+        } else if (inspected.version == 1) {
+            legacyInvitation.value = true
+        } else {
+            verificationCode.value = repository.verificationCode(inspected)
+            candidate.value = inspected
+        }
+    }
+    fun pair(name: String) = run {
+        val target = requireNotNull(candidate.value)
+        repository.pair(target)
+        pairingTarget.value = target
+        invitation.value = repository.invitation(name, target)
         candidate.value = null
+        connectedNotice.value = false
+    }
+    fun resumePairing(identity: String, name: String) = run {
+        val source = repository.snapshot().identities.single { it.id == identity }
+        val pending = source.devices.first { it.enabled && !it.mutualConfirmed }
+        val target = PairInvitation(source.name, source.id, source.publicKey, pending)
+        pairingTarget.value = target
+        verificationCode.value =
+            app.ritela.data.pairingCode(requireNotNull(pending.verificationContext))
+        invitation.value = repository.invitation(name, target)
     }
     fun data(identity: String, device: String, scope: ShareScope) = run {
         packet.value = repository.prepareData(identity, device, scope)

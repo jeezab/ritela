@@ -1,0 +1,29 @@
+<resources>
+    <string name="partner_welcome_title">Ближе, даже на расстоянии</string>
+    <string name="partner_welcome_body">Делитесь важными моментами, отправляйте рисунки и оставляйте маленькие сюрпризы друг другу.</string>
+    <string name="partner_add_close">Добавить близкого</string>
+    <string name="partner_invite_hint">Покажите QR-код близкому человеку.</string>
+    <string name="partner_scan_hint">Отсканируйте его приглашение для подключения.</string>
+    <string name="partner_exchange_card">Обмен данными</string>
+    <string name="partner_exchange_hint">Зашифрованный файл на расстоянии или Bluetooth рядом.</string>
+    <string name="partner_file_hint">Откройте полученный файл Ritela. Для отправки выберите близкого и подготовьте обмен.</string>
+    <string name="partner_bluetooth_hint">Примите данные с телефона рядом. Для отправки подготовьте обмен в карточке близкого.</string>
+    <string name="partner_manual_exchange">Автоматической синхронизации нет. Каждый обмен запускаете вы.</string>
+    <string name="partner_onboarding_steps">1. Покажите своё приглашение.\n2. Отсканируйте его приглашение.\n3. Сравните коды и подтвердите на обоих телефонах.\n4. Отсканируйте обновлённое приглашение, чтобы получить подтверждение близкого.</string>
+    <string name="partner_show_qr_step">Покажите это приглашение, затем отсканируйте приглашение близкого.</string>
+    <string name="partner_confirm_qr_step">Ваше подтверждение уже в этом QR-коде. Дайте близкому отсканировать его, затем отсканируйте его обновлённое приглашение.</string>
+    <string name="partner_code_label">Код проверки</string>
+    <string name="partner_codes_differ">Коды не совпадают</string>
+    <string name="partner_technical">Технические подробности</string>
+    <string name="partner_pending_connection">Ждём подтверждения</string>
+    <string name="partner_pending_hint">Оба телефона должны подтвердить одинаковый код. Отсканируйте обновлённое приглашение, чтобы завершить подключение. До этого обмен данными недоступен.</string>
+    <string name="partner_finish_connection">Завершить подключение</string>
+    <string name="partner_connected_body">Теперь вы можете обмениваться данными и посланиями. При следующих обменах доверенные ключи проверяются автоматически.</string>
+    <string name="partner_update_needed">Для нового подключения с коротким кодом обновите Ritela на другом телефоне. Уже подтверждённые контакты продолжают работать.</string>
+    <string name="partner_close_data">Данные близкого</string>
+    <string name="partner_doodle_hint">Нарисуйте открытку, оставьте послание или подготовьте маленький сюрприз.</string>
+    <string name="partner_your_devices">Ваш профиль и устройства</string>
+    <string name="partner_no_received_data">Сведения появятся здесь, когда вы получите обмен от близкого.</string>
+    <string name="partner_contact_devices">Телефоны близкого</string>
+    <string name="partner_device_number">Телефон %1$d</string>
+</resources>

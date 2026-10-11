@@ -31,7 +31,10 @@ data class PairInvitation(
     val name: String,
     val identity: String,
     val key: String,
-    val device: PartnerDevice
+    val device: PartnerDevice,
+    val version: Int = 2,
+    val confirmation: String? = null,
+    val signedQr: String = ""
 )
 data class ReceivedPartnerPacket(val message: PartnerMessage, val duplicate: Boolean)
 
@@ -57,13 +60,21 @@ class PartnerRepository(
             dao.save(PartnerDirectoryRow(json = PartnerCodec.directory(change(snapshot()))))
         }
     }
-    suspend fun invitation(name: String): String = identity().qr(name)
+    suspend fun invitation(name: String, target: PairInvitation? = null): String {
+        val keys = identity()
+        val confirmed = target?.let { invite ->
+            snapshot().identities.firstOrNull { it.id == invite.identity }?.devices
+                ?.firstOrNull { it.id == invite.device.id && it.enabled }?.verificationContext
+        }
+        return keys.qr(name, confirmed)
+    }
     suspend fun inspectInvitation(qr: String): PairInvitation = withContext(Dispatchers.IO) {
         require(qr.length <= 12000)
         val envelope = JSONObject(qr)
         val raw = envelope.getString("body")
         val body = JSONObject(raw)
-        require(body.getString("format") == "ritela.pair" && body.getInt("v") == 1)
+        val version = body.getInt("v")
+        require(body.getString("format") == "ritela.pair" && version in 1..2)
         val key = body.getString("identity")
         val id = PartnerCrypto.id(key)
         val deviceId = body.getString("device").also {
@@ -97,12 +108,17 @@ class PartnerRepository(
             name,
             id,
             key,
-            PartnerDevice(deviceId, deviceKey, certificate, identity().nonce, nonce)
+            PartnerDevice(deviceId, deviceKey, certificate, identity().nonce, nonce),
+            version,
+            body.optString("confirmed").takeIf { it.isNotEmpty() },
+            qr
         )
     }
 
-    /** Call only after fingerprint comparison and explicit mutual-verification confirmation. */
+    /** Only explicit local consent creates trust; a signed full-context receipt proves peer consent. */
     suspend fun pair(invitation: PairInvitation) {
+        require(invitation == inspectInvitation(invitation.signedQr))
+        require(invitation.version == 2)
         require(PartnerCrypto.id(invitation.key) == invitation.identity)
         require(
             PartnerCrypto.verify(
@@ -111,7 +127,10 @@ class PartnerRepository(
                 invitation.device.certificate
             )
         )
-        val nonce = identity().nonce
+        val keys = identity()
+        val nonce = keys.nonce
+        val context = pairingContext(keys, invitation)
+        require(invitation.confirmation == null || invitation.confirmation == context)
         mutate { directory ->
             require(
                 directory.identities.size < 64 ||
@@ -122,13 +141,50 @@ class PartnerRepository(
                     invitation.identity,
                     invitation.key,
                     invitation.name,
-                    listOf(invitation.device.copy(localNonce = nonce))
+                    listOf(
+                        invitation.device.copy(
+                            localNonce = nonce,
+                            verificationContext = context,
+                            mutualConfirmed =
+                                invitation.confirmation == context
+                        )
+                    )
                 )
             )
         }
     }
 
+    suspend fun verificationCode(invitation: PairInvitation): String =
+        pairingCode(pairingContext(identity(), invitation))
+
+    /** Known devices are checked automatically, without resetting grants or creating duplicates. */
+    suspend fun acceptKnown(invitation: PairInvitation): Boolean {
+        val known =
+            snapshot().identities.firstOrNull { it.id == invitation.identity && it.exchangeEnabled }
+                ?: return false
+        val device =
+            known.devices.firstOrNull { it.id == invitation.device.id && it.enabled }
+                ?: return false
+        if (device.publicKey != invitation.device.publicKey ||
+            device.remoteNonce != invitation.device.remoteNonce
+        ) {
+            return false
+        }
+        if (device.verificationContext == null) return device.mutualConfirmed
+        if (device.verificationContext != pairingContext(identity(), invitation)) return false
+        if (device.mutualConfirmed) return true
+        if (invitation.confirmation != device.verificationContext) return false
+        pair(invitation)
+        return true
+    }
+
     suspend fun grant(identity: String, scope: ShareScope) = mutate { directory ->
+        require(
+            directory.identities.single { it.id == identity }.devices.any {
+                it.enabled &&
+                    it.mutualConfirmed
+            }
+        )
         directory.copy(
             identities = directory.identities.map {
                 if (it.id == identity) it.copy(grants = scope.normalized()) else it
@@ -142,7 +198,12 @@ class PartnerRepository(
             }
         )
     }
-    suspend fun enableDevice(identity: String, device: String, value: Boolean) =
+    suspend fun enableDevice(identity: String, device: String, value: Boolean) {
+        if (!value) {
+            withContext(Dispatchers.IO) {
+                saveKeys(loadKeys().copy(nonce = UUID.randomUUID().toString()))
+            }
+        }
         mutate { directory ->
             directory.copy(
                 identities = directory.identities.map {
@@ -154,7 +215,11 @@ class PartnerRepository(
                                 if (d.id ==
                                     device
                                 ) {
-                                    d.copy(enabled = value)
+                                    require(!value || d.mutualConfirmed)
+                                    d.copy(
+                                        enabled = value,
+                                        mutualConfirmed = if (value) d.mutualConfirmed else false
+                                    )
                                 } else {
                                     d
                                 }
@@ -166,6 +231,7 @@ class PartnerRepository(
                 }
             )
         }
+    }
     suspend fun merge(a: String, b: String, name: String, group: Boolean) =
         mutate { it.merge(a, b, name, group) }
     suspend fun split(contact: String) = mutate { it.split(contact) }
@@ -337,7 +403,10 @@ class PartnerRepository(
                 val contact = snapshot().identities.single { it.id == identity }
                 check(contact.exchangeEnabled)
                 selection?.let { require(contact.grants.permits(it)) }
-                val remote = contact.devices.single { it.id == device && it.enabled }
+                val remote = contact.devices.single {
+                    it.id == device && it.enabled &&
+                        it.mutualConfirmed
+                }
                 val keys = loadKeys()
                 val id = UUID.randomUUID().toString()
                 val created = now()
@@ -410,7 +479,7 @@ class PartnerRepository(
                 }
                 val device = sender.devices.single {
                     it.id == header.getString("device") &&
-                        it.enabled
+                        it.enabled && it.mutualConfirmed
                 }
                 require(
                     PartnerCrypto.verify(
@@ -507,7 +576,7 @@ class PartnerRepository(
             if (message.opened && previousReceipt != null) return@run null
             val contact = snapshot().identities.firstOrNull { it.id == message.identity }
             val canReply = contact?.exchangeEnabled == true && contact.devices.any {
-                it.id == message.device && it.enabled
+                it.id == message.device && it.enabled && it.mutualConfirmed
             }
             val receipt = if (canReply) {
                 previousReceipt ?: prepare(
@@ -536,7 +605,11 @@ class PartnerRepository(
         val identity = directory.identities.single {
             it.id == message.identity && it.exchangeEnabled
         }
-        require(identity.devices.any { it.id == message.device && it.enabled })
+        require(
+            identity.devices.any {
+                it.id == message.device && it.enabled && it.mutualConfirmed
+            }
+        )
         if (message.kind == "DATA") {
             require(
                 identity.grants.permits(

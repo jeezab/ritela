@@ -24,7 +24,9 @@ data class PartnerDevice(
     val certificate: String,
     val localNonce: String,
     val remoteNonce: String,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val verificationContext: String? = null,
+    val mutualConfirmed: Boolean = true
 )
 
 data class PartnerIdentity(
@@ -57,15 +59,23 @@ data class PartnerDirectory(
                 incoming[existing.id]?.let { require(it.publicKey == existing.publicKey) }
             }
             val devices = previous.devices.map { existing ->
-                if (!existing.enabled &&
-                    existing.id in incoming
+                val next = incoming[existing.id]
+                if (next != null &&
+                    (!existing.enabled || existing.verificationContext != next.verificationContext)
                 ) {
-                    incoming.getValue(existing.id)
+                    next
+                } else if (next != null && !existing.mutualConfirmed && next.mutualConfirmed) {
+                    existing.copy(mutualConfirmed = true)
                 } else {
                     existing
                 }
             } + identity.devices.filter { device -> previous.devices.none { it.id == device.id } }
-            val changed = devices != previous.devices || !previous.exchangeEnabled
+            val changed = devices.any { next ->
+                previous.devices.none { old ->
+                    old.id == next.id && old.enabled &&
+                        old.verificationContext == next.verificationContext
+                }
+            } || !previous.exchangeEnabled
             val hasContact = contacts.any { !it.group && identity.id in it.identities }
             return copy(
                 identities = identities.map {
@@ -152,7 +162,9 @@ data class PartnerDirectory(
                     it.copy(
                         grants = ShareScope(),
                         exchangeEnabled = false,
-                        devices = it.devices.map { device -> device.copy(enabled = false) }
+                        devices = it.devices.map { device ->
+                            device.copy(enabled = false, mutualConfirmed = false)
+                        }
                     )
                 } else {
                     it

@@ -93,8 +93,8 @@ class PartnerTest {
         try {
             val ra = repo(dbA, a)
             val rb = repo(dbB, b)
-            ra.pair(ra.inspectInvitation(b.qr("B")))
-            rb.pair(rb.inspectInvitation(a.qr("A")))
+            confirmedPair(ra, b, "B")
+            confirmedPair(rb, a, "A")
             assertTrue(
                 runCatching {
                     ra.prepareData(
@@ -135,10 +135,10 @@ class PartnerTest {
         try {
             val r = repo(db, a)
             val invitation = r.inspectInvitation(b.qr("B"))
-            r.pair(invitation)
+            confirmedPair(r, b, "B")
             r.grant(b.identityId, ShareScope(setOf(ShareCategory.DIARY)))
             r.remove(r.snapshot().contacts.single().id)
-            r.pair(invitation)
+            confirmedPair(r, b, "B")
             assertTrue(r.snapshot().identities.single().grants.categories.isEmpty())
         } finally {
             db.close()
@@ -154,8 +154,8 @@ class PartnerTest {
         try {
             val ra = repo(dbA, a)
             val rb = PartnerRepository(dbB, { b }, {}, { time })
-            ra.pair(ra.inspectInvitation(b.qr("B")))
-            rb.pair(rb.inspectInvitation(a.qr("A")))
+            confirmedPair(ra, b, "B")
+            confirmedPair(rb, a, "A")
             val doodle =
                 Doodle(
                     listOf(

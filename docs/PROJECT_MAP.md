@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-11: `data/PartnerPairing.kt` — канонический контекст подключения и короткий код; PartnerRepository/PartnerCodec/PartnerDevice — сохранение локального и взаимного доверия без изменения Room. `ui/PartnerDesign.kt` — onboarding, действия, карточка близкого и проверка кода с Compose Previews; `ui/PartnerCaptureActivity.kt` — сканер без принудительного landscape. PartnerPairingTest/PartnerControlsTest проверяют протокол, совместимость и кнопки. Исходные требования: [промпт](prompts/2026-10-11-partner-onboarding.txt).
+
 2026-10-11: HelpCards.articleWeights/rankedArticles используют последние 14 дней своих записей; Home и полный каталог разделяют порядок. HelpArticlesTest проверяет затухание, срочный приоритет и исключение будущих/старых событий.
 
 2026-10-09, удаление пользователей: ProfileRegistry добавляет nameVersion/очередь deleted, ProfileManager.delete готовит fallback-сессию, фиксирует каталог и очищает базу/sidecars; очередь повторяется при старте. UserSettings содержит локализованное подтверждение и действия Edit/Delete в адаптивном FlowRow. BackupActions/UserSettings безопасно читают имя при переходе между сессиями. Default qwerty; после удаления последнего — новая личность с новым UUID. UserProfilesTest/UserProfilesUiTest покрывают удаление, изоляцию, отмену, рестарт очистки и крупный шрифт. Это отменяет прежнее ограничение на удаление профилей; схема Room прежняя.

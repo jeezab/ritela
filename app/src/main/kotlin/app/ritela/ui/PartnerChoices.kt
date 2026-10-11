@@ -169,6 +169,7 @@ internal fun PartnerManagement(
     var other by remember { mutableStateOf<String?>(null) }
     var name by remember { mutableStateOf(contact.name) }
     var group by remember { mutableStateOf(false) }
+    var technical by remember { mutableStateOf(false) }
     val formatter = PartnerFormatter(LocalResources.current)
     PartnerModal(stringResource(R.string.partner_manage), dismiss) {
         Text(contact.name, style = MaterialTheme.typography.titleLarge)
@@ -178,15 +179,37 @@ internal fun PartnerManagement(
                 model.run { model.repository.enable(source.id, value) }
             }, enabled = !busy)
         }
-        Text(source.id)
+        Text(
+            stringResource(R.string.partner_contact_devices),
+            style = MaterialTheme.typography.titleMedium
+        )
+        TextButton({ technical = !technical }) { Text(stringResource(R.string.partner_technical)) }
+        if (technical) Text(source.id)
         Text(formatter.access(source.grants))
-        source.devices.forEach { device ->
-            Text(device.id, style = MaterialTheme.typography.bodySmall)
+        source.devices.forEachIndexed { index, device ->
+            Text(stringResource(R.string.partner_device_number, index + 1))
+            device.verificationContext?.let { context ->
+                Text(
+                    stringResource(R.string.partner_code_label) + ": " +
+                        app.ritela.data.pairingCode(context)
+                )
+            }
+            if (technical) Text(device.id, style = MaterialTheme.typography.bodySmall)
+            Text(
+                stringResource(
+                    if (device.mutualConfirmed) {
+                        R.string.partner_linked
+                    } else {
+                        R.string.partner_pending_connection
+                    }
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.partner_device_enabled), Modifier.weight(1f))
                 Switch(device.enabled, { value ->
                     model.run { model.repository.enableDevice(source.id, device.id, value) }
-                }, enabled = !busy)
+                }, enabled = !busy && device.mutualConfirmed)
             }
         }
         Text(
@@ -232,7 +255,7 @@ internal fun PartnerManagement(
             listOf(contact, second).forEach { item ->
                 Text(item.name, style = MaterialTheme.typography.titleMedium)
                 directory.identities.filter { it.id in item.identities }.forEach { person ->
-                    Text(person.id)
+                    if (technical) Text(person.id)
                     Text(formatter.access(person.grants))
                     Text(
                         formatter.comparison(

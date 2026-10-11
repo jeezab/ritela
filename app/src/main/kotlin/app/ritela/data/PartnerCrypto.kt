@@ -110,10 +110,15 @@ data class LocalPartnerKeys(
         PartnerCrypto.privateKey(identityPrivate),
         "$identityId:$deviceId:$devicePublic"
     )
-    fun qr(name: String): String {
-        val body = JSONObject().put("format", "ritela.pair").put("v", 1).put("name", name.take(80))
+    fun qr(name: String, confirmation: String? = null, version: Int = 2): String {
+        val body = JSONObject().put(
+            "format",
+            "ritela.pair"
+        ).put("v", version).put("name", name.take(80))
             .put("identity", identityPublic).put("device", deviceId).put("key", devicePublic)
-            .put("certificate", certificate()).put("nonce", nonce).toString()
+            .put("certificate", certificate()).apply {
+                confirmation?.let { put("confirmed", it) }
+            }.put("nonce", nonce).toString()
         return JSONObject().put("body", body).put(
             "signature",
             PartnerCrypto.sign(

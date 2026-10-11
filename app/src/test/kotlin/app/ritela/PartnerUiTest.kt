@@ -58,7 +58,9 @@ class PartnerUiTest {
         }
         compose.onNodeWithTag("nav-today").performClick()
         compose.onNodeWithTag("log-day").assertDoesNotExist()
-        compose.onNodeWithText("Моё QR-приглашение").assertIsDisplayed()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_invite)
+        ).performScrollTo().assertIsDisplayed()
         assertEquals("synthetic own", runBlocking { app.days.logs.first().single().note })
         compose.onNodeWithTag("nav-settings").performClick()
         compose.onNodeWithTag("partner-recipient").performScrollTo().performClick()
