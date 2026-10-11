@@ -71,6 +71,11 @@ object PartnerCodec {
                                             "remote",
                                             device.remoteNonce
                                         ).put("enabled", device.enabled)
+                                        .put(
+                                            "verification",
+                                            device.verificationContext ?: JSONObject.NULL
+                                        )
+                                        .put("mutual", device.mutualConfirmed)
                                 }
                             )
                         )
@@ -106,7 +111,16 @@ object PartnerCodec {
                             device.getString("certificate"),
                             device.getString("local"),
                             device.getString("remote"),
-                            device.getBoolean("enabled")
+                            device.getBoolean("enabled"),
+                            if (device.isNull(
+                                    "verification"
+                                )
+                            ) {
+                                null
+                            } else {
+                                device.getString("verification")
+                            },
+                            device.optBoolean("mutual", device.isNull("verification"))
                         )
                     },
                     scope(json.getJSONObject("grants")),

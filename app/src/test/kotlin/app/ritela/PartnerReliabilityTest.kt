@@ -94,8 +94,8 @@ class PartnerReliabilityTest {
                 b =
                     it
             })
-            ra.pair(ra.inspectInvitation(b.qr("B")))
-            rb.pair(rb.inspectInvitation(a.qr("A")))
+            confirmedPair(ra, b, "B")
+            confirmedPair(rb, a, "A")
             ra.grant(b.identityId, ShareScope(setOf(ShareCategory.PERIODS)))
             val message = ra.prepareData(
                 b.identityId,
@@ -109,7 +109,7 @@ class PartnerReliabilityTest {
             assertTrue(dbB.partner().history(a.identityId).isEmpty())
             rb.remove(rb.snapshot().contacts.single().id)
             assertTrue(runCatching { rb.receive(message.envelope.toByteArray()) }.isFailure)
-            rb.pair(rb.inspectInvitation(a.qr("A")))
+            confirmedPair(rb, a, "A")
             assertTrue(runCatching { rb.receive(message.envelope.toByteArray()) }.isFailure)
             assertTrue(dbB.periods().snapshot().isEmpty())
         } finally {
@@ -126,8 +126,8 @@ class PartnerReliabilityTest {
         try {
             val ra = repo(dbA, a)
             val rb = repo(dbB, b)
-            ra.pair(ra.inspectInvitation(b.qr("B")))
-            rb.pair(rb.inspectInvitation(a.qr("A")))
+            confirmedPair(ra, b, "B")
+            confirmedPair(rb, a, "A")
             val doodle =
                 Doodle(listOf(DoodleStroke(listOf(DoodlePoint(.5f, .5f)), 0xffee5577, .01f)))
             val message = ra.prepareDoodle(b.identityId, b.deviceId, doodle)
@@ -154,7 +154,7 @@ class PartnerReliabilityTest {
             val ra = PartnerRepository(dbA, { a }, { a = it })
             val rn = PartnerRepository(dbNext, { next }, { next = it })
             val rr = repo(dbRemote, remote)
-            rr.pair(rr.inspectInvitation(a.qr("A")))
+            confirmedPair(rr, a, "A")
             rr.grant(a.identityId, ShareScope(setOf(ShareCategory.PERIODS)))
             val password = "synthetic password".toCharArray()
             val exported = ra.exportIdentity(password)
@@ -170,7 +170,7 @@ class PartnerReliabilityTest {
             assertNotEquals(a.deviceId, next.deviceId)
             val invitation = rr.inspectInvitation(next.qr("New phone"))
             assertEquals(1, rr.snapshot().identities.single().devices.size)
-            rr.pair(invitation)
+            confirmedPair(rr, next, "New phone")
             assertEquals(2, rr.snapshot().identities.single().devices.size)
             assertTrue(rr.snapshot().identities.single().grants.categories.isEmpty())
         } finally {
@@ -301,8 +301,8 @@ class PartnerReliabilityTest {
         val database = db()
         try {
             val repository = PartnerRepository(database, { local }, { local = it })
-            repository.pair(repository.inspectInvitation(a.qr("A")))
-            repository.pair(repository.inspectInvitation(b.qr("B")))
+            confirmedPair(repository, a, "A")
+            confirmedPair(repository, b, "B")
             repository.grant(a.identityId, ShareScope(setOf(ShareCategory.DIARY)))
             val contacts = repository.snapshot().contacts
             repository.merge(contacts[0].id, contacts[1].id, "Group", true)
@@ -310,7 +310,7 @@ class PartnerReliabilityTest {
             val retained = repository.snapshot().identities.single { it.id == a.identityId }
             assertFalse(retained.exchangeEnabled)
             assertTrue(retained.grants.categories.isEmpty())
-            repository.pair(repository.inspectInvitation(a.qr("A")))
+            confirmedPair(repository, a, "A")
             val restored = repository.snapshot().identities.single { it.id == a.identityId }
             assertTrue(restored.exchangeEnabled)
             assertTrue(restored.grants.categories.isEmpty())

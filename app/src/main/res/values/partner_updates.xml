@@ -1,0 +1,29 @@
+<resources>
+    <string name="partner_welcome_title">Closer, even from afar</string>
+    <string name="partner_welcome_body">Share important moments, send drawings and leave little surprises for each other.</string>
+    <string name="partner_add_close">Add someone close</string>
+    <string name="partner_invite_hint">Show your QR code to someone close.</string>
+    <string name="partner_scan_hint">Scan their invitation to connect.</string>
+    <string name="partner_exchange_card">Data exchange</string>
+    <string name="partner_exchange_hint">Encrypted file from afar or Bluetooth nearby.</string>
+    <string name="partner_file_hint">Open a received Ritela file. To send, select a person and prepare an exchange.</string>
+    <string name="partner_bluetooth_hint">Receive from a nearby phone. To send, prepare an exchange in their card.</string>
+    <string name="partner_manual_exchange">Nothing syncs automatically. Each exchange is started by you.</string>
+    <string name="partner_onboarding_steps">1. Show your invitation.\n2. Scan theirs.\n3. Compare the codes and confirm on both phones.\n4. Scan the updated invitation to receive their confirmation.</string>
+    <string name="partner_show_qr_step">Show this invitation, then scan theirs.</string>
+    <string name="partner_confirm_qr_step">Your confirmation is in this QR code. Let them scan it, then scan their updated invitation.</string>
+    <string name="partner_code_label">Verification code</string>
+    <string name="partner_codes_differ">The codes do not match</string>
+    <string name="partner_technical">Technical details</string>
+    <string name="partner_pending_connection">Waiting for confirmation</string>
+    <string name="partner_pending_hint">Both phones must confirm the same code. Scan the updated invitation to finish connecting. Data exchange stays unavailable until then.</string>
+    <string name="partner_finish_connection">Finish connecting</string>
+    <string name="partner_connected_body">You can now exchange data and little messages. Your next exchanges will check the trusted keys automatically.</string>
+    <string name="partner_update_needed">For a new connection with a short verification code, update Ritela on the other phone. Existing trusted contacts keep working.</string>
+    <string name="partner_close_data">Their shared data</string>
+    <string name="partner_doodle_hint">Draw a postcard, leave a message or plan a little surprise.</string>
+    <string name="partner_your_devices">Your profile and devices</string>
+    <string name="partner_no_received_data">Shared information will appear here after you receive an exchange.</string>
+    <string name="partner_contact_devices">Their phones</string>
+    <string name="partner_device_number">Phone %1$d</string>
+</resources>
