@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
@@ -67,6 +68,11 @@ class JournalEditingUiTest {
         }
         compose.onNodeWithTag("sex-MASTURBATION").performScrollTo().performClick()
         compose.onNodeWithTag("journal-without-penetration").assertIsOn().performClick()
+        compose.onNodeWithTag("journal-penetration-info").performClick()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.journal_penetration_hint)
+        ).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_close)).performClick()
         compose.onNodeWithTag("journal-confirm").performClick()
         assertNotNull(changed)
         assertFalse(
@@ -124,7 +130,7 @@ class JournalEditingUiTest {
         val logs = listOf(
             DayLog(today.minusDays(2), sex = setOf(Sex.NONE)),
             DayLog(today.minusDays(1), sex = setOf(Sex.NONE, Sex.MASTURBATION)),
-            DayLog(today, sex = setOf(Sex.MASTURBATION, Sex.ORAL))
+            DayLog(today, sex = setOf(Sex.MASTURBATION, Sex.CONDOM))
         )
         compose.activity.setContent {
             HomeTheme {
@@ -155,7 +161,7 @@ class JournalEditingUiTest {
             layout.value = layout.value.replace(
                 sex.copy(
                     tags = sex.tags.map {
-                        if (it.id == "ORAL") it.copy(withoutPenetration = true) else it
+                        if (it.id == "CONDOM") it.copy(withoutPenetration = true) else it
                     }
                 )
             )
@@ -164,6 +170,6 @@ class JournalEditingUiTest {
             .assertContentDescriptionEquals(
                 compose.activity.getString(R.string.journal_sex_outline)
             )
-        assertEquals(setOf(Sex.MASTURBATION, Sex.ORAL), logs.last().sex)
+        assertEquals(setOf(Sex.MASTURBATION, Sex.CONDOM), logs.last().sex)
     }
 }

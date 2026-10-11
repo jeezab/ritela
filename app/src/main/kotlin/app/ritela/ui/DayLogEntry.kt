@@ -203,6 +203,7 @@ private fun DayLogContent(
     var label by rememberSaveable { mutableStateOf("") }
     var newTag by rememberSaveable { mutableStateOf("") }
     var withoutPenetration by rememberSaveable { mutableStateOf(false) }
+    var penetrationInfo by remember { mutableStateOf(false) }
     var sectionIcon by rememberSaveable { mutableStateOf(JournalIcon.NOTE.name) }
     fun update(value: JournalLayout) {
         val retained = value.withHistoryFrom(layout)
@@ -458,13 +459,35 @@ private fun DayLogContent(
                         if (sectionId == "sex" &&
                             (key.startsWith("tag:") || key.startsWith("add-tag:"))
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Checkbox(
                                     withoutPenetration,
                                     { withoutPenetration = it },
                                     modifier = Modifier.testTag("journal-without-penetration")
                                 )
-                                Text(stringResource(R.string.journal_without_penetration))
+                                Text(
+                                    stringResource(R.string.journal_without_penetration),
+                                    Modifier.weight(1f)
+                                )
+                                IconButton({
+                                    penetrationInfo = true
+                                }, Modifier.testTag("journal-penetration-info")) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_info),
+                                        stringResource(R.string.journal_option_info)
+                                    )
+                                }
+                            }
+                        }
+                        if (penetrationInfo) {
+                            PartnerModal(stringResource(R.string.journal_without_penetration), {
+                                penetrationInfo =
+                                    false
+                            }) {
+                                Text(stringResource(R.string.journal_penetration_hint))
                             }
                         }
                         if (key == "add-section") {

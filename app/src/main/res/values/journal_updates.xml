@@ -1,7 +1,9 @@
 <resources>
     <string name="journal_archived_tag">Removed tag</string>
     <string name="journal_restore_tags">Restore default tags</string>
-    <string name="journal_without_penetration">Without penetration</string>
+    <string name="journal_without_penetration">Without penetration / Without a partner</string>
+    <string name="journal_option_info">About this option</string>
+    <string name="journal_penetration_hint">If a tag in the Sex section is selected without this option (With penetration / With a partner), the calendar heart is red. If all selected Sex tags have Without penetration / Without a partner enabled, the heart is outlined.</string>
     <string name="journal_sex_filled">Sex: includes a tag without the no-penetration setting</string>
     <string name="journal_sex_outline">Sex: tags marked without penetration only</string>
 </resources>

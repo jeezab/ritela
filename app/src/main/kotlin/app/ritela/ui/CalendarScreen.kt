@@ -28,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -756,7 +757,20 @@ fun MonthGrid(
                                         Icon(
                                             painterResource(primaryIcon),
                                             null,
-                                            Modifier.height(12.dp).testTag("day-record-icon-$day")
+                                            Modifier.height(12.dp).testTag("day-record-icon-$day"),
+                                            tint = if (hasLog(day)) {
+                                                calendarJournalInk(
+                                                    inRange ||
+                                                        detail.kind == CalendarDayKind.OBSERVED ||
+                                                        estimatedBleeding ||
+                                                        detail.kind ==
+                                                        CalendarDayKind.OVULATION_ESTIMATE ||
+                                                        detail.kind ==
+                                                        CalendarDayKind.FERTILE_LIKELY
+                                                )
+                                            } else {
+                                                LocalContentColor.current
+                                            }
                                         )
                                     } else if (!hasSex(day)) {
                                         Text(
@@ -801,7 +815,15 @@ fun MonthGrid(
                                                     0xFFC94F67
                                                 )
                                             } else {
-                                                HomeColors.text
+                                                calendarJournalInk(
+                                                    inRange ||
+                                                        detail.kind == CalendarDayKind.OBSERVED ||
+                                                        estimatedBleeding ||
+                                                        detail.kind ==
+                                                        CalendarDayKind.OVULATION_ESTIMATE ||
+                                                        detail.kind ==
+                                                        CalendarDayKind.FERTILE_LIKELY
+                                                )
                                             }
                                         )
                                     }
@@ -904,3 +926,6 @@ private fun dayKindText(kind: CalendarDayKind): String = CalendarDayFormatter(
     androidx.compose.ui.platform.LocalResources.current,
     LocalConfiguration.current.locales[0]
 ).status(kind)
+
+internal fun calendarJournalInk(lightCell: Boolean): androidx.compose.ui.graphics.Color =
+    androidx.compose.ui.graphics.Color(if (lightCell) 0xFF6B6268 else 0xFFB9ADB2)

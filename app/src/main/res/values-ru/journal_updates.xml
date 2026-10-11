@@ -1,7 +1,9 @@
 <resources>
     <string name="journal_archived_tag">Удалённый тег</string>
     <string name="journal_restore_tags">Восстановить теги по умолчанию</string>
-    <string name="journal_without_penetration">Без проникновения</string>
+    <string name="journal_without_penetration">Без проникновения / Без партнёра</string>
+    <string name="journal_option_info">Об этой опции</string>
+    <string name="journal_penetration_hint">Если за день отмечен тег из раздела «Секс» без этой опции (С проникновением / С партнёром), то сердечко в календаре будет красным. Если все теги за день из раздела «Секс» с опцией Без проникновения / Без партнёра, то сердечко без заливки.</string>
     <string name="journal_sex_filled">Секс: есть тег без отметки «Без проникновения»</string>
     <string name="journal_sex_outline">Секс: только теги с отметкой «Без проникновения»</string>
 </resources>
