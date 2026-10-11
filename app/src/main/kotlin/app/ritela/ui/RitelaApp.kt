@@ -409,7 +409,14 @@ fun HomeScreen(
                 state.dayLogs,
                 onLogDay
             )
-            HelpCards(state.dayLogs.firstOrNull { it.date == today }, state.analysis, today)
+            HelpCards(
+                state.dayLogs.firstOrNull {
+                    it.date == today
+                },
+                state.analysis,
+                today,
+                state.dayLogs
+            )
             Text(
                 stringResource(R.string.privacy_description),
                 style = MaterialTheme.typography.bodySmall,

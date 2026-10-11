@@ -44,7 +44,9 @@ import app.ritela.domain.FlowLevel
 import app.ritela.domain.ForecastUnavailable
 import app.ritela.domain.Pain
 import app.ritela.domain.Sex
+import app.ritela.domain.journalSelections
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 data class HelpArticle(
     val id: String,
@@ -197,41 +199,88 @@ val HelpLibrary = listOf(
     )
 )
 
-fun relevantArticles(log: DayLog?, analysis: CycleAnalysis): List<HelpArticle> {
-    val priority = buildList {
-        if (log?.headache == Pain.SEVERE) add("headache-urgent")
-        if (log?.cramps == Pain.SEVERE || log?.backache == Pain.SEVERE) add("pain-urgent")
-        if (log?.flow == FlowLevel.HEAVY) add("heavy")
-        if (log?.sex?.contains(Sex.NO_BARRIER) == true) add("emergency")
-        if (analysis.unavailable == ForecastUnavailable.PAST_DUE) {
-            add("test")
-            add("late")
+/** Deterministic, local relevance scores; dates are record dates, never hidden analytics. */
+fun articleWeights(
+    logs: List<DayLog>,
+    analysis: CycleAnalysis,
+    date: LocalDate
+): Map<String, Double> {
+    val baseline =
+        listOf(
+            "cycle",
+            "follicular",
+            "ovulation",
+            "luteal",
+            "menstruation",
+            "warmth",
+            "pms",
+            "condoms"
+        )
+    val weights = HelpLibrary.associate { it.id to 0.0 }.toMutableMap()
+    baseline.forEachIndexed { index, id -> weights[id] = (baseline.size - index).toDouble() }
+    fun add(id: String, weight: Double) {
+        weights[id] = weights.getValue(id) + weight
+    }
+    logs.filter { it.date <= date && it.date >= date.minusDays(13) }
+        .distinctBy { it.date }.forEach { log ->
+            val age = ChronoUnit.DAYS.between(log.date, date)
+            val recent = (14 - age) / 14.0
+            if (log.headache != null && log.headache != Pain.NONE) {
+                add("headache", 120 * recent)
+                add("headache-diary", 100 * recent)
+                if (age == 0L && log.headache == Pain.SEVERE) add("headache-urgent", 10000.0)
+            }
+            if ((log.cramps != null && log.cramps != Pain.NONE) ||
+                (log.backache != null && log.backache != Pain.NONE)
+            ) {
+                add("warmth", 120 * recent)
+                add("movement", 100 * recent)
+                add("pain-care", 80 * recent)
+                if (age == 0L && (log.cramps == Pain.SEVERE || log.backache == Pain.SEVERE)) {
+                    add("pain-urgent", 9999.0)
+                }
+            }
+            if (log.flow == FlowLevel.HEAVY) {
+                add("heavy", if (age == 0L) 2000.0 else 140 * recent)
+                add("bleeding-care", 80 * recent)
+            }
+            if (Sex.NO_BARRIER in log.sex && age <= 4) add("emergency", 1500.0 / (age + 1))
+            if (log.journalSelections()["mood"].orEmpty().any { value ->
+                    app.ritela.domain.Mood.entries.any { it.name == value }
+                }
+            ) {
+                add("pms-diary", 100 * recent)
+                add("pms", 60 * recent)
+            }
+            if (Sex.CONDOM in log.sex) add("condoms", 60 * recent)
         }
-        if (log?.headache != null &&
-            log.headache != Pain.NONE
-        ) {
-            add("headache")
-            add("headache-diary")
-        }
-        if (log?.cramps != null && log.cramps != Pain.NONE) {
-            add("warmth")
-            add("movement")
-        }
-        if (log?.mood != null) add("pms-diary")
-        add("cycle")
-        add("follicular")
-        add("ovulation")
-        add("luteal")
-        add("menstruation")
-        add("warmth")
-        add("pms")
-        add("condoms")
-    }.distinct()
-    return priority.map { id -> HelpLibrary.first { it.id == id } }.take(4)
+    if (analysis.unavailable == ForecastUnavailable.PAST_DUE) {
+        add("test", 1200.0)
+        add("late", 1199.0)
+    }
+    return weights
 }
 
+fun rankedArticles(
+    logs: List<DayLog>,
+    analysis: CycleAnalysis,
+    date: LocalDate
+): List<HelpArticle> {
+    val weights = articleWeights(logs, analysis, date)
+    return HelpLibrary.sortedByDescending { weights.getValue(it.id) }
+}
+
+fun relevantArticles(log: DayLog?, analysis: CycleAnalysis): List<HelpArticle> =
+    rankedArticles(listOfNotNull(log), analysis, log?.date ?: LocalDate.now()).take(4)
+
 @Composable
-fun HelpCards(log: DayLog?, analysis: CycleAnalysis, date: LocalDate) {
+fun HelpCards(
+    log: DayLog?,
+    analysis: CycleAnalysis,
+    date: LocalDate,
+    history: List<DayLog> = listOfNotNull(log)
+) {
+    val ranked = remember(history, analysis, date) { rankedArticles(history, analysis, date) }
     var libraryOpen by remember { mutableStateOf(false) }
     var article by remember { mutableStateOf<HelpArticle?>(null) }
     Column(
@@ -257,7 +306,7 @@ fun HelpCards(log: DayLog?, analysis: CycleAnalysis, date: LocalDate) {
             }
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.medium)) {
-            items(relevantArticles(log, analysis), key = { it.id }) { item ->
+            items(ranked.take(4), key = { it.id }) { item ->
                 ArticleTile(item, { article = item }, Modifier.width(Spacing.articleWidth))
             }
         }
@@ -271,7 +320,7 @@ fun HelpCards(log: DayLog?, analysis: CycleAnalysis, date: LocalDate) {
                     modifier = Modifier.testTag("help-library"),
                     verticalArrangement = Arrangement.spacedBy(Spacing.small)
                 ) {
-                    items(HelpLibrary, key = { it.id }) { item ->
+                    items(ranked, key = { it.id }) { item ->
                         ArticleTile(item, { article = item }, Modifier.fillMaxWidth())
                     }
                 }
