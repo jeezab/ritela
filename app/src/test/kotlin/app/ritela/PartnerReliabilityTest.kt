@@ -156,7 +156,8 @@ class PartnerReliabilityTest {
             val rr = repo(dbRemote, remote)
             confirmedPair(rr, a, "A")
             rr.grant(a.identityId, ShareScope(setOf(ShareCategory.PERIODS)))
-            val password = "synthetic password".toCharArray()
+            assertTrue(runCatching { ra.exportIdentity("abc".toCharArray()) }.isFailure)
+            val password = "test".toCharArray()
             val exported = ra.exportIdentity(password)
             assertTrue(password.all { it == '\u0000' })
             assertFalse(exported.toString(Charsets.UTF_8).contains(a.identityPrivate))
@@ -165,7 +166,7 @@ class PartnerReliabilityTest {
                     rn.restoreIdentity(exported, "wrong password".toCharArray())
                 }.isFailure
             )
-            rn.restoreIdentity(exported, "synthetic password".toCharArray())
+            rn.restoreIdentity(exported, "test".toCharArray())
             assertEquals(a.identityId, next.identityId)
             assertNotEquals(a.deviceId, next.deviceId)
             val invitation = rr.inspectInvitation(next.qr("New phone"))

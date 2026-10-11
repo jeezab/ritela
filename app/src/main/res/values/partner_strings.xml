@@ -5,7 +5,7 @@
     <string name="partner_normal">Return to my calendar</string>
     <string name="partner_login">Partner login</string>
     <string name="partner_private">Nothing is shared automatically. Your own records remain on this device.</string>
-    <string name="partner_empty">Add someone close and compare verification codes on both phones.</string>
+    <string name="partner_empty">Add your partner and compare the verification codes on both phones.</string>
 
     <string name="partner_error">Could not complete this action. Check the file, verified contact, device and permissions. Nothing was silently replaced.</string>
     <string name="partner_invite">My invitation</string>
@@ -24,7 +24,7 @@
     <string name="partner_received">Received</string>
     <string name="partner_open_doodle">Open postcard</string>
     <string name="partner_retry">Send again</string>
-    <string name="partner_identity">Your profile and devices</string>
+    <string name="partner_identity">Export and restore identity</string>
     <string name="partner_limits">Shared information is read-only. Deleting here cannot erase copies already sent to another phone.</string>
     <string name="partner_verify_title">Verify each other</string>
     <string name="partner_verify">Compare the code on both phones. If it matches, confirm the connection.</string>
@@ -37,8 +37,8 @@
     <string name="partner_pair_android">Pair the phones in Android Bluetooth settings first. On the other phone, tap Receive via Bluetooth. Choose the side only on the sending phone.</string>
     <string name="partner_android_settings">Bluetooth settings</string>
     <string name="partner_file_received">The authenticated file has been saved. Send the encrypted receipt back so the sender can confirm delivery.</string>
-    <string name="partner_identity_hint">This file transfers your protected profile, not your calendar records: use the ordinary data export in Settings for those. Use a password of at least 8 characters. Restore only in a profile without contacts. Connect your new phone again.</string>
-    <string name="partner_export_identity">Export protected identity</string>
+    <string name="partner_identity_hint">This file transfers your identity keys, not doodles, contacts or exchange history. For calendar records, use the data export in Settings. Use a password of at least 4 characters. Restore only in a profile without contacts. Connect your new phone again.</string>
+    <string name="partner_export_identity">Export identity</string>
     <string name="partner_restore_identity">Restore identity</string>
     <string name="partner_restore_confirm">This replaces the unused local identity and creates a new device key. Keep the current identity export if you need it. Continue only with your own protected file.</string>
     <string name="partner_continue">Continue</string>

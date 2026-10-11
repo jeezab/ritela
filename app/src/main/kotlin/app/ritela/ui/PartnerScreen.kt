@@ -116,7 +116,6 @@ fun PartnerScreen(padding: PaddingValues) {
     val connectedNotice by model.connectedNotice.collectAsStateWithLifecycle()
     val legacyInvitation by model.legacyInvitation.collectAsStateWithLifecycle()
     var onboarding by remember { mutableStateOf(false) }
-    var exchangeChoices by remember { mutableStateOf(false) }
     var technical by remember { mutableStateOf(false) }
     val profileName = (context.applicationContext as RitelaApplication).profiles.registry.profiles
         .collectAsStateWithLifecycle().value.firstOrNull {
@@ -284,34 +283,14 @@ fun PartnerScreen(padding: PaddingValues) {
             if (busy) Text(stringResource(R.string.loading))
             if (directory.contacts.isEmpty()) {
                 PartnerWelcome { onboarding = true }
-                Text(
-                    stringResource(R.string.partner_empty),
-                    style = MaterialTheme.typography.bodySmall
-                )
             }
             if (directory.contacts.isEmpty()) {
-                PartnerActionCard(
-                    stringResource(R.string.partner_invite),
-                    stringResource(R.string.partner_invite_hint),
-                    !busy
-                ) {
-                    model.qr(profileName)
-                }
-                PartnerActionCard(
-                    stringResource(R.string.partner_scan),
-                    stringResource(R.string.partner_scan_hint),
-                    !busy
-                ) {
+                PartnerConnectionCard(!busy, { model.qr(profileName) }, {
                     scan.launch(partnerScanOptions())
-                }
-                PartnerActionCard(
-                    stringResource(R.string.partner_exchange_card),
-                    stringResource(R.string.partner_exchange_hint),
-                    !busy
-                ) {
-                    exchangeChoices =
-                        true
-                }
+                })
+                PartnerReceiveCard(!busy, { importFile.launch(arrayOf("*/*")) }, {
+                    requestBluetooth(true)
+                })
             }
             directory.contacts.forEach { item ->
                 TextButton({
@@ -506,22 +485,12 @@ fun PartnerScreen(padding: PaddingValues) {
                 TextButton({ galleryLimit += 24 }) { Text(stringResource(R.string.partner_more)) }
             }
             if (directory.contacts.isNotEmpty()) {
-                PartnerActionCard(
-                    stringResource(R.string.partner_add_close),
-                    stringResource(R.string.partner_scan_hint),
-                    !busy
-                ) {
-                    onboarding =
-                        true
-                }
-                PartnerActionCard(
-                    stringResource(R.string.partner_exchange_card),
-                    stringResource(R.string.partner_exchange_hint),
-                    !busy
-                ) {
-                    exchangeChoices =
-                        true
-                }
+                PartnerConnectionCard(!busy, { model.qr(profileName, fresh = true) }, {
+                    scan.launch(partnerScanOptions())
+                })
+                PartnerReceiveCard(!busy, { importFile.launch(arrayOf("*/*")) }, {
+                    requestBluetooth(true)
+                })
             }
             TextButton({
                 keyTransfer = true
@@ -545,30 +514,6 @@ fun PartnerScreen(padding: PaddingValues) {
                     onboarding = false
                     scan.launch(partnerScanOptions())
                 }, enabled = !busy) { Text(stringResource(R.string.partner_scan)) }
-            }
-        }
-        if (exchangeChoices) {
-            PartnerModal(stringResource(R.string.partner_exchange_card), {
-                exchangeChoices =
-                    false
-            }) {
-                Text(stringResource(R.string.partner_manual_exchange))
-                PartnerActionCard(
-                    stringResource(R.string.partner_import),
-                    stringResource(R.string.partner_file_hint),
-                    !busy
-                ) {
-                    exchangeChoices = false
-                    importFile.launch(arrayOf("*/*"))
-                }
-                PartnerActionCard(
-                    stringResource(R.string.partner_receive),
-                    stringResource(R.string.partner_bluetooth_hint),
-                    !busy
-                ) {
-                    exchangeChoices = false
-                    requestBluetooth(true)
-                }
             }
         }
         if (connectedNotice) {
@@ -839,14 +784,14 @@ fun PartnerScreen(padding: PaddingValues) {
                         exportKey.launch("identity.ritela")
                     },
                     enabled =
-                        keyPassword.length >= 8 && !busy
+                        keyPassword.length >= 4 && !busy
                 ) {
                     Text(stringResource(R.string.partner_export_identity))
                 }
                 Button(
                     { keyRestore = true },
                     enabled =
-                        keyPassword.length >= 8 && directory.identities.isEmpty() && !busy
+                        keyPassword.length >= 4 && directory.identities.isEmpty() && !busy
                 ) {
                     Text(stringResource(R.string.partner_restore_identity))
                 }
