@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -63,11 +66,21 @@ internal fun PartnerWelcome(add: () -> Unit) {
 
 @Composable
 internal fun PartnerConnectionCard(enabled: Boolean, invite: () -> Unit, scan: () -> Unit) {
+    var information by remember { mutableStateOf(false) }
     SettingsGroup {
-        Text(
-            stringResource(R.string.partner_add_close),
-            style = MaterialTheme.typography.titleMedium
-        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.partner_add_close),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium
+            )
+            IconButton({ information = true }, Modifier.testTag("partner-connection-info")) {
+                Icon(
+                    painterResource(R.drawable.ic_info),
+                    stringResource(R.string.partner_connection_info)
+                )
+            }
+        }
         PartnerCardActions(
             stringResource(R.string.partner_invite),
             stringResource(R.string.partner_scan),
@@ -80,6 +93,14 @@ internal fun PartnerConnectionCard(enabled: Boolean, invite: () -> Unit, scan: (
             style = MaterialTheme.typography.bodySmall,
             color = HomeColors.muted
         )
+    }
+    if (information) {
+        PartnerModal(stringResource(R.string.partner_add_close), { information = false }) {
+            Text(
+                stringResource(R.string.partner_onboarding_steps),
+                Modifier.testTag("partner-connection-steps")
+            )
+        }
     }
 }
 

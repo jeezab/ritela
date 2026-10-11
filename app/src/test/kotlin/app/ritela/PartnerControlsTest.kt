@@ -120,6 +120,32 @@ class PartnerControlsTest {
             .performScrollTo().assertIsDisplayed()
     }
 
+    @Test fun connectionInformationShowsStepsWithoutStartingPairing() {
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty()
+        }
+        var actions = 0
+        compose.activity.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(LocalDensity.current.density, 2f)
+            ) {
+                HomeTheme {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        PartnerConnectionCard(true, { actions++ }, { actions++ })
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("partner-connection-info").performScrollTo().performClick()
+        compose.onNodeWithTag("partner-connection-steps").assertIsDisplayed()
+        assertEquals(
+            compose.activity.getString(R.string.partner_onboarding_steps),
+            compose.onNodeWithTag("partner-connection-steps").fetchSemanticsNode()
+                .config[androidx.compose.ui.semantics.SemanticsProperties.Text].single().text
+        )
+        assertEquals(0, actions)
+    }
+
     @Test fun scannerUsesOwnActivityAndDoesNotForceLandscape() {
         val intent = partnerScanOptions().createScanIntent(compose.activity)
         assertEquals(PartnerCaptureActivity::class.java.name, intent.component!!.className)

@@ -5,7 +5,8 @@
     <string name="partner_exchange_card">Data exchange</string>
     <string name="partner_exchange_hint">Encrypted file from afar or Bluetooth nearby.</string>
     <string name="partner_manual_exchange">Nothing syncs automatically. Each exchange is started by you.</string>
-    <string name="partner_onboarding_steps">1. Show your invitation.\n2. Scan theirs.\n3. Compare the codes and confirm on both phones.\n4. Scan the updated invitation to receive their confirmation.</string>
+    <string name="partner_onboarding_steps">1. Scan your partner’s invitation and confirm the code\n2. Show your invitation for your partner to scan. Compare the numbers on both screens - they must match\n3. Scan your partner’s updated invitation\n4. Done - on success you’ll see \"Connection confirmed\"!</string>
+    <string name="partner_connection_info">How to add a partner</string>
     <string name="partner_show_qr_step">Show this invitation, then scan theirs.</string>
     <string name="partner_confirm_qr_step">Your confirmation is in this QR code. Let them scan it, then scan their updated invitation.</string>
     <string name="partner_code_label">Verification code</string>
