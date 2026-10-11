@@ -69,7 +69,7 @@ class DayLogBackupTest {
             repository.save(DayLog(today.plusDays(1), headache = Pain.MILD))
         )
         assertEquals(
-            PeriodProblem.STORAGE,
+            null,
             repository.save(DayLog(today, sex = setOf(Sex.NONE, Sex.ORAL)))
         )
         assertEquals(PeriodProblem.STORAGE, repository.save(DayLog(today, note = "x".repeat(1001))))

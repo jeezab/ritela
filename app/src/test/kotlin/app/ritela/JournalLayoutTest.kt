@@ -21,9 +21,13 @@ class JournalLayoutTest {
         assertEquals(listOf("mood", "discharge", "sex", "energy"), layout.sections.map { it.id })
         assertTrue(validateJournalLayout(layout))
         assertTrue(runCatching { layout.removeTag("discharge", "DRY") }.isFailure)
-        assertTrue(runCatching { layout.moveTag("discharge", "DRY", "STICKY") }.isFailure)
+        assertEquals(
+            "STICKY",
+            layout.moveTag("discharge", "STICKY", "DRY")
+                .sections.first { it.id == "discharge" }.tags.first().id
+        )
         val discharge = layout.sections.first { it.id == "discharge" }
-        assertEquals(6, discharge.tags.size)
+        assertEquals(5, discharge.tags.size)
         assertFalse(
             validateJournalLayout(layout.replace(discharge.copy(tags = listOf(JournalTag("x")))))
         )

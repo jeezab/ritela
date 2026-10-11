@@ -98,10 +98,10 @@ private fun CalendarContent(
     val compactWindows = remember(state.periods, state.analysis) {
         compactFertilityWindows(state.periods, state.analysis)
     }
-    val markers = remember(state.dayLogs) {
+    val markers = remember(state.dayLogs, state.journalLayout) {
         state.dayLogs.associate {
             it.date to
-                it.calendarMarkers()
+                it.calendarMarkers(state.journalLayout)
         }
     }
     val list = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
@@ -179,6 +179,7 @@ private fun CalendarContent(
                         },
                         hasLog = { markers[it]?.record != null },
                         hasSex = { markers[it]?.intimacy == true },
+                        filledSex = { markers[it]?.filledHeart == true },
                         logIcon = {
                             journalIcon(markers[it]?.record ?: app.ritela.domain.JournalIcon.NOTE)
                         },
@@ -577,6 +578,7 @@ fun MonthGrid(
     info: (LocalDate) -> CalendarDayInfo = { CalendarDayInfo(CalendarDayKind.NONE) },
     hasLog: (LocalDate) -> Boolean = { false },
     hasSex: (LocalDate) -> Boolean = { false },
+    filledSex: (LocalDate) -> Boolean = { false },
     dayEnabled: (LocalDate) -> Boolean = { true },
     logIcon: (LocalDate) -> Int = { R.drawable.ic_note },
     onDay: (LocalDate) -> Unit
@@ -770,9 +772,37 @@ fun MonthGrid(
                                     }
                                     if (hasSex(day)) {
                                         Icon(
-                                            painterResource(R.drawable.ic_heart),
-                                            stringResource(R.string.sex_title),
-                                            Modifier.height(12.dp).testTag("day-sex-icon-$day")
+                                            painterResource(
+                                                if (filledSex(
+                                                        day
+                                                    )
+                                                ) {
+                                                    R.drawable.ic_heart_filled
+                                                } else {
+                                                    R.drawable.ic_heart
+                                                }
+                                            ),
+                                            stringResource(
+                                                if (filledSex(
+                                                        day
+                                                    )
+                                                ) {
+                                                    R.string.journal_sex_filled
+                                                } else {
+                                                    R.string.journal_sex_outline
+                                                }
+                                            ),
+                                            Modifier.height(12.dp).testTag("day-sex-icon-$day"),
+                                            tint = if (filledSex(
+                                                    day
+                                                )
+                                            ) {
+                                                androidx.compose.ui.graphics.Color(
+                                                    0xFFC94F67
+                                                )
+                                            } else {
+                                                HomeColors.text
+                                            }
                                         )
                                     }
                                 }

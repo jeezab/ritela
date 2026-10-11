@@ -1,10 +1,22 @@
 package app.ritela.domain
 
-data class CalendarJournalMarkers(val record: JournalIcon?, val intimacy: Boolean)
+data class CalendarJournalMarkers(
+    val record: JournalIcon?,
+    val intimacy: Boolean,
+    val filledHeart: Boolean = false
+)
 
 /** Symbols are independent of the cycle colour. A heart represents only a positive sex entry. */
-fun DayLog.calendarMarkers(): CalendarJournalMarkers {
+fun DayLog.calendarMarkers(layout: JournalLayout = JournalLayout()): CalendarJournalMarkers {
+    val sexTags = (
+        builtInJournalSections().first { it.id == "sex" }.tags +
+            (layout.archivedSections + layout.sections).filter {
+                it.id == "sex"
+            }.flatMap { it.tags }
+        )
+        .associateBy { it.id }
     val selections = journalSelections()
+    val positive = selections["sex"].orEmpty() - "NONE"
     val hasRecord = note.isNotBlank() || calendarIcon != null ||
         selections.any { (id, tags) -> id != "sex" && tags.isNotEmpty() }
     return CalendarJournalMarkers(
@@ -13,21 +25,41 @@ fun DayLog.calendarMarkers(): CalendarJournalMarkers {
         } else {
             null
         },
-        selections["sex"].orEmpty().any { it != "NONE" }
+        positive.isNotEmpty(),
+        positive.any { sexTags[it]?.withoutPenetration != true }
     )
 }
 
 /** Repair only the selectable UI model, including layouts saved before NONE became protected. */
-fun JournalSection.forSelection(): JournalSection = when {
-    id == "sex" && tags.none { it.id == "NONE" } -> copy(tags = listOf(JournalTag("NONE")) + tags)
-    id == "mood" && icon == JournalIcon.HEART -> copy(icon = JournalIcon.MOOD)
+fun JournalSection.forSelection(): JournalSection = when (id) {
+    "sex" -> copy(
+        tags = tags.filterNot { it.id == "VAGINAL" } +
+            sexStatusTags.filter { id -> tags.none { it.id == id } }.map(::JournalTag),
+        multiple = true
+    )
+
+    "discharge" -> copy(
+        tags = tags.filterNot { it.id == "UNUSUAL" } +
+            dischargeTags().filter { default -> tags.none { it.id == default.id } }
+    )
+
+    "mood" -> copy(
+        multiple = true,
+        icon = if (icon ==
+            JournalIcon.HEART
+        ) {
+            JournalIcon.MOOD
+        } else {
+            icon
+        }
+    )
+
     else -> this
 }
 
 fun JournalSection.toggleSelection(old: Set<String>, tag: String): Set<String> = when {
     tag in old -> old - tag
-    id == "sex" && tag == "NONE" -> setOf(tag)
-    id == "sex" -> (old - "NONE") + tag
-    multiple -> old + tag
+    id == "sex" && tag in sexStatusTags -> (old - sexStatusTags) + tag
+    id == "sex" || id == "mood" || multiple -> old + tag
     else -> setOf(tag)
 }

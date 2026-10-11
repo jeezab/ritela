@@ -36,6 +36,7 @@ import app.ritela.R
 import app.ritela.domain.DayLog
 import app.ritela.domain.Period
 import app.ritela.domain.forSelection
+import app.ritela.domain.historySections
 import app.ritela.domain.journalSelections
 import java.time.LocalDate
 
@@ -103,7 +104,7 @@ fun DaySummary(
         }
         log?.let {
             val selections = it.journalSelections()
-            layout.sections.forEach { section ->
+            layout.historySections().forEach { section ->
                 val chosen = section.tags.filter { tag ->
                     tag.id in selections[section.id].orEmpty()
                 }
@@ -163,14 +164,11 @@ fun CalendarDayRecords(
                 color = HomeColors.muted
             )
         } else {
-            val registry = (
-                layout.sections + app.ritela.domain.defaultJournalSections() +
-                    app.ritela.domain.builtInJournalSections()
-                ).distinctBy { it.id }
+            val registry = layout.historySections()
             val selections = log.journalSelections().filterValues { it.isNotEmpty() }
             val sections = registry.filter { it.id in selections } +
                 (selections.keys - registry.map { it.id }.toSet()).sorted().map {
-                    app.ritela.domain.JournalSection(it, title = it, tags = emptyList())
+                    app.ritela.domain.JournalSection(it, tags = emptyList())
                 }
             sections.forEach { section ->
                 val selected = selections.getValue(section.id)

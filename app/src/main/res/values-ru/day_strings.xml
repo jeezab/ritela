@@ -26,8 +26,8 @@
     <string name="energy_normal">Как обычно</string>
     <string name="energy_high">Много</string>
     <string name="sex_none">Не было</string>
-    <string name="sex_condom">С презервативом</string>
-    <string name="sex_no_barrier">Без презерватива</string>
+    <string name="sex_condom">Секс с защитой</string>
+    <string name="sex_no_barrier">Секс без защиты</string>
     <string name="sex_oral">Оральный</string>
     <string name="sex_vaginal">Вагинальный</string>
     <string name="sex_anal">Анальный</string>

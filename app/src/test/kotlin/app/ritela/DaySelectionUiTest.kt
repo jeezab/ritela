@@ -63,13 +63,14 @@ class DaySelectionUiTest {
         assertEquals(initial, saved?.copy(custom = initial.custom))
     }
 
-    @Test fun fullEditorHasNoAutomaticOrHeartChoiceAndNoneCannotBeDeleted() {
+    @Test fun fullEditorHasNoAutomaticOrHeartChoiceAndPrimarySexTagsCannotBeDeleted() {
         compose.activity.setContent {
             DayLogEntry(DayLog(today), PeriodUiState(loading = false), {}, {})
         }
         compose.onNodeWithTag("journal-edit-sex").performScrollTo().performClick()
         compose.onNodeWithTag("journal-remove-sex-NONE").assertDoesNotExist()
-        compose.onNodeWithTag("journal-remove-sex-CONDOM").assertExists()
+        compose.onNodeWithTag("journal-remove-sex-CONDOM").assertDoesNotExist()
+        compose.onNodeWithTag("journal-remove-sex-NO_BARRIER").assertDoesNotExist()
         compose.onNodeWithTag("journal-icon-NOTE").performScrollTo().assertIsSelected()
         compose.onNodeWithTag("journal-icon-HEART").assertDoesNotExist()
         compose.onNodeWithText("Автоматически").assertDoesNotExist()

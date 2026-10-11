@@ -10,8 +10,13 @@ import app.ritela.domain.JournalLayout
 import app.ritela.domain.JournalSection
 import app.ritela.domain.JournalTag
 import app.ritela.domain.validateJournalLayout
+import app.ritela.domain.withHistoryFrom
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -31,62 +36,90 @@ interface JournalDao {
 }
 
 class JournalRepository(private val dao: JournalDao) {
+    private val mutations = Mutex()
     val layout = dao.observe().map {
         it?.let { entity -> JournalCodec.decode(entity.config) }
             ?: JournalLayout()
     }
-    suspend fun save(layout: JournalLayout) {
-        require(validateJournalLayout(layout))
-        dao.save(JournalLayoutEntity(config = JournalCodec.encode(layout)))
+    suspend fun save(layout: JournalLayout) = withContext(Dispatchers.IO) {
+        mutations.withLock {
+            require(validateJournalLayout(layout))
+            val previous = dao.snapshot()?.let { JournalCodec.decode(it.config) }
+            dao.save(
+                JournalLayoutEntity(
+                    config = JournalCodec.encode(
+                        previous?.let {
+                            layout.withHistoryFrom(it)
+                        } ?: layout
+                    )
+                )
+            )
+        }
     }
 }
 
 object JournalCodec {
     fun encode(layout: JournalLayout): String {
         require(validateJournalLayout(layout))
-        return JSONObject().put("title", layout.title).put(
-            "sections",
-            JSONArray().apply {
-                layout.sections.forEach { section ->
-                    put(
-                        JSONObject().put("id", section.id).put("title", section.title)
-                            .put("icon", section.icon.name).put("multiple", section.multiple)
-                            .put(
-                                "tags",
-                                JSONArray().apply {
-                                    section.tags.forEach {
-                                        put(JSONObject().put("id", it.id).put("title", it.title))
-                                    }
-                                }
-                            )
+        return JSONObject().put("title", layout.title)
+            .put("sections", encodeSections(layout.sections))
+            .put("archivedSections", encodeSections(layout.archivedSections)).toString()
+    }
+
+    private fun encodeSections(sections: List<JournalSection>): JSONArray = JSONArray().apply {
+        sections.forEach { section ->
+            put(
+                JSONObject().put("id", section.id).put("title", section.title)
+                    .put("icon", section.icon.name).put("multiple", section.multiple)
+                    .put(
+                        "tags",
+                        JSONArray().apply {
+                            section.tags.forEach { tag ->
+                                put(
+                                    JSONObject().put("id", tag.id).put("title", tag.title)
+                                        .put("withoutPenetration", tag.withoutPenetration)
+                                )
+                            }
+                        }
                     )
-                }
-            }
-        ).toString()
+            )
+        }
     }
 
     fun decode(text: String): JournalLayout {
         val root = JSONObject(text)
-        val sections = root.getJSONArray("sections")
-        require(sections.length() <= 64)
         return JournalLayout(
             root.getString("title"),
-            (0 until sections.length()).map { index ->
-                val section = sections.getJSONObject(index)
-                val tags = section.getJSONArray("tags")
-                require(tags.length() in 1..64)
-                JournalSection(
-                    section.getString("id"),
-                    section.getString("title"),
-                    JournalIcon.valueOf(section.getString("icon")),
-                    (0 until tags.length()).map { tagIndex ->
-                        val tag = tags.getJSONObject(tagIndex)
-                        JournalTag(tag.getString("id"), tag.getString("title"))
-                    },
-                    section.getBoolean("multiple")
-                )
-            }
+            decodeSections(root.getJSONArray("sections"), 64, 64),
+            root.optJSONArray("archivedSections")?.let { decodeSections(it, 256, 256) }.orEmpty()
         ).also { require(validateJournalLayout(it)) }
+    }
+
+    private fun decodeSections(
+        sections: JSONArray,
+        maxSections: Int,
+        maxTags: Int
+    ): List<JournalSection> {
+        require(sections.length() <= maxSections)
+        return (0 until sections.length()).map { index ->
+            val section = sections.getJSONObject(index)
+            val tags = section.getJSONArray("tags")
+            require(tags.length() <= maxTags)
+            JournalSection(
+                section.getString("id"),
+                section.getString("title"),
+                JournalIcon.valueOf(section.getString("icon")),
+                (0 until tags.length()).map { tagIndex ->
+                    val tag = tags.getJSONObject(tagIndex)
+                    JournalTag(
+                        tag.getString("id"),
+                        tag.getString("title"),
+                        tag.optBoolean("withoutPenetration", tag.getString("id") == "MASTURBATION")
+                    )
+                },
+                section.getBoolean("multiple")
+            )
+        }
     }
 
     fun encodeSelections(selections: Map<String, Set<String>>): String = JSONObject().apply {

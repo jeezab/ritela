@@ -4,6 +4,7 @@ import android.util.Base64
 import androidx.room.withTransaction
 import app.ritela.domain.validateDayLog
 import app.ritela.domain.validatePeriod
+import app.ritela.domain.withHistoryFrom
 import java.security.SecureRandom
 import java.time.Clock
 import java.time.LocalDate
@@ -135,7 +136,16 @@ class BackupRepository(
         validate(data)
         database.withTransaction {
             data.layout?.let { layout ->
-                database.journal().save(JournalLayoutEntity(config = JournalCodec.encode(layout)))
+                val previous = database.journal().snapshot()?.let { JournalCodec.decode(it.config) }
+                database.journal().save(
+                    JournalLayoutEntity(
+                        config = JournalCodec.encode(
+                            previous?.let {
+                                layout.withHistoryFrom(it)
+                            } ?: layout
+                        )
+                    )
+                )
             }
             data.settings?.let { database.profileSettings().save(it) }
             val existing = database.periods().snapshot().associateBy { it.id }

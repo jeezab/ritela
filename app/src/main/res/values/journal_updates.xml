@@ -1,0 +1,7 @@
+<resources>
+    <string name="journal_archived_tag">Removed tag</string>
+    <string name="journal_restore_tags">Restore default tags</string>
+    <string name="journal_without_penetration">Without penetration</string>
+    <string name="journal_sex_filled">Sex: includes a tag without the no-penetration setting</string>
+    <string name="journal_sex_outline">Sex: tags marked without penetration only</string>
+</resources>
