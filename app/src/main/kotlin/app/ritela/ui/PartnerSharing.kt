@@ -57,12 +57,13 @@ internal fun PartnerScopeDialog(
     granting: Boolean,
     dismiss: () -> Unit,
     recipient: String = "",
+    requestAccess: ((ShareScope) -> Unit)? = null,
     confirm: (ShareScope) -> Unit
 ) {
     val repository = LocalProfileSession.current?.partner ?: return
     val formatter = PartnerFormatter(LocalResources.current)
     val sections = layout.historySections()
-    val maximum = allowed ?: ShareScope(
+    val maximum = allowed?.takeIf { requestAccess == null } ?: ShareScope(
         setOf(
             ShareCategory.PERIODS,
             ShareCategory.FORECASTS,
@@ -313,66 +314,34 @@ internal fun PartnerScopeDialog(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(dismiss) { Text(stringResource(R.string.cancel)) }
                     Button(
-                        { confirm(selected.normalized()) },
+                        {
+                            val selection = selected.normalized()
+                            if (requestAccess != null && allowed?.permits(selection) == false) {
+                                requestAccess(selection)
+                            } else {
+                                confirm(selection)
+                            }
+                        },
                         enabled =
                             ready && maximum.permits(selected) &&
                                 (granting || selected.categories.isNotEmpty())
                     ) {
                         Text(
                             stringResource(
-                                if (granting) R.string.save else R.string.partner_prepare
+                                if (granting) {
+                                    R.string.save
+                                } else if (requestAccess != null &&
+                                    allowed?.permits(selected) == false
+                                ) {
+                                    R.string.partner_confirm_access
+                                } else {
+                                    R.string.partner_prepare
+                                }
                             )
                         )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-internal fun PartnerAccessSettings() {
-    val session = LocalProfileSession.current ?: return
-    val model = session.partnerModel
-    val directory by model.directory.collectAsStateWithLifecycle()
-    val state by session.model.uiState.collectAsStateWithLifecycle()
-    var choosing by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf<String?>(null) }
-    TextButton({ choosing = true }) { Text(stringResource(R.string.partner_access)) }
-    if (choosing &&
-        selected == null
-    ) {
-        PartnerModal(stringResource(R.string.partner_access), { choosing = false }) {
-            if (directory.identities.isEmpty()) Text(stringResource(R.string.partner_no_access))
-            directory.identities.forEach { source ->
-                TextButton(
-                    { selected = source.id },
-                    enabled = source.devices.any {
-                        it.enabled &&
-                            it.mutualConfirmed
-                    }
-                ) {
-                    Text(source.name)
-                }
-            }
-        }
-    }
-    directory.identities.firstOrNull { it.id == selected }?.let { source ->
-        PartnerScopeDialog(
-            state.journalLayout,
-            null,
-            source.grants,
-            true,
-            {
-                selected = null
-                choosing = false
-            },
-            source.name,
-            {
-                model.run { model.repository.grant(source.id, it) }
-                selected = null
-                choosing = false
-            }
-        )
     }
 }

@@ -13,20 +13,16 @@
     <string name="partner_linked">Connection confirmed</string>
     <string name="partner_disabled">Exchange disabled</string>
     <string name="partner_access">What to share</string>
-    <string name="partner_exchange">Exchange data</string>
     <string name="partner_doodle">Send a Doodle</string>
     <string name="partner_manage">Manage close contacts</string>
     <string name="partner_gallery">Our little messages</string>
     <string name="partner_received">Received</string>
     <string name="partner_open_doodle">Open doodle</string>
-    <string name="partner_retry">Send again</string>
     <string name="partner_identity">Export and restore identity</string>
-    <string name="partner_limits">Shared information is read-only. Deleting here cannot erase copies already sent to another phone.</string>
     <string name="partner_verify_title">Verify each other</string>
     <string name="partner_verify">Compare the code on both phones. If it matches, confirm the connection.</string>
     <string name="partner_verified">Codes match — connect</string>
     <string name="partner_transport">Choose how to send</string>
-    <string name="partner_share_file">Share encrypted file</string>
     <string name="partner_bluetooth">Bluetooth</string>
     <string name="partner_where">Where is your little heart?</string>
     <string name="partner_pair_android">Pair the phones in Android Bluetooth settings first. On the other phone, tap Receive via Bluetooth. Choose the side only on the sending phone.</string>
@@ -64,8 +60,8 @@
     <string name="partner_no_access">Personal data access is closed</string>
     <string name="partner_comparison">Devices: %1$d · messages: %2$d</string>
     <string name="partner_data">Shared data</string>
-    <string name="partner_opened">Opening confirmed</string>
-    <string name="partner_delivered">Delivery confirmed</string>
+    <string name="partner_opened">Opened</string>
+    <string name="partner_delivered">Delivered</string>
     <string name="partner_summary">Periods: %1$d · forecasts: %2$d · diary days: %3$d · settings: %4$s</string>
     <string name="partner_yes">yes</string>
     <string name="partner_no">no</string>
@@ -102,7 +98,6 @@
     <string name="partner_unknown_phase">Phase unavailable</string>
     <string name="partner_previous">Previous records</string>
     <string name="partner_next">Next records</string>
-    <string name="partner_more">Show more</string>
 
     <string name="partner_doodle_kind">Doodle</string>
     <string name="partner_ovulation_range">Possible dates: %1$s–%2$s</string>

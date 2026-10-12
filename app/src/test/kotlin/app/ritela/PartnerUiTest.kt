@@ -138,7 +138,7 @@ class PartnerUiTest {
             .assertDoesNotExist()
         compose.onNodeWithText(
             compose.activity.getString(R.string.partner_add_close)
-        ).performScrollTo().assertIsDisplayed()
+        ).assertIsDisplayed()
         assertEquals("synthetic own", runBlocking { app.days.logs.first().single().note })
         compose.onNodeWithTag("nav-settings").performClick()
         compose.onNodeWithTag("partner-own-mode").performScrollTo().performClick()

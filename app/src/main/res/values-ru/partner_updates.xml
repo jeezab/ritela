@@ -15,7 +15,6 @@
     <string name="partner_finish_connection">Завершить подключение</string>
     <string name="partner_connected_body">Теперь вы можете обмениваться данными и посланиями. При следующих обменах доверенные ключи проверяются автоматически.</string>
     <string name="partner_update_needed">Для нового подключения с коротким кодом обновите Ritela на другом телефоне. Уже подтверждённые контакты продолжают работать.</string>
-    <string name="partner_close_data">Данные партнёра</string>
     <string name="partner_doodle_hint">Нарисуйте дудл, оставьте послание или подготовьте маленький сюрприз.</string>
     <string name="partner_your_devices">Экспорт и восстановление личности</string>
     <string name="partner_no_received_data">Сведения появятся здесь, когда вы получите обмен от партнёра.</string>

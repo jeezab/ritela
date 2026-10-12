@@ -75,7 +75,6 @@ internal fun PartnerSecuritySettings() {
         TextButton({ keyTransfer = true }, enabled = !busy) {
             Text(stringResource(R.string.partner_identity))
         }
-        PartnerAccessSettings()
         TextButton({ technical = !technical }) { Text(stringResource(R.string.partner_technical)) }
         if (technical) {
             Text(ownId.chunked(8).joinToString(" "), style = MaterialTheme.typography.bodySmall)

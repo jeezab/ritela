@@ -13,20 +13,16 @@
     <string name="partner_linked">Связь подтверждена</string>
     <string name="partner_disabled">Обмен отключён</string>
     <string name="partner_access">Чем поделиться</string>
-    <string name="partner_exchange">Обменяться данными</string>
     <string name="partner_doodle">Отправить дудл</string>
     <string name="partner_manage">Управление партнёрами</string>
     <string name="partner_gallery">Наши послания</string>
     <string name="partner_received">Получено</string>
     <string name="partner_open_doodle">Открыть дудл</string>
-    <string name="partner_retry">Отправить повторно</string>
     <string name="partner_identity">Экспорт и восстановление личности</string>
-    <string name="partner_limits">Переданные сведения доступны только для чтения. Удаление здесь не удаляет копии с другого телефона.</string>
     <string name="partner_verify_title">Проверьте друг друга</string>
     <string name="partner_verify">Сравните код на двух телефонах. Если он одинаковый, подтвердите подключение.</string>
     <string name="partner_verified">Коды совпадают — подключить</string>
     <string name="partner_transport">Как отправить</string>
-    <string name="partner_share_file">Поделиться зашифрованным файлом</string>
     <string name="partner_bluetooth">Bluetooth</string>
     <string name="partner_where">Где сейчас твоё сердечко?</string>
     <string name="partner_pair_android">Сначала сопрягите телефоны в настройках Bluetooth Android. На другом телефоне нажмите «Получить по Bluetooth». Сторону выбирает только отправитель.</string>
@@ -64,8 +60,8 @@
     <string name="partner_no_access">Доступ к личным данным закрыт</string>
     <string name="partner_comparison">Устройства: %1$d · сообщения: %2$d</string>
     <string name="partner_data">Переданные данные</string>
-    <string name="partner_opened">Открытие подтверждено</string>
-    <string name="partner_delivered">Доставка подтверждена</string>
+    <string name="partner_opened">Открыто</string>
+    <string name="partner_delivered">Доставлено</string>
     <string name="partner_summary">Месячные: %1$d · прогнозы: %2$d · дни дневника: %3$d · настройки: %4$s</string>
     <string name="partner_yes">да</string>
     <string name="partner_no">нет</string>
@@ -102,7 +98,6 @@
     <string name="partner_unknown_phase">Фаза пока не определена</string>
     <string name="partner_previous">Предыдущие записи</string>
     <string name="partner_next">Следующие записи</string>
-    <string name="partner_more">Показать ещё</string>
 
     <string name="partner_doodle_kind">Дудл</string>
     <string name="partner_ovulation_range">Возможные даты: %1$s–%2$s</string>

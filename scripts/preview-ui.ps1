@@ -10,6 +10,14 @@ if (-not $SkipRender) {
 
 $directory = Join-Path $projectRoot 'app/build/reports/screenshots'
 $labels = [ordered]@{
+    'partner-messenger-before' = 'Партнёр · до переработки'
+    'partner-messenger-empty' = 'Переписка · пустой диалог'
+    'partner-messenger-data' = 'Переписка · обмен данными'
+    'partner-messenger-doodle' = 'Переписка · полученный дудл'
+    'partner-messenger-pending' = 'Переписка · ожидает отправки'
+    'partner-messenger-multiple' = 'Переписка · несколько партнёров'
+    'partner-messenger-large' = 'Переписка · крупный шрифт'
+    'partner-messenger-narrow-english' = 'Переписка · EN 320dp/200%'
     'home-flat-orbit' = 'Home · плоская орбита'
     'home-flat-orbit-large' = 'Home · новая орбита · EN 320dp/200%'
     'orbit-phase-info' = 'Орбита · объяснение фазы'

@@ -1,0 +1,22 @@
+<resources>
+    <string name="partner_chat_to">To %1$s</string>
+    <string name="partner_chat_manual">File or Bluetooth · no auto-sync</string>
+    <string name="partner_chat_menu">Partner actions</string>
+    <string name="partner_chat_add">Add to conversation</string>
+    <string name="partner_preview_doodle_caption">For you ♡</string>
+    <string name="partner_chat_empty">A little closer</string>
+    <string name="partner_chat_empty_hint">Your doodles and shared data will appear here.</string>
+    <string name="partner_share_data">Share data</string>
+    <string name="partner_view_message">View</string>
+    <string name="partner_choose_channel">Choose file or Bluetooth</string>
+    <string name="partner_prepare_file">Prepare file</string>
+    <string name="partner_check_connection">Check connection</string>
+    <string name="partner_confirm_access">Confirm access</string>
+    <string name="partner_confirm_access_hint">Allow %1$s to receive the selected categories? Only this selection will be included in the exchange. Other access stays unchanged.</string>
+    <string name="partner_confirm_and_prepare">Allow and prepare exchange</string>
+    <string name="partner_select_phone">Use this phone</string>
+    <string name="partner_dismiss_error">Dismiss</string>
+    <string name="partner_chat_periods">Period records: %1$d</string>
+    <string name="partner_chat_forecasts">Forecasts: %1$d</string>
+    <string name="partner_chat_days">Journal days: %1$d</string>
+</resources>
