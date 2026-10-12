@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -20,6 +21,7 @@ import app.ritela.ui.DoodleEditor
 import app.ritela.ui.DoodleViewer
 import app.ritela.ui.HomeTheme
 import java.time.LocalDate
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -40,6 +42,37 @@ class PartnerUiTest {
         compose.waitUntil(10000) {
             compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    @Test fun pendingModeSaveSurvivesLeavingSettings() {
+        home()
+        val app = compose.activity.application as RitelaApplication
+        val session = app.profiles.session.value
+        val started = CompletableDeferred<Unit>()
+        val continueSave = CompletableDeferred<Unit>()
+        compose.onNodeWithTag("nav-settings").performClick()
+        compose.runOnIdle {
+            session.partnerModel.updatePreferences {
+                started.complete(Unit)
+                continueSave.await()
+                session.partnerPreferences.recipient(true)
+            }
+        }
+        compose.waitUntil(10000) { started.isCompleted }
+        compose.onNodeWithTag("nav-today").performClick()
+        compose.onNodeWithTag("log-day").assertIsEnabled()
+        continueSave.complete(Unit)
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithText(compose.activity.getString(R.string.partner_no_received))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("log-day").assertDoesNotExist()
+        assertTrue(runBlocking { session.partnerPreferences.mode.first { it.ready }.recipient })
+        compose.activityRule.scenario.recreate()
+        home()
+        compose.onNodeWithTag("log-day").assertDoesNotExist()
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_no_received))
+            .assertIsDisplayed()
     }
 
     @Test fun recipientModeHidesOwnCalendarWithoutDeletingRecordsAndCanReturn() {
