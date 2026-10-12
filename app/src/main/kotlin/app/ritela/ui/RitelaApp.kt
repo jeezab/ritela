@@ -63,6 +63,10 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
             ?: flowOf(PartnerMode(ready = true))
     }
     val partnerMode by partnerModes.collectAsStateWithLifecycle(initialValue = PartnerMode())
+    val pendingInvitations = remember(profile) {
+        profile?.partnerModel?.candidate ?: flowOf(null)
+    }
+    val pendingInvitation by pendingInvitations.collectAsStateWithLifecycle(initialValue = null)
     var adding by rememberSaveable { mutableStateOf(false) }
     var finishingId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -72,6 +76,12 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     var page by rememberSaveable { mutableStateOf(0) }
     var addingDay by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     val pageStates = rememberSaveableStateHolder()
+    LaunchedEffect(pendingInvitation) {
+        if (pendingInvitation != null) {
+            profile?.partnerPreferences?.show(true)
+            page = 3
+        }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.refreshToday() }
     LaunchedEffect(state.saved) {
         if (state.saved) {

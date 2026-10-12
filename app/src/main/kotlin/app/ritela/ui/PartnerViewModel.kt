@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.ritela.data.PairInvitation
 import app.ritela.data.PartnerBluetooth
+import app.ritela.data.PartnerInvitationFile
 import app.ritela.data.PartnerMessage
 import app.ritela.data.PartnerRepository
 import app.ritela.domain.Doodle
@@ -83,20 +84,22 @@ class PartnerViewModel(
             }
         }
     }
-    fun qr(name: String, fresh: Boolean = false) = run {
+    fun createInvitation(name: String, fresh: Boolean = false) = run {
         if (fresh) pairingTarget.value = null
         invitation.value = repository.invitation(name, pairingTarget.value)
     }
-    fun inspect(qr: String) = run {
-        val inspected = repository.inspectInvitation(qr)
+    fun inspect(invitation: String) = run { inspectReceivedInvitation(invitation) }
+    private suspend fun inspectReceivedInvitation(invitation: String) {
+        val inspected = repository.inspectInvitation(invitation)
         if (repository.acceptKnown(inspected)) {
             candidate.value = null
-            invitation.value = null
+            this.invitation.value = null
             pairingTarget.value = null
             connectedNotice.value = true
         } else if (inspected.version == 1) {
             legacyInvitation.value = true
         } else {
+            this.invitation.value = null
             verificationCode.value = repository.verificationCode(inspected)
             candidate.value = inspected
         }
@@ -124,7 +127,13 @@ class PartnerViewModel(
     fun doodle(identity: String, device: String, value: Doodle) = run {
         packet.value = repository.prepareDoodle(identity, device, value)
     }
-    fun receive(bytes: ByteArray) = run {
+    fun receive(bytes: ByteArray) = run { receiveFile(bytes) }
+    suspend fun receiveFile(bytes: ByteArray) {
+        val invitation = PartnerInvitationFile.decode(bytes)
+        if (invitation != null) {
+            inspectReceivedInvitation(invitation)
+            return
+        }
         val received = repository.receive(bytes)
         packet.value =
             if (received.message.kind in
@@ -134,6 +143,11 @@ class PartnerViewModel(
             } else {
                 null
             }
+    }
+    fun exchangeInvitation(address: String?, name: String) = run {
+        val local = repository.invitation(name, pairingTarget.value)
+        val remote = bluetooth.exchangeInvitations(address, local)
+        inspectReceivedInvitation(remote)
     }
     fun send(address: String, edge: ExchangeEdge, rotation: Int) = run {
         bluetooth.reset()

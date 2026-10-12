@@ -6,7 +6,6 @@ import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -52,7 +50,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,10 +60,6 @@ import app.ritela.data.PartnerMessage
 import app.ritela.domain.ExchangeEdge
 import app.ritela.domain.ExchangePhase
 import app.ritela.domain.ShareScope
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.MultiFormatWriter
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -146,7 +139,7 @@ fun PartnerScreen(padding: PaddingValues) {
     val messages by model.messages.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val error by model.error.collectAsStateWithLifecycle()
-    val qr by model.invitation.collectAsStateWithLifecycle()
+    val invitation by model.invitation.collectAsStateWithLifecycle()
     val candidate by model.candidate.collectAsStateWithLifecycle()
     val packet by model.packet.collectAsStateWithLifecycle()
     val exchange by model.bluetooth.state.collectAsStateWithLifecycle()
@@ -181,23 +174,29 @@ fun PartnerScreen(padding: PaddingValues) {
         (context.applicationContext as RitelaApplication).profiles.session.value.token ==
             session.token
     }
+    var savingInvitation by remember { mutableStateOf<String?>(null) }
+    val saveInvitation = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.ritela")
+    ) { uri ->
+        val value = savingInvitation
+        savingInvitation = null
+        if (uri != null && value != null && activeSession()) {
+            model.run { PartnerFiles.saveInvitation(context, uri, value) }
+        }
+    }
     val importFile =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null && activeSession()) {
                 model.run {
-                    val received = model.repository.receive(PartnerFiles.read(context, uri))
-                    model.packet.value = if (received.message.kind in listOf("DATA", "DOODLE")) {
-                        model.repository.acknowledgement(received.message)
-                    } else {
-                        null
-                    }
-                    fileStatus = true
+                    val bytes = PartnerFiles.read(context, uri)
+                    val isInvitation = app.ritela.data.PartnerInvitationFile.decode(bytes) != null
+                    model.receiveFile(bytes)
+                    fileStatus = !isInvitation
                 }
             }
         }
-    val scan = rememberLauncherForActivityResult(ScanContract()) { result ->
-        if (activeSession()) result.contents?.let(model::inspect)
-    }
+    var receiving by remember { mutableStateOf(false) }
+    var pairingBluetooth by remember { mutableStateOf(false) }
     val discover =
         rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
@@ -206,10 +205,13 @@ fun PartnerScreen(padding: PaddingValues) {
                 activeSession()
             ) {
                 showExchange = true
-                model.listen(context.displayRotation())
+                if (pairingBluetooth) {
+                    model.exchangeInvitation(null, profileName)
+                } else {
+                    model.listen(context.displayRotation())
+                }
             }
         }
-    var receiving by remember { mutableStateOf(false) }
     val btPermissions =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -228,8 +230,9 @@ fun PartnerScreen(padding: PaddingValues) {
                 model.error.value = true
             }
         }
-    fun requestBluetooth(receive: Boolean) {
+    fun requestBluetooth(receive: Boolean, invitationExchange: Boolean = false) {
         receiving = receive
+        pairingBluetooth = invitationExchange
         if (Build.VERSION.SDK_INT >=
             31
         ) {
@@ -254,6 +257,9 @@ fun PartnerScreen(padding: PaddingValues) {
         }
     }
     LaunchedEffect(packet?.id) { if (packet != null) transport = true }
+    LaunchedEffect(candidate, connectedNotice, legacyInvitation) {
+        if (candidate != null || connectedNotice || legacyInvitation) showExchange = false
+    }
     // Date-locked letters are evaluated again on each real application resume.
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { now = System.currentTimeMillis() }
@@ -391,7 +397,12 @@ fun PartnerScreen(padding: PaddingValues) {
                                 if (source.devices.any { it.enabled && !it.mutualConfirmed }) {
                                     model.resumePairing(source.id, profileName)
                                 } else {
-                                    scan.launch(partnerScanOptions())
+                                    importFile.launch(
+                                        arrayOf(
+                                            "application/octet-stream",
+                                            "application/vnd.ritela"
+                                        )
+                                    )
                                 }
                             }, enabled = !busy) {
                                 Text(stringResource(R.string.partner_finish_connection))
@@ -493,8 +504,10 @@ fun PartnerScreen(padding: PaddingValues) {
                 TextButton({ galleryLimit += 24 }) { Text(stringResource(R.string.partner_more)) }
             }
             if (directory.contacts.isNotEmpty()) {
-                PartnerConnectionCard(!busy, { model.qr(profileName, fresh = true) }, {
-                    scan.launch(partnerScanOptions())
+                PartnerConnectionCard(!busy, {
+                    model.createInvitation(profileName, fresh = true)
+                }, {
+                    importFile.launch(arrayOf("application/octet-stream", "application/vnd.ritela"))
                 })
                 PartnerReceiveCard(!busy, { importFile.launch(arrayOf("*/*")) }, {
                     requestBluetooth(true)
@@ -513,12 +526,12 @@ fun PartnerScreen(padding: PaddingValues) {
                 Text(stringResource(R.string.partner_onboarding_steps))
                 Button({
                     onboarding = false
-                    model.qr(profileName, fresh = true)
+                    model.createInvitation(profileName, fresh = true)
                 }, enabled = !busy) { Text(stringResource(R.string.partner_invite)) }
                 Button({
                     onboarding = false
-                    scan.launch(partnerScanOptions())
-                }, enabled = !busy) { Text(stringResource(R.string.partner_scan)) }
+                    importFile.launch(arrayOf("application/octet-stream", "application/vnd.ritela"))
+                }, enabled = !busy) { Text(stringResource(R.string.partner_open_invitation)) }
             }
         }
         if (connectedNotice) {
@@ -537,67 +550,38 @@ fun PartnerScreen(padding: PaddingValues) {
                 Text(stringResource(R.string.partner_update_needed))
             }
         }
-        qr?.let { value ->
+        invitation?.let { value ->
             PartnerModal(stringResource(R.string.partner_invite), {
                 model.invitation.value = null
             }) {
-                var bitmap by remember(value) { mutableStateOf<android.graphics.Bitmap?>(null) }
-                LaunchedEffect(value) {
-                    bitmap = withContext(Dispatchers.Default) {
-                        val matrix = MultiFormatWriter().encode(
-                            value,
-                            BarcodeFormat.QR_CODE,
-                            512,
-                            512
+                PartnerInvitationActions(
+                    pairingTarget != null,
+                    !busy,
+                    save = {
+                        savingInvitation = value
+                        saveInvitation.launch("ritela-invitation.ritela")
+                    },
+                    share = { PartnerFiles.shareInvitation(context, session.profileId, value) },
+                    open = {
+                        importFile.launch(
+                            arrayOf("application/octet-stream", "application/vnd.ritela")
                         )
-                        createBitmap(512, 512).apply {
-                            val pixels =
-                                IntArray(512 * 512) { i ->
-                                    if (matrix[i % 512, i / 512]) {
-                                        android.graphics.Color.BLACK
-                                    } else {
-                                        android.graphics.Color.WHITE
-                                    }
-                                }
-                            setPixels(pixels, 0, 512, 0, 0, 512, 512)
-                        }
-                    }
-                }
-                bitmap?.let { PartnerQr(it) }
-                Text(
-                    stringResource(
-                        if (pairingTarget ==
-                            null
-                        ) {
-                            R.string.partner_show_qr_step
-                        } else {
-                            R.string.partner_confirm_qr_step
-                        }
-                    )
+                    },
+                    sendBluetooth = { requestBluetooth(false, true) },
+                    receiveBluetooth = { requestBluetooth(true, true) }
                 )
                 if (pairingTarget != null) {
                     Text(code, style = MaterialTheme.typography.headlineLarge)
-                    val complete =
-                        directory.identities.firstOrNull { it.id == pairingTarget?.identity }
-                            ?.devices?.firstOrNull {
-                                it.id == pairingTarget?.device?.id
-                            }?.mutualConfirmed ==
-                            true
+                    val complete = directory.identities.firstOrNull {
+                        it.id == pairingTarget?.identity
+                    }?.devices?.firstOrNull {
+                        it.id == pairingTarget?.device?.id
+                    }?.mutualConfirmed == true
                     Text(
                         stringResource(
-                            if (complete) {
-                                R.string.partner_connected_body
-                            } else {
-                                R.string.partner_pending_hint
-                            }
+                            if (complete) R.string.partner_linked else R.string.partner_pending_hint
                         )
                     )
-                }
-                Button({
-                    model.invitation.value = null
-                    scan.launch(partnerScanOptions())
-                }, enabled = !busy) {
-                    Text(stringResource(R.string.partner_scan))
                 }
             }
         }
@@ -614,6 +598,26 @@ fun PartnerScreen(padding: PaddingValues) {
                     { model.pair(profileName) },
                     { model.candidate.value = null }
                 )
+                Text(stringResource(R.string.partner_verification_invitation_hint))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton({
+                        model.run {
+                            val value = model.repository.invitation(profileName)
+                            withContext(Dispatchers.Main) {
+                                savingInvitation = value
+                                saveInvitation.launch("ritela-invitation.ritela")
+                            }
+                        }
+                    }, enabled = !busy) { Text(stringResource(R.string.partner_save_invitation)) }
+                    TextButton({
+                        model.run {
+                            val value = model.repository.invitation(profileName)
+                            withContext(Dispatchers.Main) {
+                                PartnerFiles.shareInvitation(context, session.profileId, value)
+                            }
+                        }
+                    }, enabled = !busy) { Text(stringResource(R.string.partner_share_invitation)) }
+                }
             }
         }
         identity?.let { source ->
@@ -678,21 +682,31 @@ fun PartnerScreen(padding: PaddingValues) {
         }
         if (phones) {
             PartnerModal(stringResource(R.string.partner_where), { phones = false }) {
-                Text(stringResource(R.string.partner_pair_android))
-                FlowRow {
-                    ExchangeEdge.entries.forEach { side ->
-                        TextButton({ edge = side }) {
-                            Text(
-                                (
-                                    if (edge ==
-                                        side
-                                    ) {
-                                        "• "
-                                    } else {
-                                        ""
-                                    }
-                                    ) + stringResource(PartnerFormatter.edge(side))
-                            )
+                Text(
+                    stringResource(
+                        if (pairingBluetooth) {
+                            R.string.partner_invitation_bluetooth_hint
+                        } else {
+                            R.string.partner_pair_android
+                        }
+                    )
+                )
+                if (!pairingBluetooth) {
+                    FlowRow {
+                        ExchangeEdge.entries.forEach { side ->
+                            TextButton({ edge = side }) {
+                                Text(
+                                    (
+                                        if (edge ==
+                                            side
+                                        ) {
+                                            "• "
+                                        } else {
+                                            ""
+                                        }
+                                        ) + stringResource(PartnerFormatter.edge(side))
+                                )
+                            }
                         }
                     }
                 }
@@ -702,10 +716,14 @@ fun PartnerScreen(padding: PaddingValues) {
                         {
                             phones = false
                             showExchange = true
-                            model.send(phone.address, edge, context.displayRotation())
+                            if (pairingBluetooth) {
+                                model.exchangeInvitation(phone.address, profileName)
+                            } else {
+                                model.send(phone.address, edge, context.displayRotation())
+                            }
                         },
                         enabled =
-                            !busy && packet != null
+                            !busy && (pairingBluetooth || packet != null)
                     ) { Text(phone.name) }
                 }
                 TextButton({
@@ -774,7 +792,3 @@ internal fun PartnerModal(
         }
     }
 }
-
-internal fun partnerScanOptions(): ScanOptions = ScanOptions()
-    .setDesiredBarcodeFormats(ScanOptions.QR_CODE).setBeepEnabled(false)
-    .setCaptureActivity(PartnerCaptureActivity::class.java).setOrientationLocked(false)

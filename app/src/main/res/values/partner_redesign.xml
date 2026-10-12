@@ -24,6 +24,6 @@
     <string name="partner_wait_send">Waiting to send</string>
     <string name="partner_preview_recipient">Recipient: %1$s</string>
     <string name="partner_preview_dates">Period: %1$s — %2$s</string>
-    <string name="partner_file_confirm">Open the received exchange for the current user?</string>
+    <string name="partner_file_confirm">Open this Ritela invitation or exchange for the current user?</string>
     <string name="partner_note_category">Notes</string>
 </resources>

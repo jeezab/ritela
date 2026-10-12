@@ -1,6 +1,5 @@
 package app.ritela
 
-import android.content.pm.ActivityInfo
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,14 +20,12 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.Density
 import app.ritela.ui.HomeTheme
-import app.ritela.ui.PartnerCaptureActivity
 import app.ritela.ui.PartnerConnectionCard
-import app.ritela.ui.PartnerQr
+import app.ritela.ui.PartnerInvitationActions
 import app.ritela.ui.PartnerReceiveCard
 import app.ritela.ui.PartnerReceivedCalendar
 import app.ritela.ui.PartnerVerificationContent
 import app.ritela.ui.PartnerWelcome
-import app.ritela.ui.partnerScanOptions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -111,7 +108,7 @@ class PartnerControlsTest {
         }
         listOf(
             R.string.partner_invite,
-            R.string.partner_scan,
+            R.string.partner_open_invitation,
             R.string.partner_import,
             R.string.partner_receive
         ).forEach { label ->
@@ -150,21 +147,49 @@ class PartnerControlsTest {
         assertEquals(0, actions)
     }
 
-    @Test fun qrExpandsAndClosesWithoutChangingInvitation() {
+    @Test fun invitationActionsAreAccessibleWithoutQrOrCamera() {
         compose.waitUntil(10000) {
             compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty()
         }
-        val bitmap = android.graphics.Bitmap.createBitmap(
-            16,
-            16,
-            android.graphics.Bitmap.Config.ARGB_8888
+        val actions = IntArray(5)
+        compose.activity.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(LocalDensity.current.density, 2f)
+            ) {
+                HomeTheme {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        PartnerInvitationActions(
+                            true,
+                            true,
+                            { actions[0]++ },
+                            { actions[1]++ },
+                            { actions[2]++ },
+                            { actions[3]++ },
+                            { actions[4]++ }
+                        )
+                    }
+                }
+            }
+        }
+        listOf(
+            R.string.partner_save_invitation,
+            R.string.partner_share_invitation,
+            R.string.partner_open_invitation,
+            R.string.partner_bluetooth,
+            R.string.partner_receive
+        ).forEach { label ->
+            compose.onNodeWithText(
+                compose.activity.getString(label)
+            ).performScrollTo().performClick()
+        }
+        assertEquals(listOf(1, 1, 1, 1, 1), actions.toList())
+        assertFalse(
+            compose.activity.packageManager.getPackageInfo(
+                compose.activity.packageName,
+                android.content.pm.PackageManager.GET_PERMISSIONS
+            )
+                .requestedPermissions.orEmpty().contains(android.Manifest.permission.CAMERA)
         )
-        compose.activity.setContent { HomeTheme { PartnerQr(bitmap) } }
-        compose.onNodeWithTag("partner-qr").performClick()
-        compose.onNodeWithTag("partner-qr-fullscreen").assertIsDisplayed()
-        compose.onNodeWithText(compose.activity.getString(R.string.partner_close)).performClick()
-        compose.onNodeWithTag("partner-qr-fullscreen").assertDoesNotExist()
-        compose.onNodeWithTag("partner-qr").assertIsDisplayed()
     }
 
     @Test fun twelveMonthForecastRemainsAccessibleInReadOnlyCalendar() {
@@ -213,13 +238,5 @@ class PartnerControlsTest {
             )
         )
             .assertIsDisplayed()
-    }
-
-    @Test fun scannerUsesOwnActivityAndDoesNotForceLandscape() {
-        val intent = partnerScanOptions().createScanIntent(compose.activity)
-        assertEquals(PartnerCaptureActivity::class.java.name, intent.component!!.className)
-        assertFalse(intent.getBooleanExtra("SCAN_ORIENTATION_LOCKED", true))
-        val info = compose.activity.packageManager.getActivityInfo(intent.component!!, 0)
-        assertEquals(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED, info.screenOrientation)
     }
 }

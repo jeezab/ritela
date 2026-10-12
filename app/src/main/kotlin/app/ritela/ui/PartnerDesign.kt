@@ -65,7 +65,7 @@ internal fun PartnerWelcome(add: () -> Unit) {
 }
 
 @Composable
-internal fun PartnerConnectionCard(enabled: Boolean, invite: () -> Unit, scan: () -> Unit) {
+internal fun PartnerConnectionCard(enabled: Boolean, invite: () -> Unit, open: () -> Unit) {
     var information by remember { mutableStateOf(false) }
     SettingsGroup {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -83,10 +83,10 @@ internal fun PartnerConnectionCard(enabled: Boolean, invite: () -> Unit, scan: (
         }
         PartnerCardActions(
             stringResource(R.string.partner_invite),
-            stringResource(R.string.partner_scan),
+            stringResource(R.string.partner_open_invitation),
             enabled,
             invite,
-            scan
+            open
         )
         Text(
             stringResource(R.string.partner_empty),
@@ -102,6 +102,42 @@ internal fun PartnerConnectionCard(enabled: Boolean, invite: () -> Unit, scan: (
             )
         }
     }
+}
+
+@Composable
+internal fun PartnerInvitationActions(
+    confirmation: Boolean,
+    enabled: Boolean,
+    save: () -> Unit,
+    share: () -> Unit,
+    open: () -> Unit,
+    sendBluetooth: () -> Unit,
+    receiveBluetooth: () -> Unit
+) {
+    Text(
+        stringResource(
+            if (confirmation) {
+                R.string.partner_confirm_invitation_hint
+            } else {
+                R.string.partner_invitation_hint
+            }
+        )
+    )
+    PartnerCardActions(
+        stringResource(R.string.partner_save_invitation),
+        stringResource(R.string.partner_share_invitation),
+        enabled,
+        save,
+        share
+    )
+    PartnerCardActions(
+        stringResource(R.string.partner_bluetooth),
+        stringResource(R.string.partner_receive),
+        enabled,
+        sendBluetooth,
+        receiveBluetooth
+    )
+    TextButton(open, enabled = enabled) { Text(stringResource(R.string.partner_open_invitation)) }
 }
 
 @Composable

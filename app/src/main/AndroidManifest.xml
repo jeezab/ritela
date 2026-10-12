@@ -5,7 +5,6 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:name=".RitelaApplication"
         android:allowBackup="false"
@@ -16,7 +15,6 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Ritela">
-        <activity android:name=".ui.PartnerCaptureActivity" android:exported="false" android:theme="@style/zxing_CaptureTheme" />
         <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.partner-files" android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/partner_file_paths" />
         </provider>

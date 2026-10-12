@@ -1,0 +1,9 @@
+<resources>
+    <string name="partner_invitation_bluetooth_hint">Сопрягите телефоны в настройках Bluetooth Android. На другом телефоне откройте «Моё приглашение» и нажмите «Получить по Bluetooth». Затем выберите этот телефон здесь.</string>
+    <string name="partner_verification_invitation_hint">Ещё не отправляли своё приглашение? Сохраните или отправьте его, чтобы партнёр увидел тот же код проверки.</string>
+    <string name="partner_open_invitation">Открыть приглашение</string>
+    <string name="partner_save_invitation">Сохранить приглашение</string>
+    <string name="partner_share_invitation">Отправить приглашение</string>
+    <string name="partner_invitation_hint">Отправьте приглашение файлом или обменяйтесь приглашениями по Bluetooth. Ваш календарь и личные записи в него не входят.</string>
+    <string name="partner_confirm_invitation_hint">В этом приглашении уже есть ваше подтверждение. Отправьте его партнёру, чтобы завершить подключение.</string>
+</resources>

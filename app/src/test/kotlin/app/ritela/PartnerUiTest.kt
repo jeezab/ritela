@@ -15,8 +15,11 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
+import app.ritela.data.LocalPartnerKeys
+import app.ritela.data.PairInvitation
 import app.ritela.domain.DayLog
 import app.ritela.domain.Doodle
+import app.ritela.domain.PartnerDevice
 import app.ritela.ui.DoodleEditor
 import app.ritela.ui.DoodleViewer
 import app.ritela.ui.HomeTheme
@@ -73,6 +76,38 @@ class PartnerUiTest {
         compose.onNodeWithTag("log-day").assertDoesNotExist()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_no_received))
             .assertIsDisplayed()
+    }
+
+    @Test fun pendingInvitationNavigatesToVerificationWithoutAddingContact() {
+        home()
+        val app = compose.activity.application as RitelaApplication
+        val session = app.profiles.session.value
+        val peer = LocalPartnerKeys.create()
+        // UI routing uses a prepared fixture; signed file validation is covered with in-memory keys.
+        compose.runOnIdle {
+            session.partnerModel.verificationCode.value = "4821 · 7053"
+            session.partnerModel.candidate.value = PairInvitation(
+                "Synthetic partner",
+                peer.identityId,
+                peer.identityPublic,
+                PartnerDevice(
+                    peer.deviceId,
+                    peer.devicePublic,
+                    peer.certificate(),
+                    java.util.UUID.randomUUID().toString(),
+                    peer.nonce,
+                    mutualConfirmed = false
+                ),
+                signedInvitation = peer.invitation("Synthetic partner")
+            )
+        }
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithTag("partner-confirm-code").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("partner-verification-code").assertIsDisplayed()
+        assertTrue(runBlocking { session.partner.snapshot().contacts.isEmpty() })
+        compose.onNodeWithTag("partner-reject-code").performScrollTo().performClick()
+        assertTrue(runBlocking { session.partner.snapshot().contacts.isEmpty() })
     }
 
     @Test fun recipientModeHidesOwnCalendarWithoutDeletingRecordsAndCanReturn() {

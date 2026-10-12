@@ -102,7 +102,6 @@ android {
 
 dependencies {
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.zxing.embedded)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.lifecycle.runtime.compose)

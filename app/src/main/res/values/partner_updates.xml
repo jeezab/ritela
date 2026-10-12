@@ -5,15 +5,13 @@
     <string name="partner_exchange_card">Data exchange</string>
     <string name="partner_exchange_hint">Encrypted file from afar or Bluetooth nearby.</string>
     <string name="partner_manual_exchange">Nothing syncs automatically. Each exchange is started by you.</string>
-    <string name="partner_onboarding_steps">1. Scan your partner’s invitation and confirm the code\n2. Show your invitation for your partner to scan. Compare the numbers on both screens - they must match\n3. Scan your partner’s updated invitation\n4. Done - on success you’ll see \"Connection confirmed\"!</string>
+    <string name="partner_onboarding_steps">By file:\n1. Create “My invitation” and save or share the .ritela file with your partner.\n2. Your partner opens it and saves their own invitation. Compare the codes — they must match.\n3. Both confirm the code and send the updated invitations back.\n4. Receive your partner’s confirmation — “Connection confirmed” appears.\n\nBy Bluetooth:\n1. Pair the phones in Android Bluetooth settings.\n2. Open “My invitation” on both phones. On one choose “Receive via Bluetooth”; on the other choose “Bluetooth” and the phone.\n3. Compare and confirm the codes on both phones.\n4. Exchange invitations via Bluetooth again to finish connecting. Your calendar and doodles are sent separately.</string>
     <string name="partner_connection_info">How to add a partner</string>
-    <string name="partner_show_qr_step">Show this invitation, then scan theirs.</string>
-    <string name="partner_confirm_qr_step">Your confirmation is in this QR code. Let them scan it, then scan their updated invitation.</string>
     <string name="partner_code_label">Verification code</string>
     <string name="partner_codes_differ">The codes do not match</string>
     <string name="partner_technical">Technical details</string>
     <string name="partner_pending_connection">Waiting for confirmation</string>
-    <string name="partner_pending_hint">Both phones must confirm the same code. Scan the updated invitation to finish connecting. Data exchange stays unavailable until then.</string>
+    <string name="partner_pending_hint">Confirm the same code on both phones and exchange the updated invitations by file or Bluetooth. Data exchange stays unavailable until both sides confirm.</string>
     <string name="partner_finish_connection">Finish connecting</string>
     <string name="partner_connected_body">You can now exchange data and little messages. Your next exchanges will check the trusted keys automatically.</string>
     <string name="partner_update_needed">For a new connection with a short verification code, update Ritela on the other phone. Existing trusted contacts keep working.</string>

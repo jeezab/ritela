@@ -7,7 +7,6 @@
 
     <string name="partner_error">Could not complete this action. Check the file, verified contact, device and permissions. Nothing was silently replaced.</string>
     <string name="partner_invite">My invitation</string>
-    <string name="partner_scan">Scan</string>
     <string name="partner_import">Open a Ritela file</string>
     <string name="partner_receive">Receive via Bluetooth</string>
     <string name="partner_group">Shared view</string>
@@ -46,7 +45,7 @@
     <string name="partner_prepare">Prepare exchange</string>
     <string name="partner_allow_exchange">Allow exchange with this identity</string>
     <string name="partner_device_enabled">Trust this device</string>
-    <string name="partner_new_device_hint">To add a phone, scan and verify its new invitation separately. Added devices reset data access until you grant it again.</string>
+    <string name="partner_new_device_hint">To add a phone, open its invitation and verify the code separately. Added devices reset data access until you grant it again.</string>
     <string name="partner_revoke">Revoke access</string>
     <string name="partner_clear">Clear received data</string>
     <string name="partner_delete">Delete contact</string>
