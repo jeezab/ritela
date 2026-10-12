@@ -79,7 +79,8 @@ data class PartnerMode(
     val show: Boolean = false,
     val recipient: Boolean = false,
     val ready: Boolean = false,
-    val failed: Boolean = false
+    val failed: Boolean = false,
+    val selected: String? = null
 )
 
 class PartnerPreferences(context: Context, profile: String) {
@@ -87,7 +88,14 @@ class PartnerPreferences(context: Context, profile: String) {
     private val store = PreferenceDataStoreFactory.create(scope = scope) {
         context.preferencesDataStoreFile("partner-$profile")
     }
-    val mode = store.data.map { PartnerMode(it[SHOW] ?: false, it[RECIPIENT] ?: false, true) }
+    val mode = store.data.map {
+        PartnerMode(
+            it[SHOW] ?: false,
+            it[RECIPIENT] ?: false,
+            true,
+            selected = it[SELECTED]
+        )
+    }
         .catch { error ->
             if (error is kotlinx.coroutines.CancellationException) throw error
             emit(PartnerMode(failed = true))
@@ -96,7 +104,13 @@ class PartnerPreferences(context: Context, profile: String) {
         store.edit { it[SHOW] = value }
     }
     suspend fun recipient(value: Boolean) {
-        store.edit { it[RECIPIENT] = value }
+        store.edit {
+            it[RECIPIENT] = value
+            if (value) it[SHOW] = true
+        }
+    }
+    suspend fun select(contact: String) {
+        store.edit { it[SELECTED] = contact }
     }
     suspend fun close() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.let {
@@ -107,5 +121,6 @@ class PartnerPreferences(context: Context, profile: String) {
     companion object {
         private val SHOW = booleanPreferencesKey("show")
         private val RECIPIENT = booleanPreferencesKey("recipient")
+        private val SELECTED = androidx.datastore.preferences.core.stringPreferencesKey("selected")
     }
 }

@@ -232,6 +232,15 @@ class PartnerRepository(
             )
         }
     }
+    suspend fun rename(contact: String, name: String) = mutate { directory ->
+        require(name.trim().length in 1..80)
+        require(directory.contacts.any { it.id == contact })
+        directory.copy(
+            contacts = directory.contacts.map {
+                if (it.id == contact) it.copy(name = name.trim()) else it
+            }
+        )
+    }
     suspend fun merge(a: String, b: String, name: String, group: Boolean) =
         mutate { it.merge(a, b, name, group) }
     suspend fun split(contact: String) = mutate { it.split(contact) }
@@ -289,6 +298,12 @@ class PartnerRepository(
             ).put("duration", analysis.periodDuration)
                 .put("phase", cycleSceneState(analysis, LocalDate.now()).phase.name)
                 .put("asOf", LocalDate.now().toEpochDay())
+                .put("calculatedAt", System.currentTimeMillis())
+                .put("algorithm", "ritela-local-1")
+                .put(
+                    "cycleLength",
+                    analysis.forecasts.firstOrNull()?.cycleMedian ?: JSONObject.NULL
+                )
         }
         val diary = ShareCategory.DIARY in selection.categories
         if (diary || ShareCategory.SECTIONS in selection.categories ||
@@ -729,7 +744,7 @@ class PartnerRepository(
             }
         }
         content.optJSONArray("forecasts")?.let { array ->
-            require(ShareCategory.FORECASTS in scope.categories && array.length() <= 16)
+            require(ShareCategory.FORECASTS in scope.categories && array.length() <= 366)
             PartnerCodec.objects(array).forEach {
                 listOf("start", "lower", "upper", "ovulation").forEach { key ->
                     day(it.getLong(key))
@@ -746,7 +761,8 @@ class PartnerRepository(
             content.keys().asSequence().all {
                 it in setOf(
                     "scope", "periods", "days", "labels", "forecasts",
-                    "cycleDay", "duration", "settings", "phase", "asOf"
+                    "cycleDay", "duration", "settings", "phase", "asOf",
+                    "calculatedAt", "algorithm", "cycleLength"
                 )
             }
         )
@@ -766,6 +782,9 @@ class PartnerRepository(
         if (content.has("phase")) EstimatedCyclePhase.valueOf(content.getString("phase"))
         if (content.has("asOf")) day(content.getLong("asOf"))
         if (content.has("duration")) require(content.getInt("duration") in 1..60)
+        if (content.has("calculatedAt")) require(content.getLong("calculatedAt") >= 0)
+        if (content.has("algorithm")) require(content.getString("algorithm").length in 1..80)
+        if (!content.isNull("cycleLength")) require(content.getInt("cycleLength") in 1..400000)
         if (!content.isNull("cycleDay")) require(content.getLong("cycleDay") in 1..400000)
     }
 }

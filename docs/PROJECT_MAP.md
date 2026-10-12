@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-12: domain/PartnerSharing.kt — granular draft на прежнем ShareScope; ui/PartnerSharing.kt — разрешения и выбор передачи. data/PartnerSnapshot.kt — полученный DATA без нового расчёта; ui/PartnerHome.kt/PartnerReceivedCalendar.kt — отдельные Today/Calendar с MonthGrid. PartnerSecuritySettings.kt — перенос ключей/Bluetooth/grants/единственные технические подробности; PartnerQr.kt — полный экран QR; PartnerExternalFile.kt/MainActivity — подтверждённые VIEW/SEND content URI. Новые сценарии: PartnerRefinementTest/PartnerControlsTest. Подробности — PARTNER_UX_REWORK.md. Room v5 прежняя.
+
 2026-10-11: `data/PartnerPairing.kt` — канонический контекст подключения и короткий код; PartnerRepository/PartnerCodec/PartnerDevice — сохранение локального и взаимного доверия без изменения Room. `ui/PartnerDesign.kt` — onboarding, действия, карточка близкого и проверка кода с Compose Previews; `ui/PartnerCaptureActivity.kt` — сканер без принудительного landscape. PartnerPairingTest/PartnerControlsTest проверяют протокол, совместимость и кнопки. Исходные требования: [промпт](prompts/2026-10-11-partner-onboarding.txt).
 
 2026-10-11: HelpCards.articleWeights/rankedArticles используют последние 14 дней своих записей; Home и полный каталог разделяют порядок. HelpArticlesTest проверяет затухание, срочный приоритет и исключение будущих/старых событий.

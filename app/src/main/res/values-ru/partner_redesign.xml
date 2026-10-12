@@ -1,0 +1,29 @@
+<resources>
+    <string name="partner_unconnected">Не подключена</string>
+    <string name="partner_connected">Подключена</string>
+    <string name="partner_application_mode">Режим приложения</string>
+    <string name="partner_my_calendar">Мой календарь</string>
+    <string name="partner_my_calendar_hint">Ведение цикла, дневник и прогнозы</string>
+    <string name="partner_recipient_hint">Отслеживайте цикл близкого человека</string>
+    <string name="partner_mode_hint">Режим можно изменить в любой момент. Ваши записи сохранятся</string>
+    <string name="partner_clear_selection">Снять выбор</string>
+    <string name="partner_cycle_only">Только цикл</string>
+    <string name="partner_cycle_forecasts">Цикл и прогнозы</string>
+    <string name="partner_manual_selection">Выбрать вручную</string>
+    <string name="partner_category_details">Подробнее</string>
+    <string name="partner_cycle_category">Месячные и история</string>
+    <string name="partner_forecast_category">Прогнозы и фазы</string>
+    <string name="partner_diary_hint">Выберите разделы и отдельные теги</string>
+    <string name="partner_periods_hint">Отмеченные даты месячных</string>
+    <string name="partner_forecasts_hint">Расчётные даты и диапазоны на следующие 12 месяцев</string>
+    <string name="partner_settings_hint">Только язык и оформление</string>
+    <string name="partner_no_received">Полученных данных пока нет</string>
+    <string name="partner_snapshot_hint">По данным на %1$s</string>
+    <string name="partner_calendar_view">Открыть календарь</string>
+    <string name="partner_received_status">Получено</string>
+    <string name="partner_wait_send">Ожидает отправки</string>
+    <string name="partner_preview_recipient">Получатель: %1$s</string>
+    <string name="partner_preview_dates">Период: %1$s — %2$s</string>
+    <string name="partner_file_confirm">Открыть полученный обмен для текущего пользователя?</string>
+    <string name="partner_note_category">Заметки</string>
+</resources>

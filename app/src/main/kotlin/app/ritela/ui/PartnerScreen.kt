@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -36,10 +37,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -74,26 +78,55 @@ fun PartnerSettings() {
     val mode by session.partnerPreferences.mode.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     SettingsGroup {
-        Text(stringResource(R.string.partner_mode), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.partner_application_mode),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(
+                !mode.recipient,
+                {
+                    scope.launch { session.partnerPreferences.recipient(false) }
+                },
+                Modifier.testTag("partner-own-mode")
+            )
+            Column {
+                Text(stringResource(R.string.partner_my_calendar))
+                Text(
+                    stringResource(R.string.partner_my_calendar_hint),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(
+                mode.recipient,
+                {
+                    scope.launch { session.partnerPreferences.recipient(true) }
+                },
+                Modifier.testTag("partner-recipient")
+            )
+            Column {
+                Text(stringResource(R.string.partner_mode))
+                Text(
+                    stringResource(R.string.partner_recipient_hint),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        Text(stringResource(R.string.partner_mode_hint), style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.partner_show), Modifier.weight(1f))
             Switch(
-                mode.show,
+                mode.show || mode.recipient,
                 { scope.launch { session.partnerPreferences.show(it) } },
-                modifier = Modifier.testTag("partner-show")
-            )
-        }
-        TextButton(onClick = {
-            scope.launch { session.partnerPreferences.recipient(!mode.recipient) }
-        }, modifier = Modifier.testTag("partner-recipient")) {
-            Text(
-                stringResource(
-                    if (mode.recipient) R.string.partner_normal else R.string.partner_login
-                )
+                modifier = Modifier.testTag("partner-show"),
+                enabled = !mode.recipient
             )
         }
         Text(stringResource(R.string.partner_private), style = MaterialTheme.typography.bodySmall)
     }
+    PartnerSecuritySettings()
 }
 
 @Composable
@@ -110,24 +143,24 @@ fun PartnerScreen(padding: PaddingValues) {
     val candidate by model.candidate.collectAsStateWithLifecycle()
     val packet by model.packet.collectAsStateWithLifecycle()
     val exchange by model.bluetooth.state.collectAsStateWithLifecycle()
-    val ownId by model.identityId.collectAsStateWithLifecycle()
+    val activePeer by model.bluetooth.activePeer.collectAsStateWithLifecycle()
     val code by model.verificationCode.collectAsStateWithLifecycle()
     val pairingTarget by model.pairingTarget.collectAsStateWithLifecycle()
     val connectedNotice by model.connectedNotice.collectAsStateWithLifecycle()
     val legacyInvitation by model.legacyInvitation.collectAsStateWithLifecycle()
     var onboarding by remember { mutableStateOf(false) }
-    var technical by remember { mutableStateOf(false) }
     val profileName = (context.applicationContext as RitelaApplication).profiles.registry.profiles
         .collectAsStateWithLifecycle().value.firstOrNull {
             it.id == session.profileId
         }?.name.orEmpty()
     val periodState by session.model.uiState.collectAsStateWithLifecycle()
-    var selected by remember { mutableStateOf<String?>(null) }
+    val preferences by session.partnerPreferences.mode.collectAsStateWithLifecycle()
+    val selected = preferences.selected
+    val scope = rememberCoroutineScope()
     var deviceSelection by remember { mutableStateOf<String?>(null) }
     var identitySelection by remember { mutableStateOf<String?>(null) }
     var manage by remember { mutableStateOf(false) }
     var sharing by remember { mutableStateOf(false) }
-    var granting by remember { mutableStateOf(false) }
     var drawing by remember { mutableStateOf(false) }
     var dataViewing by remember { mutableStateOf<PartnerMessage?>(null) }
     var galleryLimit by remember { androidx.compose.runtime.mutableIntStateOf(24) }
@@ -135,10 +168,7 @@ fun PartnerScreen(padding: PaddingValues) {
     var transport by remember { mutableStateOf(false) }
     var phones by remember { mutableStateOf(false) }
     var edge by remember { mutableStateOf(ExchangeEdge.RIGHT) }
-    var showExchange by remember { mutableStateOf(false) }
-    var keyTransfer by remember { mutableStateOf(false) }
-    var keyPassword by remember { mutableStateOf("") }
-    var keyRestore by remember { mutableStateOf(false) }
+    var showExchange by rememberSaveable { mutableStateOf(false) }
     var fileStatus by remember { mutableStateOf(false) }
     val activeSession = {
         (context.applicationContext as RitelaApplication).profiles.session.value.token ==
@@ -156,36 +186,6 @@ fun PartnerScreen(padding: PaddingValues) {
                     }
                     fileStatus = true
                 }
-            }
-        }
-    val exportKey =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.CreateDocument("application/octet-stream")
-        ) { uri ->
-            val password = keyPassword.toCharArray()
-            keyPassword = ""
-            if (uri != null && activeSession()) {
-                model.run {
-                    val bytes = model.repository.exportIdentity(password)
-                    requireNotNull(context.contentResolver.openOutputStream(uri)).use {
-                        it.write(bytes)
-                    }
-                }
-            } else {
-                password.fill('\u0000')
-            }
-        }
-    val importKey =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            val password = keyPassword.toCharArray()
-            keyPassword = ""
-            if (uri != null && activeSession()) {
-                model.run {
-                    model.repository.restoreIdentity(PartnerFiles.read(context, uri), password)
-                    model.identityId.value = model.repository.identity().identityId
-                }
-            } else {
-                password.fill('\u0000')
             }
         }
     val scan = rememberLauncherForActivityResult(ScanContract()) { result ->
@@ -291,7 +291,7 @@ fun PartnerScreen(padding: PaddingValues) {
             }
             directory.contacts.forEach { item ->
                 TextButton({
-                    selected = item.id
+                    scope.launch { session.partnerPreferences.select(item.id) }
                     identitySelection = null
                 }, Modifier.fillMaxWidth()) {
                     RadioButton(item.id == contact?.id, null)
@@ -307,7 +307,13 @@ fun PartnerScreen(padding: PaddingValues) {
                             if (identity?.exchangeEnabled == true &&
                                 device != null
                             ) {
-                                R.string.partner_linked
+                                if (activePeer in
+                                    item.identities
+                                ) {
+                                    R.string.partner_connected
+                                } else {
+                                    R.string.partner_unconnected
+                                }
                             } else if (identity?.exchangeEnabled ==
                                 true
                             ) {
@@ -332,6 +338,18 @@ fun PartnerScreen(padding: PaddingValues) {
                                 PartnerFormatter(resources).exchange(it.received),
                                 style = MaterialTheme.typography.bodySmall
                             )
+                        }
+                        FlowRow {
+                            Button(
+                                { sharing = true },
+                                enabled =
+                                    !busy && !item.group && device != null && source.exchangeEnabled
+                            ) {
+                                Text(stringResource(R.string.partner_exchange))
+                            }
+                            TextButton({
+                                manage = true
+                            }, enabled = !busy) { Text(stringResource(R.string.partner_manage)) }
                         }
                         val latest = messages.filter {
                             !it.outgoing && it.identity == source.id &&
@@ -372,23 +390,6 @@ fun PartnerScreen(padding: PaddingValues) {
                                 Text(stringResource(R.string.partner_finish_connection))
                             }
                         }
-                        FlowRow {
-                            TextButton({
-                                granting = true
-                            }, enabled = !busy && !item.group && device != null) {
-                                Text(stringResource(R.string.partner_access))
-                            }
-                            Button(
-                                { sharing = true },
-                                enabled =
-                                    !busy && !item.group && device != null && source.exchangeEnabled
-                            ) {
-                                Text(stringResource(R.string.partner_exchange))
-                            }
-                            TextButton({
-                                manage = true
-                            }, enabled = !busy) { Text(stringResource(R.string.partner_manage)) }
-                        }
                         PartnerActionCard(
                             stringResource(R.string.partner_doodle),
                             stringResource(R.string.partner_doodle_hint),
@@ -405,39 +406,41 @@ fun PartnerScreen(padding: PaddingValues) {
                 )
                 val gallery = messages.filter {
                     it.identity in item.identities &&
-                        it.kind in listOf("DOODLE", "DATA", "ACK", "OPENED") &&
+                        it.kind == "DOODLE" &&
                         it.body.isNotEmpty()
                 }
                 gallery.take(galleryLimit).forEach { message ->
                     SettingsGroup {
-                        val senderName = directory.identities.firstOrNull {
-                            it.id ==
-                                message.identity
-                        }?.name.orEmpty()
-                        Text(
-                            senderName + " · " +
-                                stringResource(
-                                    if (message.outgoing) {
-                                        R.string.partner_sent
-                                    } else {
-                                        R.string.partner_received
-                                    }
-                                )
-                        )
+                        val senderName = if (message.outgoing) {
+                            profileName
+                        } else {
+                            directory.identities.firstOrNull {
+                                it.id ==
+                                    message.identity
+                            }?.name.orEmpty()
+                        }
+                        Text(senderName, style = MaterialTheme.typography.titleMedium)
                         Text(
                             PartnerFormatter(resources).message(message),
                             style = MaterialTheme.typography.bodySmall
                         )
-                        if (message.kind == "DATA") {
-                            TextButton({ dataViewing = message }) {
-                                Text(stringResource(R.string.partner_view_data))
-                            }
-                        }
                         if (message.kind == "DOODLE") {
                             val doodle =
                                 remember(message.body) {
                                     PartnerCodec.doodle(JSONObject(message.body))
                                 }
+                            if (message.outgoing || message.opened) {
+                                androidx.compose.foundation.Canvas(
+                                    Modifier.fillMaxWidth().heightIn(min = 130.dp)
+                                        .graphicsLayer {
+                                            compositingStrategy =
+                                                CompositingStrategy.Offscreen
+                                        }
+                                ) {
+                                    drawDoodle(doodle.strokes)
+                                }
+                                if (doodle.caption.isNotBlank()) Text(doodle.caption)
+                            }
                             if (message.outgoing || message.opened ||
                                 doodle.canOpen(message.received, now)
                             ) {
@@ -475,6 +478,7 @@ fun PartnerScreen(padding: PaddingValues) {
             }
             if (messages.count {
                     it.identity in contact?.identities.orEmpty() &&
+                        it.kind == "DOODLE" &&
                         it.body.isNotEmpty()
                 } >
                 galleryLimit
@@ -489,9 +493,6 @@ fun PartnerScreen(padding: PaddingValues) {
                     requestBluetooth(true)
                 })
             }
-            TextButton({
-                keyTransfer = true
-            }, enabled = !busy) { Text(stringResource(R.string.partner_identity)) }
             Text(
                 stringResource(R.string.partner_limits),
                 style = MaterialTheme.typography.bodySmall
@@ -555,13 +556,7 @@ fun PartnerScreen(padding: PaddingValues) {
                         }
                     }
                 }
-                bitmap?.let {
-                    Image(
-                        it.asImageBitmap(),
-                        stringResource(R.string.partner_invite),
-                        Modifier.fillMaxWidth()
-                    )
-                }
+                bitmap?.let { PartnerQr(it) }
                 Text(
                     stringResource(
                         if (pairingTarget ==
@@ -591,15 +586,6 @@ fun PartnerScreen(padding: PaddingValues) {
                         )
                     )
                 }
-                TextButton({
-                    technical = !technical
-                }) { Text(stringResource(R.string.partner_technical)) }
-                if (technical) {
-                    Text(
-                        ownId.chunked(8).joinToString(" "),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
                 Button({
                     model.invitation.value = null
                     scan.launch(partnerScanOptions())
@@ -624,22 +610,13 @@ fun PartnerScreen(padding: PaddingValues) {
             }
         }
         identity?.let { source ->
-            if (granting) {
-                PartnerScopeDialog(periodState.journalLayout, null, source.grants, true, {
-                    granting =
-                        false
-                }) { selection ->
-                    model.run { model.repository.grant(source.id, selection) }
-                    granting = false
-                }
-            }
             if (sharing &&
                 device != null
             ) {
                 PartnerScopeDialog(periodState.journalLayout, source.grants, ShareScope(), false, {
                     sharing =
                         false
-                }) { selection ->
+                }, source.name) { selection ->
                     model.data(source.id, device.id, selection)
                     sharing = false
                 }
@@ -744,67 +721,6 @@ fun PartnerScreen(padding: PaddingValues) {
             }) {
                 PartnerFileGlow()
                 Text(stringResource(R.string.partner_file_received))
-            }
-        }
-        if (keyTransfer) {
-            PartnerModal(stringResource(R.string.partner_your_devices), {
-                keyPassword = ""
-                keyTransfer =
-                    false
-            }) {
-                Text(stringResource(R.string.partner_identity_hint))
-                TextButton({
-                    technical = !technical
-                }) { Text(stringResource(R.string.partner_technical)) }
-                if (technical) {
-                    Text(
-                        ownId.chunked(8).joinToString(" "),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                OutlinedTextField(
-                    keyPassword,
-                    {
-                        if (it.length <=
-                            256
-                        ) {
-                            keyPassword = it
-                        }
-                    },
-                    label = { Text(stringResource(R.string.partner_password)) },
-                    visualTransformation =
-                        androidx.compose.ui.text.input.PasswordVisualTransformation()
-                )
-                Button(
-                    {
-                        keyTransfer = false
-                        exportKey.launch("identity.ritela")
-                    },
-                    enabled =
-                        keyPassword.length >= 4 && !busy
-                ) {
-                    Text(stringResource(R.string.partner_export_identity))
-                }
-                Button(
-                    { keyRestore = true },
-                    enabled =
-                        keyPassword.length >= 4 && directory.identities.isEmpty() && !busy
-                ) {
-                    Text(stringResource(R.string.partner_restore_identity))
-                }
-            }
-        }
-        if (keyRestore) {
-            PartnerModal(stringResource(R.string.partner_restore_identity), {
-                keyRestore =
-                    false
-            }) {
-                Text(stringResource(R.string.partner_restore_confirm))
-                Button({
-                    keyTransfer = false
-                    keyRestore = false
-                    importKey.launch(arrayOf("*/*"))
-                }) { Text(stringResource(R.string.partner_continue)) }
             }
         }
     }

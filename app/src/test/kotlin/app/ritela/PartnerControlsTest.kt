@@ -11,17 +11,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.Density
 import app.ritela.ui.HomeTheme
 import app.ritela.ui.PartnerCaptureActivity
 import app.ritela.ui.PartnerConnectionCard
+import app.ritela.ui.PartnerQr
 import app.ritela.ui.PartnerReceiveCard
+import app.ritela.ui.PartnerReceivedCalendar
 import app.ritela.ui.PartnerVerificationContent
 import app.ritela.ui.PartnerWelcome
 import app.ritela.ui.partnerScanOptions
@@ -79,8 +83,8 @@ class PartnerControlsTest {
         compose.onNodeWithText(add).performScrollTo().performClick()
         compose.onNodeWithText(
             compose.activity.getString(R.string.partner_technical)
-        ).performScrollTo().performClick()
-        compose.onNodeWithText(details).performScrollTo().assertIsDisplayed()
+        ).assertDoesNotExist()
+        compose.onNodeWithText(details).assertDoesNotExist()
         compose.onNodeWithTag("partner-confirm-code").performScrollTo().performClick()
         assertTrue(confirmed)
     }
@@ -144,6 +148,71 @@ class PartnerControlsTest {
                 .config[androidx.compose.ui.semantics.SemanticsProperties.Text].single().text
         )
         assertEquals(0, actions)
+    }
+
+    @Test fun qrExpandsAndClosesWithoutChangingInvitation() {
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty()
+        }
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            16,
+            16,
+            android.graphics.Bitmap.Config.ARGB_8888
+        )
+        compose.activity.setContent { HomeTheme { PartnerQr(bitmap) } }
+        compose.onNodeWithTag("partner-qr").performClick()
+        compose.onNodeWithTag("partner-qr-fullscreen").assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_close)).performClick()
+        compose.onNodeWithTag("partner-qr-fullscreen").assertDoesNotExist()
+        compose.onNodeWithTag("partner-qr").assertIsDisplayed()
+    }
+
+    @Test fun twelveMonthForecastRemainsAccessibleInReadOnlyCalendar() {
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithTag("nav-today").fetchSemanticsNodes().isNotEmpty()
+        }
+        val today = java.time.LocalDate.now()
+        val dates = (1..12).map { today.plusMonths(it.toLong()).withDayOfMonth(10) }
+        val forecasts = org.json.JSONArray(
+            dates.map {
+                org.json.JSONObject().put(
+                    "start",
+                    it.toEpochDay()
+                ).put("lower", it.minusDays(2).toEpochDay())
+                    .put(
+                        "upper",
+                        it.plusDays(2).toEpochDay()
+                    ).put("ovulation", it.minusDays(14).toEpochDay())
+            }
+        )
+        val snapshot = app.ritela.data.PartnerSnapshot(
+            org.json.JSONObject().put("forecasts", forecasts)
+        )
+        compose.activity.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(LocalDensity.current.density, 2f)
+            ) {
+                HomeTheme { PartnerReceivedCalendar(snapshot) }
+            }
+        }
+        val day = "partner-calendar-day-${dates.last()}"
+        compose.onNodeWithTag("partner-received-calendar").performScrollToNode(hasTestTag(day))
+        compose.onNodeWithTag(day).assertIsDisplayed().performClick()
+        compose.onNodeWithText(
+            compose.activity.getString(
+                R.string.partner_forecast_row,
+                app.ritela.ui.PartnerFormatter(
+                    compose.activity.resources
+                ).date(dates.last().toEpochDay()),
+                app.ritela.ui.PartnerFormatter(
+                    compose.activity.resources
+                ).date(dates.last().minusDays(2).toEpochDay()),
+                app.ritela.ui.PartnerFormatter(
+                    compose.activity.resources
+                ).date(dates.last().plusDays(2).toEpochDay())
+            )
+        )
+            .assertIsDisplayed()
     }
 
     @Test fun scannerUsesOwnActivityAndDoesNotForceLandscape() {

@@ -922,7 +922,7 @@ fun MonthYearPicker(
 }
 
 @Composable
-private fun dayKindText(kind: CalendarDayKind): String = CalendarDayFormatter(
+internal fun dayKindText(kind: CalendarDayKind): String = CalendarDayFormatter(
     androidx.compose.ui.platform.LocalResources.current,
     LocalConfiguration.current.locales[0]
 ).status(kind)
