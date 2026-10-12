@@ -5,12 +5,11 @@ Set-StrictMode -Version Latest
 $projectRoot = Split-Path -Parent $PSScriptRoot
 
 if (-not $SkipRender) {
-    & (Join-Path $PSScriptRoot 'gradle.ps1') testDebugUnitTest --tests app.ritela.HomeScreenTest --rerun-tasks
+    & (Join-Path $PSScriptRoot 'gradle.ps1') testDebugUnitTest --tests app.ritela.HomeScreenTest --tests app.ritela.PartnerMessengerTest --rerun-tasks
 }
 
 $directory = Join-Path $projectRoot 'app/build/reports/screenshots'
 $labels = [ordered]@{
-    'partner-messenger-before' = 'Партнёр · до переработки'
     'partner-messenger-empty' = 'Переписка · пустой диалог'
     'partner-messenger-data' = 'Переписка · обмен данными'
     'partner-messenger-doodle' = 'Переписка · полученный дудл'
@@ -101,6 +100,10 @@ $labels = [ordered]@{
     'calendar-day-details-dark' = 'Подробности дня · тёмная тема'
     'calendar-free-scroll' = 'Календарь · свободная прокрутка'
     'home-sparklines' = 'Ваш цикл · выбор измерения'
+}
+# The historical baseline is captured locally once, not produced by current tests.
+if (Test-Path -LiteralPath (Join-Path $directory 'partner-messenger-before.png')) {
+    $labels['partner-messenger-before'] = 'Партнёр · до переработки'
 }
 $cards = foreach ($name in $labels.Keys) {
     $path = Join-Path $directory "$name.png"
