@@ -62,7 +62,7 @@ internal fun PartnerExchangeScene(state: ExchangeState, dismiss: () -> Unit) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val reduced = orbitReducedMotion()
     val tilt = remember { HeartTilt() }
-    val physics = remember(state.incoming, state.edge) { HeartPhysics() }
+    val physics = remember { HeartPhysics() }
     var tick by remember { mutableLongStateOf(0L) }
     var last = remember { 0L }
     val rotation = context.displayRotation()
@@ -70,10 +70,7 @@ internal fun PartnerExchangeScene(state: ExchangeState, dismiss: () -> Unit) {
         val manager = context.getSystemService(SensorManager::class.java)
         val sensor = manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         fun register() {
-            if (!reduced && state.phase !in listOf(
-                    ExchangePhase.ACKNOWLEDGED,
-                    ExchangePhase.FAILED
-                ) &&
+            if (!reduced && state.phase != ExchangePhase.FAILED &&
                 sensor != null
             ) {
                 manager.registerListener(tilt, sensor, SensorManager.SENSOR_DELAY_GAME)
@@ -92,16 +89,10 @@ internal fun PartnerExchangeScene(state: ExchangeState, dismiss: () -> Unit) {
     }
     LaunchedEffect(reduced, state.phase) {
         if (!reduced && state.phase != ExchangePhase.FAILED) {
-            var started = 0L
             while (true) {
-                var finish = false
                 withFrameNanos { frame ->
-                    if (started == 0L) started = frame
                     if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) tick = frame
-                    finish =
-                        state.phase == ExchangePhase.ACKNOWLEDGED && frame - started >= 1200000000L
                 }
-                if (finish) break
                 kotlinx.coroutines.delay(16)
             }
         }
@@ -118,13 +109,6 @@ internal fun PartnerExchangeScene(state: ExchangeState, dismiss: () -> Unit) {
                     3 -> tilt.y to -tilt.x
                     else -> tilt.x to tilt.y
                 }
-                val edge = if (state.phase in
-                    listOf(ExchangePhase.TRANSFERRING, ExchangePhase.ACKNOWLEDGED)
-                ) {
-                    state.edge
-                } else {
-                    null
-                }
                 physics.step(
                     size.width,
                     size.height,
@@ -132,7 +116,7 @@ internal fun PartnerExchangeScene(state: ExchangeState, dismiss: () -> Unit) {
                     gravity.first,
                     gravity.second,
                     tilt.shake,
-                    edge,
+                    null,
                     state.incoming
                 )
                 val colors =
@@ -185,6 +169,24 @@ internal fun PartnerExchangeScene(state: ExchangeState, dismiss: () -> Unit) {
                     ),
                     style = MaterialTheme.typography.headlineSmall
                 )
+                if (state.phase == ExchangePhase.ACKNOWLEDGED) {
+                    Canvas(Modifier.padding(12.dp).size(48.dp)) {
+                        val check = Path().apply {
+                            moveTo(size.width * .18f, size.height * .52f)
+                            lineTo(size.width * .42f, size.height * .76f)
+                            lineTo(size.width * .85f, size.height * .24f)
+                        }
+                        drawPath(
+                            check,
+                            Color(0xff81ba86),
+                            style =
+                                androidx.compose.ui.graphics.drawscope.Stroke(
+                                    width = 5.dp.toPx(),
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                )
+                        )
+                    }
+                }
                 TextButton(dismiss) { Text(stringResource(R.string.partner_close)) }
             }
         }
