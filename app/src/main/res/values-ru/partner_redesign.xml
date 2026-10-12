@@ -24,6 +24,6 @@
     <string name="partner_wait_send">Ожидает отправки</string>
     <string name="partner_preview_recipient">Получатель: %1$s</string>
     <string name="partner_preview_dates">Период: %1$s — %2$s</string>
-    <string name="partner_file_confirm">Открыть полученный обмен для текущего пользователя?</string>
+    <string name="partner_file_confirm">Открыть приглашение или обмен Ritela для текущего пользователя?</string>
     <string name="partner_note_category">Заметки</string>
 </resources>

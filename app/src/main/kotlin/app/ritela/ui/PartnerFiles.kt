@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import app.ritela.data.PartnerCrypto
+import app.ritela.data.PartnerInvitationFile
 import app.ritela.data.PartnerMessage
 import java.io.File
 
@@ -26,12 +27,28 @@ object PartnerFiles {
             bytes
         }
     fun share(context: Context, profile: String, message: PartnerMessage) {
+        shareBytes(context, profile, "${message.id}.ritela", message.envelope.toByteArray())
+    }
+    fun shareInvitation(context: Context, profile: String, invitation: String) {
+        shareBytes(
+            context,
+            profile,
+            "invitation-${java.util.UUID.randomUUID()}.ritela",
+            PartnerInvitationFile.encode(invitation)
+        )
+    }
+    fun saveInvitation(context: Context, uri: Uri, invitation: String) {
+        requireNotNull(context.contentResolver.openOutputStream(uri)).use {
+            it.write(PartnerInvitationFile.encode(invitation))
+        }
+    }
+    private fun shareBytes(context: Context, profile: String, filename: String, bytes: ByteArray) {
         require(java.util.UUID.fromString(profile).toString() == profile)
         val directory = File(context.cacheDir, "partner/$profile").apply {
             check(mkdirs() || isDirectory)
         }
-        // Only ciphertext is exposed through the narrow cache FileProvider root.
-        val file = File(directory, "${message.id}.ritela").apply { writeText(message.envelope) }
+        // The narrow provider exposes only ciphertext or signed public invitations, never secrets.
+        val file = File(directory, filename).apply { writeBytes(bytes) }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.partner-files", file)
         val send = Intent(
             Intent.ACTION_SEND

@@ -60,11 +60,7 @@ internal fun PartnerExternalImport() {
                 TextButton({
                     request.uri.value = null
                     session.partnerModel.run {
-                        val received = session.partner.receive(PartnerFiles.read(context, file))
-                        if (received.message.kind in listOf("DATA", "DOODLE")) {
-                            session.partnerModel.packet.value =
-                                session.partner.acknowledgement(received.message)
-                        }
+                        session.partnerModel.receiveFile(PartnerFiles.read(context, file))
                     }
                 }) { Text(stringResource(R.string.partner_continue)) }
             },

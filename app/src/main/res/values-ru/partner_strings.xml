@@ -7,7 +7,6 @@
 
     <string name="partner_error">Не удалось выполнить действие. Проверьте файл, подтверждённый контакт, устройство и доступ. Данные не заменены без вашего согласия.</string>
     <string name="partner_invite">Моё приглашение</string>
-    <string name="partner_scan">Сканировать</string>
     <string name="partner_import">Открыть файл Ritela</string>
     <string name="partner_receive">Получить по Bluetooth</string>
     <string name="partner_group">Общий профиль</string>
@@ -46,7 +45,7 @@
     <string name="partner_prepare">Подготовить обмен</string>
     <string name="partner_allow_exchange">Разрешить обмен с этой личностью</string>
     <string name="partner_device_enabled">Доверять этому устройству</string>
-    <string name="partner_new_device_hint">Чтобы добавить телефон, отдельно отсканируйте и проверьте его новое приглашение. При добавлении устройства доступ к данным нужно выдать заново.</string>
+    <string name="partner_new_device_hint">Чтобы добавить телефон, отдельно откройте его приглашение и проверьте код. При добавлении устройства доступ к данным нужно выдать заново.</string>
     <string name="partner_revoke">Отозвать доступ</string>
     <string name="partner_clear">Очистить полученные данные</string>
     <string name="partner_delete">Удалить контакт</string>

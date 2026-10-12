@@ -1,0 +1,9 @@
+<resources>
+    <string name="partner_invitation_bluetooth_hint">Pair the phones in Android Bluetooth settings. On the other phone, open “My invitation” and choose “Receive via Bluetooth”. Then select that phone here.</string>
+    <string name="partner_verification_invitation_hint">Have not sent your invitation yet? Save or share it so your partner can see the same verification code.</string>
+    <string name="partner_open_invitation">Open invitation</string>
+    <string name="partner_save_invitation">Save invitation</string>
+    <string name="partner_share_invitation">Share invitation</string>
+    <string name="partner_invitation_hint">Send this invitation as a file or exchange invitations over Bluetooth. Your calendar and private notes are not included.</string>
+    <string name="partner_confirm_invitation_hint">This invitation includes your confirmation. Send it back to your partner to finish connecting.</string>
+</resources>
