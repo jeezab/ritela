@@ -29,9 +29,9 @@ internal suspend fun confirmedPair(
     peer: LocalPartnerKeys,
     name: String
 ) {
-    val invitation = repository.inspectInvitation(peer.qr(name))
+    val invitation = repository.inspectInvitation(peer.invitation(name))
     val context = pairingContext(repository.identity(), invitation)
-    repository.pair(repository.inspectInvitation(peer.qr(name, context)))
+    repository.pair(repository.inspectInvitation(peer.invitation(name, context)))
 }
 
 @RunWith(RobolectricTestRunner::class)
@@ -50,8 +50,8 @@ class PartnerPairingTest {
         try {
             val ra = PartnerRepository(da, { a }, {})
             val rb = PartnerRepository(db, { b }, {})
-            val ia = ra.inspectInvitation(b.qr("B"))
-            val ib = rb.inspectInvitation(a.qr("A"))
+            val ia = ra.inspectInvitation(b.invitation("B"))
+            val ib = rb.inspectInvitation(a.invitation("A"))
             assertEquals(ra.verificationCode(ia), rb.verificationCode(ib))
             assertTrue(ra.verificationCode(ia).matches(Regex("[0-9]{4} · [0-9]{4}")))
             assertTrue(ra.snapshot().contacts.isEmpty())
@@ -75,7 +75,7 @@ class PartnerPairingTest {
                 val packet = ra.prepareData(b.identityId, b.deviceId, scope)
                 rb.receive(packet.envelope.toByteArray())
             }
-            assertTrue(ra.acceptKnown(ra.inspectInvitation(b.qr("Renamed"))))
+            assertTrue(ra.acceptKnown(ra.inspectInvitation(b.invitation("Renamed"))))
             assertEquals(scope, ra.snapshot().identities.single().grants)
             assertEquals(1, ra.snapshot().contacts.size)
         } finally {
@@ -90,12 +90,12 @@ class PartnerPairingTest {
         val db = database()
         try {
             val r = PartnerRepository(db, { a }, {})
-            val valid = r.inspectInvitation(b.qr("B"))
+            val valid = r.inspectInvitation(b.invitation("B"))
             r.pair(valid)
-            val wrong = r.inspectInvitation(b.qr("B", "0".repeat(64)))
+            val wrong = r.inspectInvitation(b.invitation("B", "0".repeat(64)))
             assertFalse(r.acceptKnown(wrong))
             assertTrue(runCatching { r.pair(wrong) }.isFailure)
-            val altered = JSONObject(b.qr("B"))
+            val altered = JSONObject(b.invitation("B"))
             altered.put(
                 "body",
                 JSONObject(
@@ -118,9 +118,9 @@ class PartnerPairingTest {
             confirmedPair(r, b, "Same")
             val scope = ShareScope(setOf(ShareCategory.PERIODS))
             r.grant(b.identityId, scope)
-            val old = r.inspectInvitation(b.qr("Same"))
+            val old = r.inspectInvitation(b.invitation("Same"))
             val changedNonce = r.inspectInvitation(
-                b.copy(nonce = java.util.UUID.randomUUID().toString()).qr("Same")
+                b.copy(nonce = java.util.UUID.randomUUID().toString()).invitation("Same")
             )
             assertNotEquals(r.verificationCode(old), r.verificationCode(changedNonce))
             assertFalse(r.acceptKnown(changedNonce))
@@ -130,20 +130,20 @@ class PartnerPairingTest {
                     PartnerCrypto.privateKey(b.identityPrivate)
                 )
             )
-            val invitation = r.inspectInvitation(next.qr("Same"))
+            val invitation = r.inspectInvitation(next.invitation("Same"))
             assertFalse(r.acceptKnown(invitation))
             r.pair(invitation)
             assertEquals(1, r.snapshot().contacts.size)
             assertEquals(2, r.snapshot().identities.single().devices.size)
             assertTrue(r.snapshot().identities.single().grants.categories.isEmpty())
             assertTrue(runCatching { r.prepareData(b.identityId, next.deviceId, scope) }.isFailure)
-            val oldReceipt = b.qr("Same", pairingContext(a, old))
+            val oldReceipt = b.invitation("Same", pairingContext(a, old))
             r.enableDevice(b.identityId, b.deviceId, false)
             assertTrue(runCatching { r.enableDevice(b.identityId, b.deviceId, true) }.isFailure)
             assertFalse(r.acceptKnown(old))
             assertTrue(runCatching { r.pair(r.inspectInvitation(oldReceipt)) }.isFailure)
             val stranger = LocalPartnerKeys.create()
-            assertFalse(r.acceptKnown(r.inspectInvitation(stranger.qr("Same"))))
+            assertFalse(r.acceptKnown(r.inspectInvitation(stranger.invitation("Same"))))
         } finally {
             db.close()
         }
@@ -155,7 +155,7 @@ class PartnerPairingTest {
         val db = database()
         try {
             val r = PartnerRepository(db, { a }, {})
-            r.pair(r.inspectInvitation(b.qr("B")))
+            r.pair(r.inspectInvitation(b.invitation("B")))
             val serialized = PartnerCodec.directory(r.snapshot())
             assertFalse(
                 PartnerCodec.directory(
@@ -174,13 +174,13 @@ class PartnerPairingTest {
             assertTrue(decoded.mutualConfirmed)
             assertNull(decoded.verificationContext)
             db.partner().save(app.ritela.data.PartnerDirectoryRow(json = old.toString()))
-            assertTrue(r.acceptKnown(r.inspectInvitation(b.qr("B", version = 1))))
+            assertTrue(r.acceptKnown(r.inspectInvitation(b.invitation("B", version = 1))))
             val scope = ShareScope(setOf(ShareCategory.PERIODS))
             r.grant(b.identityId, scope)
             assertEquals("DATA", r.prepareData(b.identityId, b.deviceId, scope).kind)
             assertTrue(
                 runCatching {
-                    r.pair(r.inspectInvitation(b.qr("B", version = 1)))
+                    r.pair(r.inspectInvitation(b.invitation("B", version = 1)))
                 }.isFailure
             )
         } finally {

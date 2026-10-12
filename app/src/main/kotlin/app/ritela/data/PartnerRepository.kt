@@ -34,7 +34,7 @@ data class PairInvitation(
     val device: PartnerDevice,
     val version: Int = 2,
     val confirmation: String? = null,
-    val signedQr: String = ""
+    val signedInvitation: String = ""
 )
 data class ReceivedPartnerPacket(val message: PartnerMessage, val duplicate: Boolean)
 
@@ -66,58 +66,61 @@ class PartnerRepository(
             snapshot().identities.firstOrNull { it.id == invite.identity }?.devices
                 ?.firstOrNull { it.id == invite.device.id && it.enabled }?.verificationContext
         }
-        return keys.qr(name, confirmed)
+        return keys.invitation(name, confirmed)
     }
-    suspend fun inspectInvitation(qr: String): PairInvitation = withContext(Dispatchers.IO) {
-        require(qr.length <= 12000)
-        val envelope = JSONObject(qr)
-        val raw = envelope.getString("body")
-        val body = JSONObject(raw)
-        val version = body.getInt("v")
-        require(body.getString("format") == "ritela.pair" && version in 1..2)
-        val key = body.getString("identity")
-        val id = PartnerCrypto.id(key)
-        val deviceId = body.getString("device").also {
-            require(UUID.fromString(it).toString() == it)
+    suspend fun inspectInvitation(invitation: String): PairInvitation =
+        withContext(Dispatchers.IO) {
+            require(invitation.length <= 12000)
+            val envelope = JSONObject(invitation)
+            val raw = envelope.getString("body")
+            val body = JSONObject(raw)
+            val version = body.getInt("v")
+            require(body.getString("format") == "ritela.pair" && version in 1..2)
+            val key = body.getString("identity")
+            val id = PartnerCrypto.id(key)
+            val deviceId = body.getString("device").also {
+                require(UUID.fromString(it).toString() == it)
+            }
+            val deviceKey = body.getString("key")
+            val certificate = body.getString("certificate")
+            val nonce = body.getString("nonce").also {
+                require(UUID.fromString(it).toString() == it)
+            }
+            require(id != identity().identityId || deviceId != identity().deviceId)
+            require(
+                PartnerCrypto.verify(
+                    PartnerCrypto.publicKey(key),
+                    "$id:$deviceId:$deviceKey",
+                    certificate
+                )
+            )
+            require(
+                PartnerCrypto.verify(
+                    PartnerCrypto.publicKey(deviceKey, "EC"),
+                    raw,
+                    envelope.getString("signature")
+                )
+            )
+            val name = body.getString("name").also { require(it.length in 1..80) }
+            val known = snapshot().identities.firstOrNull { it.id == id }
+            require(known == null || known.publicKey == key)
+            known?.devices?.firstOrNull {
+                it.id == deviceId
+            }?.let { require(it.publicKey == deviceKey) }
+            PairInvitation(
+                name,
+                id,
+                key,
+                PartnerDevice(deviceId, deviceKey, certificate, identity().nonce, nonce),
+                version,
+                body.optString("confirmed").takeIf { it.isNotEmpty() },
+                invitation
+            )
         }
-        val deviceKey = body.getString("key")
-        val certificate = body.getString("certificate")
-        val nonce = body.getString("nonce").also { require(UUID.fromString(it).toString() == it) }
-        require(id != identity().identityId || deviceId != identity().deviceId)
-        require(
-            PartnerCrypto.verify(
-                PartnerCrypto.publicKey(key),
-                "$id:$deviceId:$deviceKey",
-                certificate
-            )
-        )
-        require(
-            PartnerCrypto.verify(
-                PartnerCrypto.publicKey(deviceKey, "EC"),
-                raw,
-                envelope.getString("signature")
-            )
-        )
-        val name = body.getString("name").also { require(it.length in 1..80) }
-        val known = snapshot().identities.firstOrNull { it.id == id }
-        require(known == null || known.publicKey == key)
-        known?.devices?.firstOrNull {
-            it.id == deviceId
-        }?.let { require(it.publicKey == deviceKey) }
-        PairInvitation(
-            name,
-            id,
-            key,
-            PartnerDevice(deviceId, deviceKey, certificate, identity().nonce, nonce),
-            version,
-            body.optString("confirmed").takeIf { it.isNotEmpty() },
-            qr
-        )
-    }
 
     /** Only explicit local consent creates trust; a signed full-context receipt proves peer consent. */
     suspend fun pair(invitation: PairInvitation) {
-        require(invitation == inspectInvitation(invitation.signedQr))
+        require(invitation == inspectInvitation(invitation.signedInvitation))
         require(invitation.version == 2)
         require(PartnerCrypto.id(invitation.key) == invitation.identity)
         require(

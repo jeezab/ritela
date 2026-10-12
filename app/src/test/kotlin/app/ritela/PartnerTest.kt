@@ -41,7 +41,7 @@ class PartnerTest {
         val db = database()
         try {
             val repository = repo(db, a)
-            val invite = repository.inspectInvitation(b.qr("Close"))
+            val invite = repository.inspectInvitation(b.invitation("Close"))
             assertTrue(repository.snapshot().contacts.isEmpty())
             repository.pair(invite)
             repository.pair(invite)
@@ -53,7 +53,7 @@ class PartnerTest {
                     PartnerCrypto.privateKey(b.identityPrivate)
                 )
             )
-            val next = repository.inspectInvitation(changed.qr("Close"))
+            val next = repository.inspectInvitation(changed.invitation("Close"))
             assertEquals(1, repository.snapshot().identities.single().devices.size)
             repository.pair(next)
             assertEquals(2, repository.snapshot().identities.single().devices.size)
@@ -134,7 +134,7 @@ class PartnerTest {
         val b = LocalPartnerKeys.create()
         try {
             val r = repo(db, a)
-            val invitation = r.inspectInvitation(b.qr("B"))
+            val invitation = r.inspectInvitation(b.invitation("B"))
             confirmedPair(r, b, "B")
             r.grant(b.identityId, ShareScope(setOf(ShareCategory.DIARY)))
             r.remove(r.snapshot().contacts.single().id)

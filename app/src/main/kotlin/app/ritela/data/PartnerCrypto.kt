@@ -110,7 +110,7 @@ data class LocalPartnerKeys(
         PartnerCrypto.privateKey(identityPrivate),
         "$identityId:$deviceId:$devicePublic"
     )
-    fun qr(name: String, confirmation: String? = null, version: Int = 2): String {
+    fun invitation(name: String, confirmation: String? = null, version: Int = 2): String {
         val body = JSONObject().put(
             "format",
             "ritela.pair"
