@@ -169,7 +169,7 @@ class PartnerReliabilityTest {
             rn.restoreIdentity(exported, "test".toCharArray())
             assertEquals(a.identityId, next.identityId)
             assertNotEquals(a.deviceId, next.deviceId)
-            val invitation = rr.inspectInvitation(next.qr("New phone"))
+            val invitation = rr.inspectInvitation(next.invitation("New phone"))
             assertEquals(1, rr.snapshot().identities.single().devices.size)
             confirmedPair(rr, next, "New phone")
             assertEquals(2, rr.snapshot().identities.single().devices.size)

@@ -56,6 +56,61 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
         close()
         mutable.value = ExchangeState()
     }
+
+    /** An invitation is public and signed. Receiving it never establishes trust automatically. */
+    suspend fun exchangeInvitations(address: String?, invitation: String): String {
+        var remote: String? = null
+        exchange(
+            ExchangeState(
+                if (address ==
+                    null
+                ) {
+                    ExchangePhase.WAITING
+                } else {
+                    ExchangePhase.CONNECTING
+                }
+            )
+        ) {
+            val bt = requireNotNull(adapter)
+            val connected = if (address == null) {
+                val listener = bt.listenUsingRfcommWithServiceRecord(
+                    "Ritela invitations",
+                    INVITATION_SERVICE
+                )
+                server = listener
+                listener.accept(120000).also {
+                    socket = it
+                    listener.close()
+                    server = null
+                }
+            } else {
+                bt.getRemoteDevice(
+                    address
+                ).createRfcommSocketToServiceRecord(INVITATION_SERVICE).also {
+                    socket = it
+                    it.connect()
+                }
+            }
+            val local = PartnerInvitationFile.encode(invitation)
+            val received = if (address == null) {
+                val bytes = readFrame(connected.inputStream, PartnerInvitationFile.MAX_BYTES)
+                val signed = requireNotNull(PartnerInvitationFile.decode(bytes))
+                repository.inspectInvitation(signed)
+                write(connected, local)
+                signed
+            } else {
+                write(connected, local)
+                val bytes = readFrame(connected.inputStream, PartnerInvitationFile.MAX_BYTES)
+                requireNotNull(PartnerInvitationFile.decode(bytes)).also {
+                    repository.inspectInvitation(it)
+                }
+            }
+            remote = received
+            // Connection confirmation requires explicit local consent and the signed return invitation.
+            mutable.value = ExchangeState()
+        }
+        return requireNotNull(remote)
+    }
     suspend fun send(address: String, message: PartnerMessage, edge: ExchangeEdge, rotation: Int) =
         exchange(ExchangeState(ExchangePhase.CONNECTING, edge)) {
             val bt = requireNotNull(adapter)
@@ -171,6 +226,7 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
     }
     companion object {
         private val SERVICE = UUID.fromString("eb5a594e-f607-4479-a97a-704e180f7de5")
+        private val INVITATION_SERVICE = UUID.fromString("82498566-359a-4f4b-856a-219918c3a1ec")
         fun receiveEdge(
             edge: ExchangeEdge,
             senderRotation: Int,
@@ -182,11 +238,12 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
             return clockwise[(clockwise.indexOf(edge) + senderRotation - receiverRotation + 6) % 4]
         }
         fun read(socket: BluetoothSocket): ByteArray = readFrame(socket.inputStream)
-        fun readFrame(input: InputStream): ByteArray = DataInputStream(input).let { stream ->
-            val size = stream.readInt()
-            require(size in 1..MAX_FRAME)
-            ByteArray(size).also(stream::readFully)
-        }
+        fun readFrame(input: InputStream, maximum: Int = MAX_FRAME): ByteArray =
+            DataInputStream(input).let { stream ->
+                val size = stream.readInt()
+                require(size in 1..maximum)
+                ByteArray(size).also(stream::readFully)
+            }
         fun write(socket: BluetoothSocket, bytes: ByteArray) =
             writeFrame(socket.outputStream, bytes)
         fun writeFrame(output: OutputStream, bytes: ByteArray) {
