@@ -76,7 +76,6 @@ import org.json.JSONObject
 fun PartnerSettings() {
     val session = LocalProfileSession.current ?: return
     val mode by session.partnerPreferences.mode.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     SettingsGroup {
         Text(
             stringResource(R.string.partner_application_mode),
@@ -86,7 +85,9 @@ fun PartnerSettings() {
             RadioButton(
                 !mode.recipient,
                 {
-                    scope.launch { session.partnerPreferences.recipient(false) }
+                    session.partnerModel.updatePreferences {
+                        session.partnerPreferences.recipient(false)
+                    }
                 },
                 Modifier.testTag("partner-own-mode")
             )
@@ -102,7 +103,9 @@ fun PartnerSettings() {
             RadioButton(
                 mode.recipient,
                 {
-                    scope.launch { session.partnerPreferences.recipient(true) }
+                    session.partnerModel.updatePreferences {
+                        session.partnerPreferences.recipient(true)
+                    }
                 },
                 Modifier.testTag("partner-recipient")
             )
@@ -119,7 +122,11 @@ fun PartnerSettings() {
             Text(stringResource(R.string.partner_show), Modifier.weight(1f))
             Switch(
                 mode.show || mode.recipient,
-                { scope.launch { session.partnerPreferences.show(it) } },
+                { value ->
+                    session.partnerModel.updatePreferences {
+                        session.partnerPreferences.show(value)
+                    }
+                },
                 modifier = Modifier.testTag("partner-show"),
                 enabled = !mode.recipient
             )

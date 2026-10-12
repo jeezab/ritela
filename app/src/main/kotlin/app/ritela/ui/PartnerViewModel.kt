@@ -51,6 +51,19 @@ class PartnerViewModel(
     init {
         run { identityId.value = repository.identity().identityId }
     }
+
+    /** Profile-owned writes survive leaving Settings; transport busy state must not drop them. */
+    fun updatePreferences(action: suspend () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                action()
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (_: Exception) {
+                error.value = true
+            }
+        }
+    }
     fun run(action: suspend () -> Unit) {
         if (!mutableBusy.compareAndSet(false, true)) return
         error.value = false
