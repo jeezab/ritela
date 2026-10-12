@@ -17,8 +17,8 @@
     <string name="partner_finish_connection">Finish connecting</string>
     <string name="partner_connected_body">You can now exchange data and little messages. Your next exchanges will check the trusted keys automatically.</string>
     <string name="partner_update_needed">For a new connection with a short verification code, update Ritela on the other phone. Existing trusted contacts keep working.</string>
-    <string name="partner_close_data">Their shared data</string>
-    <string name="partner_doodle_hint">Draw a postcard, leave a message or plan a little surprise.</string>
+    <string name="partner_close_data">Partner’s data</string>
+    <string name="partner_doodle_hint">Draw a doodle, leave a message or plan a little surprise.</string>
     <string name="partner_your_devices">Export and restore identity</string>
     <string name="partner_no_received_data">Shared information will appear here after you receive an exchange.</string>
     <string name="partner_contact_devices">Their phones</string>

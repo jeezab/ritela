@@ -205,7 +205,6 @@ internal fun PartnerVerificationContent(
     confirm: () -> Unit,
     reject: () -> Unit
 ) {
-    var technical by remember { mutableStateOf(false) }
     Text(name, style = MaterialTheme.typography.titleMedium)
     Text(stringResource(R.string.partner_code_label))
     Text(
@@ -219,13 +218,6 @@ internal fun PartnerVerificationContent(
     }
     TextButton(reject, Modifier.testTag("partner-reject-code")) {
         Text(stringResource(R.string.partner_codes_differ))
-    }
-    TextButton({ technical = !technical }) { Text(stringResource(R.string.partner_technical)) }
-    if (technical) {
-        Text(
-            identity.chunked(8).joinToString(" "),
-            style = MaterialTheme.typography.bodySmall
-        )
     }
 }
 

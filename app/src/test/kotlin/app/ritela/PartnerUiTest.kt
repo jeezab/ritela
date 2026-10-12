@@ -54,10 +54,17 @@ class PartnerUiTest {
         }
         compose.onNodeWithTag("partner-recipient").performScrollTo().performClick()
         compose.waitUntil(5000) {
-            compose.onAllNodesWithTag("nav-calendar").fetchSemanticsNodes().isEmpty()
+            compose.onAllNodesWithTag("nav-partner").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("nav-today").performClick()
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithTag("log-day").fetchSemanticsNodes().isEmpty()
+        }
         compose.onNodeWithTag("log-day").assertDoesNotExist()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_no_received)
+        ).assertIsDisplayed()
+        compose.onNodeWithTag("nav-partner").performClick()
         compose.onNodeWithTag("partner-connection-info").assertDoesNotExist()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_invite))
             .assertDoesNotExist()
@@ -66,11 +73,14 @@ class PartnerUiTest {
         ).performScrollTo().assertIsDisplayed()
         assertEquals("synthetic own", runBlocking { app.days.logs.first().single().note })
         compose.onNodeWithTag("nav-settings").performClick()
-        compose.onNodeWithTag("partner-recipient").performScrollTo().performClick()
+        compose.onNodeWithTag("partner-own-mode").performScrollTo().performClick()
         compose.waitUntil(5000) {
             compose.onAllNodesWithTag("nav-calendar").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("nav-today").performClick()
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithTag("log-day").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag("log-day").assertIsEnabled()
     }
 
@@ -106,7 +116,7 @@ class PartnerUiTest {
                 })
             }
         }
-        compose.onNodeWithText("Open postcard").assertIsDisplayed()
+        compose.onNodeWithText("Open doodle").assertIsDisplayed()
         compose.onNodeWithText("Close").performClick()
         assertTrue(closed)
     }

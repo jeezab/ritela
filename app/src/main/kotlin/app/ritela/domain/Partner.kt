@@ -13,9 +13,17 @@ data class ShareScope(
         sections = if (ShareCategory.SECTIONS in categories) sections else emptySet(),
         tags = if (ShareCategory.TAGS in categories) tags else emptyMap()
     )
-    fun permits(selection: ShareScope): Boolean = categories.containsAll(selection.categories) &&
-        sections.containsAll(selection.sections) &&
-        selection.tags.all { (id, values) -> tags[id].orEmpty().containsAll(values) }
+    fun permits(selection: ShareScope): Boolean {
+        val allDiary = ShareCategory.DIARY in categories
+        return selection.categories.all {
+            it in categories ||
+                (allDiary && it in setOf(ShareCategory.SECTIONS, ShareCategory.TAGS)) ||
+                (it == ShareCategory.TAGS && ShareCategory.SECTIONS in categories)
+        } && selection.sections.all { allDiary || it in sections } &&
+            selection.tags.all { (id, values) ->
+                allDiary || id in sections || tags[id].orEmpty().containsAll(values)
+            }
+    }
 }
 
 data class PartnerDevice(

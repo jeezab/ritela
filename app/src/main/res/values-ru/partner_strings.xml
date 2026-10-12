@@ -2,8 +2,6 @@
     <string name="partner_title">Партнёр</string>
     <string name="partner_mode">Режим партнёра</string>
     <string name="partner_show">Показывать раздел «Партнёр»</string>
-    <string name="partner_normal">Вернуться к своему календарю</string>
-    <string name="partner_login">Вход для партнёра</string>
     <string name="partner_private">Ничего не передаётся автоматически. Ваши записи остаются на этом устройстве.</string>
     <string name="partner_empty">Добавьте партнёра и сравните коды проверки на двух телефонах.</string>
 
@@ -18,11 +16,10 @@
     <string name="partner_access">Чем поделиться</string>
     <string name="partner_exchange">Обменяться данными</string>
     <string name="partner_doodle">Отправить дудл</string>
-    <string name="partner_manage">Управление близкими</string>
+    <string name="partner_manage">Управление партнёрами</string>
     <string name="partner_gallery">Наши послания</string>
-    <string name="partner_sent">От меня</string>
     <string name="partner_received">Получено</string>
-    <string name="partner_open_doodle">Открыть открытку</string>
+    <string name="partner_open_doodle">Открыть дудл</string>
     <string name="partner_retry">Отправить повторно</string>
     <string name="partner_identity">Экспорт и восстановление личности</string>
     <string name="partner_limits">Переданные сведения доступны только для чтения. Удаление здесь не удаляет копии с другого телефона.</string>
@@ -30,13 +27,12 @@
     <string name="partner_verify">Сравните код на двух телефонах. Если он одинаковый, подтвердите подключение.</string>
     <string name="partner_verified">Коды совпадают — подключить</string>
     <string name="partner_transport">Как отправить</string>
-    <string name="partner_pending">Ожидается подтверждение получения</string>
     <string name="partner_share_file">Поделиться зашифрованным файлом</string>
     <string name="partner_bluetooth">Bluetooth</string>
     <string name="partner_where">Где сейчас твоё сердечко?</string>
     <string name="partner_pair_android">Сначала сопрягите телефоны в настройках Bluetooth Android. На другом телефоне нажмите «Получить по Bluetooth». Сторону выбирает только отправитель.</string>
     <string name="partner_android_settings">Настройки Bluetooth</string>
-    <string name="partner_file_received">Подлинность файла проверена, данные сохранены. Отправьте зашифрованную квитанцию обратно, чтобы отправитель увидел подтверждение доставки.</string>
+    <string name="partner_file_received">Подлинность файла проверена, данные сохранены. Отправьте зашифрованную подтверждение обратно, чтобы отправитель увидел подтверждение доставки.</string>
     <string name="partner_identity_hint">Этот файл переносит ключи вашей личности, но не дудлы, контакты или историю обмена. Для календарных записей нужен экспорт данных в настройках. Пароль — не короче 4 символов. Восстановление доступно в профиле без контактов. Новый телефон нужно подключить заново.</string>
     <string name="partner_export_identity">Экспорт личности</string>
     <string name="partner_restore_identity">Восстановить личность</string>
@@ -45,8 +41,6 @@
     <string name="partner_close">Закрыть</string>
     <string name="partner_password">Пароль</string>
     <string name="partner_selection">Выберите данные</string>
-    <string name="partner_grant_hint">Разрешите только то, чем хотите делиться с этим человеком. До выбора обмена ничего не отправляется. Дудлы доступны без доступа к циклу.</string>
-    <string name="partner_selection_hint">Выбирайте из выданных этому человеку разрешений. «Всё» означает только доступный ему набор.</string>
     <string name="partner_everything">Всё доступное</string>
     <string name="partner_preview">Состав передачи</string>
     <string name="partner_prepare">Подготовить обмен</string>
@@ -67,12 +61,10 @@
     <string name="partner_clear_hint">Безвозвратно очистить полученные данные этой личности на этом телефоне? Защита от повторного импорта и отправленные сообщения останутся. Другие телефоны не затрагиваются.</string>
     <string name="partner_revoke_hint">Прекратить передачу личных категорий этой личности? Уже отправленные копии отозвать нельзя. Дудлы останутся доступными.</string>
     <string name="partner_last_exchange">Последний обмен: %1$s</string>
-    <string name="partner_locked">Открытка для вас · откроется %1$s</string>
+    <string name="partner_locked">Дудл для вас · откроется %1$s</string>
     <string name="partner_no_access">Доступ к личным данным закрыт</string>
     <string name="partner_comparison">Устройства: %1$d · сообщения: %2$d</string>
     <string name="partner_data">Переданные данные</string>
-    <string name="partner_open_receipt">Квитанция открытия</string>
-    <string name="partner_receipt">Квитанция доставки</string>
     <string name="partner_opened">Открытие подтверждено</string>
     <string name="partner_delivered">Доставка подтверждена</string>
     <string name="partner_summary">Месячные: %1$d · прогнозы: %2$d · дни дневника: %3$d · настройки: %4$s</string>
@@ -90,9 +82,7 @@
     <string name="partner_bottom">Снизу</string>
     <string name="partner_readonly">Полученные сведения · только для чтения</string>
     <string name="partner_forecast_row">Ожидается %1$s · %2$s–%3$s</string>
-    <string name="partner_ovulation_row">Возможная овуляция: %1$s</string>
     <string name="partner_ongoing">ещё идут</string>
-    <string name="partner_settings_row">Переданный язык: %1$s · тема: %2$s</string>
     <string name="partner_eraser">Ластик</string>
     <string name="partner_undo">Отменить штрих</string>
     <string name="partner_redo">Вернуть штрих</string>
@@ -111,10 +101,8 @@
     <string name="partner_exchange_failed">Обмен прерван. Можно повторить.</string>
 
     <string name="partner_unknown_phase">Фаза пока не определена</string>
-    <string name="partner_snapshot_date">Сведения на %1$s</string>
     <string name="partner_previous">Предыдущие записи</string>
     <string name="partner_next">Следующие записи</string>
-    <string name="partner_view_data">Посмотреть сведения</string>
     <string name="partner_more">Показать ещё</string>
 
     <string name="partner_doodle_kind">Дудл</string>

@@ -86,7 +86,7 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     }
 
     LaunchedEffect(partnerMode.show, partnerMode.recipient) {
-        if ((page == 3 && !partnerMode.show) || (page == 1 && partnerMode.recipient)) page = 0
+        if (page == 3 && !partnerMode.show && !partnerMode.recipient) page = 0
         if (partnerMode.recipient) {
             adding = false
             loggingDay = null
@@ -108,12 +108,17 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
         ThemeMode.DARK -> true
     }
     RitelaTheme(darkTheme = darkTheme) {
+        PartnerExternalImport()
         Scaffold(bottomBar = {
             HomeTheme { AppNavigation(page, partnerMode.show, partnerMode.recipient) { page = it } }
         }) { contentPadding ->
             if (page == 2) {
                 SettingsScreen(contentPadding, state)
-            } else if (page == 3 || (page == 0 && partnerMode.recipient)) {
+            } else if (page == 0 && partnerMode.recipient) {
+                PartnerHome(contentPadding, { page = 1 }, { page = 3 })
+            } else if (page == 1 && partnerMode.recipient) {
+                PartnerCalendarPage(contentPadding)
+            } else if (page == 3) {
                 PartnerScreen(contentPadding)
             } else if (page == 1) {
                 pageStates.SaveableStateProvider("calendar") {
@@ -436,8 +441,8 @@ fun AppNavigation(
     NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
         val pages = buildList {
             add(0)
-            if (!recipient) add(1)
-            if (showPartner) add(3)
+            add(1)
+            if (showPartner || recipient) add(3)
             add(2)
         }
         for (index in pages) {

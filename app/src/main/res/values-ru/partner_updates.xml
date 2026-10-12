@@ -7,8 +7,8 @@
     <string name="partner_manual_exchange">Автоматической синхронизации нет. Каждый обмен запускаете вы.</string>
     <string name="partner_onboarding_steps">1. Отсканируй приглашение партнёра, подтверди код\n2. Покажи своё приглашение, партнёр отсканирует. Сравните цифры на экранах - они должны совпадать\n3. Отсканируй обновлённое приглашение партнёра\n4. Готово - при успехе появится надпись \"Связь подтверждена\"!</string>
     <string name="partner_connection_info">Как добавить партнёра</string>
-    <string name="partner_show_qr_step">Покажите это приглашение, затем отсканируйте приглашение близкого.</string>
-    <string name="partner_confirm_qr_step">Ваше подтверждение уже в этом QR-коде. Дайте близкому отсканировать его, затем отсканируйте его обновлённое приглашение.</string>
+    <string name="partner_show_qr_step">Покажите это приглашение, затем отсканируйте приглашение партнёра.</string>
+    <string name="partner_confirm_qr_step">Ваше подтверждение уже в этом QR-коде. Дайте партнёру отсканировать его, затем отсканируйте его обновлённое приглашение.</string>
     <string name="partner_code_label">Код проверки</string>
     <string name="partner_codes_differ">Коды не совпадают</string>
     <string name="partner_technical">Технические подробности</string>
@@ -17,10 +17,10 @@
     <string name="partner_finish_connection">Завершить подключение</string>
     <string name="partner_connected_body">Теперь вы можете обмениваться данными и посланиями. При следующих обменах доверенные ключи проверяются автоматически.</string>
     <string name="partner_update_needed">Для нового подключения с коротким кодом обновите Ritela на другом телефоне. Уже подтверждённые контакты продолжают работать.</string>
-    <string name="partner_close_data">Данные близкого</string>
-    <string name="partner_doodle_hint">Нарисуйте открытку, оставьте послание или подготовьте маленький сюрприз.</string>
+    <string name="partner_close_data">Данные партнёра</string>
+    <string name="partner_doodle_hint">Нарисуйте дудл, оставьте послание или подготовьте маленький сюрприз.</string>
     <string name="partner_your_devices">Экспорт и восстановление личности</string>
-    <string name="partner_no_received_data">Сведения появятся здесь, когда вы получите обмен от близкого.</string>
-    <string name="partner_contact_devices">Телефоны близкого</string>
+    <string name="partner_no_received_data">Сведения появятся здесь, когда вы получите обмен от партнёра.</string>
+    <string name="partner_contact_devices">Телефоны партнёра</string>
     <string name="partner_device_number">Телефон %1$d</string>
 </resources>

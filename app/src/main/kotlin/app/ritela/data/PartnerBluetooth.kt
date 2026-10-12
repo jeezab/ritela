@@ -43,6 +43,8 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
     @Volatile private var server: BluetoothServerSocket? = null
     private val mutable = MutableStateFlow(ExchangeState())
     val state = mutable.asStateFlow()
+    private val mutablePeer = MutableStateFlow<String?>(null)
+    val activePeer = mutablePeer.asStateFlow()
     fun phones(): List<NearbyPhone> = adapter?.bondedDevices?.map {
         NearbyPhone(
             it.address,
@@ -77,6 +79,7 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
             write(connected, frame)
             val ack = repository.receive(read(connected)).message
             require(ack.kind == "ACK" && JSONObject(ack.body).getString("message") == message.id)
+            mutablePeer.value = ack.identity
             // Only the authenticated persisted acknowledgement makes the sender successful.
             mutable.value = ExchangeState(ExchangePhase.ACKNOWLEDGED, edge)
         }
@@ -119,6 +122,7 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
                 )
             mutable.value = ExchangeState(ExchangePhase.TRANSFERRING, edge, true)
             val received = repository.receive(packet)
+            mutablePeer.value = received.message.identity
             require(
                 received.message.kind == "DATA" || received.message.kind == "DOODLE" ||
                     received.message.kind == "OPENED" ||
@@ -158,6 +162,7 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
             }
         }
     override fun close() {
+        mutablePeer.value = null
         runCatching { socket?.close() }
         runCatching { server?.close() }
         socket =

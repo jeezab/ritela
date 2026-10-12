@@ -32,129 +32,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-internal fun PartnerScopeDialog(
-    layout: JournalLayout,
-    allowed: ShareScope?,
-    initial: ShareScope,
-    granting: Boolean,
-    dismiss: () -> Unit,
-    confirm: (ShareScope) -> Unit
-) {
-    val repository = LocalProfileSession.current?.partner ?: return
-    val formatter = PartnerFormatter(LocalResources.current)
-    val permitted =
-        allowed
-            ?: ShareScope(
-                ShareCategory.entries.toSet(),
-                layout.sections.map { it.id }.toSet() + "note",
-                layout.sections.associate { it.id to it.tags.map { tag -> tag.id }.toSet() }
-            )
-    var selected by remember { mutableStateOf(initial) }
-    var summary by remember { mutableStateOf("") }
-    var previewReady by remember { mutableStateOf(false) }
-    LaunchedEffect(selected) {
-        previewReady = false
-        val preview = withContext(Dispatchers.IO) { repository.preview(selected) }
-        summary = formatter.preview(preview)
-        previewReady = true
-    }
-    PartnerModal(
-        stringResource(if (granting) R.string.partner_access else R.string.partner_selection),
-        dismiss
-    ) {
-        Text(
-            stringResource(
-                if (granting) R.string.partner_grant_hint else R.string.partner_selection_hint
-            )
-        )
-        PartnerCheck(stringResource(R.string.partner_everything), selected == permitted, true) {
-            selected = if (it) permitted else ShareScope()
-        }
-        ShareCategory.entries.forEach { category ->
-            PartnerCheck(
-                stringResource(PartnerFormatter.category(category)),
-                category in selected.categories,
-                category in permitted.categories
-            ) { checked ->
-                selected =
-                    selected.copy(
-                        categories = if (checked) {
-                            selected.categories + category
-                        } else {
-                            selected.categories -
-                                category
-                        }
-                    )
-            }
-        }
-        if (ShareCategory.SECTIONS in selected.categories) {
-            (
-                layout.sections.map { it.id to journalSectionLabel(it) } +
-                    ("note" to stringResource(R.string.day_note))
-                ).forEach { (id, label) ->
-                PartnerCheck(label, id in selected.sections, id in permitted.sections) { checked ->
-                    selected =
-                        selected.copy(
-                            sections = if (checked) {
-                                selected.sections + id
-                            } else {
-                                selected.sections -
-                                    id
-                            }
-                        )
-                }
-            }
-        }
-        if (ShareCategory.TAGS in selected.categories) {
-            layout.sections.forEach { section ->
-                Text(journalSectionLabel(section), style = MaterialTheme.typography.titleSmall)
-                section.tags.forEach { tag ->
-                    PartnerCheck(
-                        journalTagLabel(section, tag),
-                        tag.id in selected.tags[section.id].orEmpty(),
-                        tag.id in permitted.tags[section.id].orEmpty()
-                    ) { checked ->
-                        val tags = selected.tags[section.id].orEmpty()
-                        selected =
-                            selected.copy(
-                                tags =
-                                    selected.tags +
-                                        (
-                                            section.id to
-                                                if (checked) tags + tag.id else tags - tag.id
-                                            )
-                            )
-                    }
-                }
-            }
-        }
-        Text(stringResource(R.string.partner_preview), style = MaterialTheme.typography.titleMedium)
-        Text(summary)
-        Button(
-            { confirm(selected) },
-            enabled =
-                previewReady && (granting || selected.categories.isNotEmpty()) &&
-                    permitted.permits(selected)
-        ) {
-            Text(stringResource(if (granting) R.string.save else R.string.partner_prepare))
-        }
-    }
-}
-
-@Composable
-private fun PartnerCheck(
-    label: String,
-    checked: Boolean,
-    enabled: Boolean,
-    change: (Boolean) -> Unit
-) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked, change, enabled = enabled)
-        Text(label, Modifier.weight(1f), color = if (enabled) HomeColors.text else HomeColors.muted)
-    }
-}
-
-@Composable
 internal fun PartnerManagement(
     model: PartnerViewModel,
     contact: PartnerContact,
@@ -169,10 +46,20 @@ internal fun PartnerManagement(
     var other by remember { mutableStateOf<String?>(null) }
     var name by remember { mutableStateOf(contact.name) }
     var group by remember { mutableStateOf(false) }
-    var technical by remember { mutableStateOf(false) }
     val formatter = PartnerFormatter(LocalResources.current)
     PartnerModal(stringResource(R.string.partner_manage), dismiss) {
         Text(contact.name, style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(
+            name,
+            { if (it.length <= 80) name = it },
+            label = { Text(stringResource(R.string.partner_profile_name)) }
+        )
+        TextButton(
+            { model.run { model.repository.rename(contact.id, name) } },
+            enabled = !busy && name.isNotBlank() && name.trim() != contact.name
+        ) {
+            Text(stringResource(R.string.save))
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.partner_allow_exchange), Modifier.weight(1f))
             Switch(source.exchangeEnabled, { value ->
@@ -183,8 +70,6 @@ internal fun PartnerManagement(
             stringResource(R.string.partner_contact_devices),
             style = MaterialTheme.typography.titleMedium
         )
-        TextButton({ technical = !technical }) { Text(stringResource(R.string.partner_technical)) }
-        if (technical) Text(source.id)
         Text(formatter.access(source.grants))
         source.devices.forEachIndexed { index, device ->
             Text(stringResource(R.string.partner_device_number, index + 1))
@@ -194,7 +79,6 @@ internal fun PartnerManagement(
                         app.ritela.data.pairingCode(context)
                 )
             }
-            if (technical) Text(device.id, style = MaterialTheme.typography.bodySmall)
             Text(
                 stringResource(
                     if (device.mutualConfirmed) {
@@ -255,7 +139,6 @@ internal fun PartnerManagement(
             listOf(contact, second).forEach { item ->
                 Text(item.name, style = MaterialTheme.typography.titleMedium)
                 directory.identities.filter { it.id in item.identities }.forEach { person ->
-                    if (technical) Text(person.id)
                     Text(formatter.access(person.grants))
                     Text(
                         formatter.comparison(

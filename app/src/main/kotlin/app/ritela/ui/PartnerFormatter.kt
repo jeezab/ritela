@@ -39,26 +39,49 @@ class PartnerFormatter(private val resources: Resources) {
             when (message.kind) {
                 "DOODLE" -> R.string.partner_doodle_kind
                 "DATA" -> R.string.partner_data
-                "OPENED" -> R.string.partner_open_receipt
-                else -> R.string.partner_receipt
+                else -> R.string.partner_data
             }
         )
         val status = resources.getString(
             when {
                 message.opened -> R.string.partner_opened
                 message.delivered -> R.string.partner_delivered
-                else -> R.string.partner_pending
+                !message.outgoing -> R.string.partner_received_status
+                else -> R.string.partner_wait_send
             }
         )
         return "$kind · $status · ${moment(message.received)}"
     }
-    fun preview(data: JSONObject): String = resources.getString(
-        R.string.partner_summary,
-        data.optJSONArray("periods")?.length() ?: 0,
-        data.optJSONArray("forecasts")?.length() ?: 0,
-        data.optJSONArray("days")?.length() ?: 0,
-        resources.getString(if (data.has("settings")) R.string.partner_yes else R.string.partner_no)
-    )
+    fun preview(data: JSONObject): String {
+        val counts = resources.getString(
+            R.string.partner_summary,
+            data.optJSONArray("periods")?.length() ?: 0,
+            data.optJSONArray("forecasts")?.length() ?: 0,
+            data.optJSONArray("days")?.length() ?: 0,
+            resources.getString(
+                if (data.has("settings")) R.string.partner_yes else R.string.partner_no
+            )
+        )
+        val dates = listOf(
+            "periods" to "start",
+            "forecasts" to "start",
+            "days" to "day"
+        ).flatMap { (key, field) ->
+            data.optJSONArray(key)?.let(app.ritela.data.PartnerCodec::objects).orEmpty().map {
+                it.getLong(field)
+            }
+        }
+        return counts +
+            if (dates.isEmpty()) {
+                ""
+            } else {
+                "\n" + resources.getString(
+                    R.string.partner_preview_dates,
+                    date(dates.min()),
+                    date(dates.max())
+                )
+            }
+    }
     companion object {
         fun category(category: ShareCategory): Int = when (category) {
             ShareCategory.PERIODS -> R.string.partner_periods
