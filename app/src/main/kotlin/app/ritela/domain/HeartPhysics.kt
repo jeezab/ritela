@@ -56,7 +56,7 @@ class HeartPhysics(seed: Int = 37, count: Int = 18) {
             if (incoming && edge != null) hearts.forEach { placeAtEdge(it, width, height, edge) }
         }
         val seconds = dt.coerceIn(0f, 0.033f)
-        val acceleration = 85f
+        val acceleration = 320f
         hearts.forEach { heart ->
             val mx = when (edge) {
                 ExchangeEdge.LEFT -> -500f
