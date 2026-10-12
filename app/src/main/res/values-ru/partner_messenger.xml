@@ -1,0 +1,22 @@
+<resources>
+    <string name="partner_chat_to">Для %1$s</string>
+    <string name="partner_chat_manual">Файл или Bluetooth · без автосинхронизации</string>
+    <string name="partner_chat_menu">Действия с партнёром</string>
+    <string name="partner_chat_add">Добавить в переписку</string>
+    <string name="partner_preview_doodle_caption">Для тебя ♡</string>
+    <string name="partner_chat_empty">Ещё ближе</string>
+    <string name="partner_chat_empty_hint">Здесь появятся ваши дудлы и переданные данные.</string>
+    <string name="partner_share_data">Поделиться данными</string>
+    <string name="partner_view_message">Посмотреть</string>
+    <string name="partner_choose_channel">Выбрать файл или Bluetooth</string>
+    <string name="partner_prepare_file">Подготовить файл</string>
+    <string name="partner_check_connection">Проверить связь</string>
+    <string name="partner_confirm_access">Подтвердить доступ</string>
+    <string name="partner_confirm_access_hint">Разрешить %1$s получать выбранные категории? В этот обмен войдёт только выбранное. Остальные разрешения не изменятся.</string>
+    <string name="partner_confirm_and_prepare">Разрешить и подготовить обмен</string>
+    <string name="partner_select_phone">Использовать этот телефон</string>
+    <string name="partner_dismiss_error">Закрыть</string>
+    <string name="partner_chat_periods">Записи месячных: %1$d</string>
+    <string name="partner_chat_forecasts">Прогнозы: %1$d</string>
+    <string name="partner_chat_days">Дни дневника: %1$d</string>
+</resources>

@@ -26,6 +26,30 @@ class PartnerFormatter(private val resources: Resources) {
     ).format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale))
     fun exchange(time: Long): String =
         resources.getString(R.string.partner_last_exchange, moment(time))
+    fun chatStatus(message: PartnerMessage): String {
+        val time = Instant.ofEpochMilli(message.received).atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))
+        val status = resources.getString(
+            when {
+                message.opened -> R.string.partner_opened
+                message.delivered -> R.string.partner_delivered
+                !message.outgoing -> R.string.partner_received_status
+                else -> R.string.partner_wait_send
+            }
+        )
+        return "$time · $status"
+    }
+    fun chatSummary(data: JSONObject): String = buildList {
+        listOf(
+            "periods" to R.string.partner_chat_periods,
+            "forecasts" to R.string.partner_chat_forecasts,
+            "days" to R.string.partner_chat_days
+        ).forEach { (key, label) ->
+            val count = data.optJSONArray(key)?.length() ?: 0
+            if (count > 0) add(resources.getString(label, count))
+        }
+        if (data.has("settings")) add(resources.getString(R.string.partner_app_settings))
+    }.joinToString("\n").ifEmpty { resources.getString(R.string.partner_no_received_data) }
     fun locked(time: Long): String = resources.getString(R.string.partner_locked, moment(time))
     fun access(scope: ShareScope): String = if (scope.categories.isEmpty()) {
         resources.getString(R.string.partner_no_access)

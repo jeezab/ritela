@@ -7,7 +7,6 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -40,8 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -163,7 +160,10 @@ fun PartnerScreen(padding: PaddingValues) {
     var sharing by remember { mutableStateOf(false) }
     var drawing by remember { mutableStateOf(false) }
     var dataViewing by remember { mutableStateOf<PartnerMessage?>(null) }
-    var galleryLimit by remember { androidx.compose.runtime.mutableIntStateOf(24) }
+    var profileViewing by remember { mutableStateOf(false) }
+    var accessEditing by remember { mutableStateOf(false) }
+    var managementAction by remember { mutableStateOf<String?>(null) }
+    var requestedAccess by remember { mutableStateOf<ShareScope?>(null) }
     var viewing by remember { mutableStateOf<PartnerMessage?>(null) }
     var transport by remember { mutableStateOf(false) }
     var phones by remember { mutableStateOf(false) }
@@ -267,6 +267,17 @@ fun PartnerScreen(padding: PaddingValues) {
         directory.contacts.firstOrNull { it.id == selected } ?: directory.contacts.firstOrNull()
     val identities = directory.identities.filter { it.id in contact?.identities.orEmpty() }
     val identity = identities.firstOrNull { it.id == identitySelection } ?: identities.firstOrNull()
+    LaunchedEffect(contact?.id, identity?.id) {
+        // A draft for one recipient must never carry into another recipient's permissions or packet.
+        sharing = false
+        accessEditing = false
+        requestedAccess = null
+        drawing = false
+        manage = false
+        managementAction = null
+        dataViewing = null
+        viewing = null
+    }
     val device =
         identity?.devices?.firstOrNull {
             it.id == deviceSelection && it.enabled &&
@@ -274,249 +285,102 @@ fun PartnerScreen(padding: PaddingValues) {
         }
             ?: identity?.devices?.firstOrNull { it.enabled && it.mutualConfirmed }
     HomeTheme {
-        Column(
-            Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
-                .verticalScroll(rememberScrollState()).padding(HomeSpacing.gutter),
-            verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
-        ) {
-            Text(
-                stringResource(R.string.partner_title),
-                style = MaterialTheme.typography.headlineMedium
+        val status = if (contact == null) {
+            ""
+        } else {
+            stringResource(
+                when {
+                    identity?.exchangeEnabled != true -> R.string.partner_disabled
+                    device == null -> R.string.partner_pending_connection
+                    activePeer in contact?.identities.orEmpty() -> R.string.partner_connected
+                    else -> R.string.partner_unconnected
+                }
             )
-            Text(
-                stringResource(R.string.partner_private),
-                style = MaterialTheme.typography.bodySmall
+        }
+        val last = messages.firstOrNull {
+            it.identity in contact?.identities.orEmpty() && !it.outgoing &&
+                it.kind in setOf("DATA", "DOODLE", "ACK", "OPENED")
+        }
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(padding)) {
+            PartnerConversation(
+                directory.contacts, contact, messages, status,
+                last?.let { PartnerFormatter(resources).exchange(it.received) }, busy,
+                contact?.group == false && identity?.exchangeEnabled == true && device != null, now,
+                select = { id ->
+                    scope.launch { session.partnerPreferences.select(id) }
+                    identitySelection = null
+                    deviceSelection = null
+                },
+                profile = { profileViewing = true },
+                action = { event ->
+                    when (event) {
+                        ConversationAction.ADD -> onboarding = true
+
+                        ConversationAction.DOODLE -> drawing = true
+
+                        ConversationAction.SHARE -> sharing = true
+
+                        ConversationAction.ACCESS -> accessEditing = true
+
+                        ConversationAction.FILE -> importFile.launch(arrayOf("*/*"))
+
+                        ConversationAction.RECEIVE -> requestBluetooth(true)
+
+                        ConversationAction.VERIFY -> profileViewing = true
+
+                        else -> {
+                            managementAction = when (event) {
+                                ConversationAction.DELETE -> "DELETE"
+                                ConversationAction.MERGE -> "COMBINE"
+                                ConversationAction.GROUP -> "GROUP"
+                                else -> null
+                            }
+                            manage = true
+                        }
+                    }
+                },
+                open = { message ->
+                    if (message.kind == "DATA") {
+                        dataViewing = message
+                    } else {
+                        viewing = message
+                        if (!message.outgoing) {
+                            model.run {
+                                model.repository.openDoodle(message.id)?.let {
+                                    model.packet.value =
+                                        it
+                                }
+                            }
+                        }
+                    }
+                },
+                retry = { message ->
+                    model.run {
+                        model.packet.value =
+                            model.repository.retry(message.id)
+                    }
+                },
+                senderNames = directory.identities.associate { it.id to it.name }
             )
             if (error) {
-                Text(
-                    stringResource(R.string.partner_error),
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            if (busy) Text(stringResource(R.string.loading))
-            if (directory.contacts.isEmpty()) {
-                PartnerWelcome { onboarding = true }
-            }
-            if (directory.contacts.isEmpty()) {
-                PartnerReceiveCard(!busy, { importFile.launch(arrayOf("*/*")) }, {
-                    requestBluetooth(true)
-                })
-            }
-            directory.contacts.forEach { item ->
-                TextButton({
-                    scope.launch { session.partnerPreferences.select(item.id) }
-                    identitySelection = null
-                }, Modifier.fillMaxWidth()) {
-                    RadioButton(item.id == contact?.id, null)
-                    Text(item.name, Modifier.weight(1f))
-                    if (item.group) Text(stringResource(R.string.partner_group))
-                }
-            }
-            contact?.let { item ->
-                SettingsGroup {
-                    PartnerContactHeading(
-                        item.name,
-                        stringResource(
-                            if (identity?.exchangeEnabled == true &&
-                                device != null
-                            ) {
-                                if (activePeer in
-                                    item.identities
-                                ) {
-                                    R.string.partner_connected
-                                } else {
-                                    R.string.partner_unconnected
-                                }
-                            } else if (identity?.exchangeEnabled ==
-                                true
-                            ) {
-                                R.string.partner_pending_connection
-                            } else {
-                                R.string.partner_disabled
-                            }
-                        )
-                    )
-                    if (identities.size > 1) {
-                        identities.forEach { source ->
-                            TextButton({
-                                identitySelection = source.id
-                            }) { Text(source.name) }
-                        }
-                    }
-                    identity?.let { source ->
-                        messages.firstOrNull {
-                            it.identity == source.id && (!it.outgoing || it.delivered || it.opened)
-                        }?.let {
-                            Text(
-                                PartnerFormatter(resources).exchange(it.received),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        FlowRow {
-                            Button(
-                                { sharing = true },
-                                enabled =
-                                    !busy && !item.group && device != null && source.exchangeEnabled
-                            ) {
-                                Text(stringResource(R.string.partner_exchange))
-                            }
-                            TextButton({
-                                manage = true
-                            }, enabled = !busy) { Text(stringResource(R.string.partner_manage)) }
-                        }
-                        val latest = messages.filter {
-                            !it.outgoing && it.identity == source.id &&
-                                it.kind == "DATA" &&
-                                it.body.isNotEmpty()
-                        }.firstOrNull()
-                        latest?.let { message ->
-                            PartnerActionCard(
-                                stringResource(R.string.partner_close_data),
-                                stringResource(R.string.partner_readonly)
-                            ) {
-                                dataViewing =
-                                    message
-                            }
-                        }
-                        if (latest == null) {
-                            PartnerActionCard(
-                                stringResource(R.string.partner_close_data),
-                                stringResource(R.string.partner_no_received_data),
-                                false
-                            ) {
-                            }
-                        }
-                        if (source.exchangeEnabled &&
-                            (
-                                device == null ||
-                                    source.devices.any { it.enabled && !it.mutualConfirmed }
-                                )
-                        ) {
-                            Text(stringResource(R.string.partner_pending_hint))
-                            Button({
-                                if (source.devices.any { it.enabled && !it.mutualConfirmed }) {
-                                    model.resumePairing(source.id, profileName)
-                                } else {
-                                    importFile.launch(
-                                        arrayOf(
-                                            "application/octet-stream",
-                                            "application/vnd.ritela"
-                                        )
-                                    )
-                                }
-                            }, enabled = !busy) {
-                                Text(stringResource(R.string.partner_finish_connection))
-                            }
-                        }
-                        PartnerActionCard(
-                            stringResource(R.string.partner_doodle),
-                            stringResource(R.string.partner_doodle_hint),
-                            !busy && !item.group && device != null && source.exchangeEnabled
-                        ) {
-                            drawing =
-                                true
-                        }
-                    }
-                }
-                Text(
-                    stringResource(R.string.partner_gallery),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                val gallery = messages.filter {
-                    it.identity in item.identities &&
-                        it.kind == "DOODLE" &&
-                        it.body.isNotEmpty()
-                }
-                gallery.take(galleryLimit).forEach { message ->
-                    SettingsGroup {
-                        val senderName = if (message.outgoing) {
-                            profileName
-                        } else {
-                            directory.identities.firstOrNull {
-                                it.id ==
-                                    message.identity
-                            }?.name.orEmpty()
-                        }
-                        Text(senderName, style = MaterialTheme.typography.titleMedium)
+                Surface(
+                    Modifier.align(
+                        Alignment.TopCenter
+                    ).padding(top = 104.dp, start = 12.dp, end = 12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Column(Modifier.padding(12.dp)) {
                         Text(
-                            PartnerFormatter(resources).message(message),
+                            stringResource(R.string.partner_error),
                             style = MaterialTheme.typography.bodySmall
                         )
-                        if (message.kind == "DOODLE") {
-                            val doodle =
-                                remember(message.body) {
-                                    PartnerCodec.doodle(JSONObject(message.body))
-                                }
-                            if (message.outgoing || message.opened) {
-                                androidx.compose.foundation.Canvas(
-                                    Modifier.fillMaxWidth().heightIn(min = 130.dp)
-                                        .graphicsLayer {
-                                            compositingStrategy =
-                                                CompositingStrategy.Offscreen
-                                        }
-                                ) {
-                                    drawDoodle(doodle.strokes)
-                                }
-                                if (doodle.caption.isNotBlank()) Text(doodle.caption)
-                            }
-                            if (message.outgoing || message.opened ||
-                                doodle.canOpen(message.received, now)
-                            ) {
-                                TextButton({
-                                    viewing = message
-                                    if (!message.outgoing) {
-                                        model.run {
-                                            model.repository.openDoodle(message.id)?.let {
-                                                model.packet.value =
-                                                    it
-                                            }
-                                        }
-                                    }
-                                }) { Text(stringResource(R.string.partner_open_doodle)) }
-                            } else {
-                                Text(
-                                    PartnerFormatter(
-                                        LocalResources.current
-                                    ).locked(doodle.unlockAt(message.received))
-                                )
-                            }
-                        }
-                        if (message.outgoing &&
-                            !message.delivered
-                        ) {
-                            TextButton({
-                                model.run {
-                                    model.packet.value =
-                                        model.repository.retry(message.id)
-                                }
-                            }, enabled = !busy) { Text(stringResource(R.string.partner_retry)) }
-                        }
+                        TextButton({
+                            model.error.value = false
+                        }) { Text(stringResource(R.string.partner_dismiss_error)) }
                     }
                 }
             }
-            if (messages.count {
-                    it.identity in contact?.identities.orEmpty() &&
-                        it.kind == "DOODLE" &&
-                        it.body.isNotEmpty()
-                } >
-                galleryLimit
-            ) {
-                TextButton({ galleryLimit += 24 }) { Text(stringResource(R.string.partner_more)) }
-            }
-            if (directory.contacts.isNotEmpty()) {
-                PartnerConnectionCard(!busy, {
-                    model.createInvitation(profileName, fresh = true)
-                }, {
-                    importFile.launch(arrayOf("application/octet-stream", "application/vnd.ritela"))
-                })
-                PartnerReceiveCard(!busy, { importFile.launch(arrayOf("*/*")) }, {
-                    requestBluetooth(true)
-                })
-            }
-            Text(
-                stringResource(R.string.partner_limits),
-                style = MaterialTheme.typography.bodySmall
-            )
         }
         if (onboarding) {
             PartnerModal(stringResource(R.string.partner_add_close), {
@@ -625,11 +489,120 @@ fun PartnerScreen(padding: PaddingValues) {
                 device != null
             ) {
                 PartnerScopeDialog(periodState.journalLayout, source.grants, ShareScope(), false, {
-                    sharing =
-                        false
-                }, source.name) { selection ->
+                    sharing = false
+                }, source.name, requestAccess = { selection ->
+                    sharing = false
+                    requestedAccess = selection
+                }) { selection ->
                     model.data(source.id, device.id, selection)
                     sharing = false
+                }
+            }
+            if (accessEditing) {
+                PartnerScopeDialog(
+                    periodState.journalLayout,
+                    null,
+                    source.grants,
+                    true,
+                    { accessEditing = false },
+                    source.name
+                ) { selection ->
+                    model.run { model.repository.grant(source.id, selection) }
+                    accessEditing = false
+                }
+            }
+            requestedAccess?.let { selection ->
+                PartnerModal(stringResource(R.string.partner_confirm_access), {
+                    requestedAccess =
+                        null
+                }) {
+                    Text(stringResource(R.string.partner_confirm_access_hint, source.name))
+                    Text(PartnerFormatter(resources).access(selection))
+                    TextButton({
+                        accessEditing = true
+                        requestedAccess = null
+                    }) {
+                        Text(stringResource(R.string.partner_access))
+                    }
+                    Button({
+                        model.run {
+                            val current = model.repository.snapshot().identities.single {
+                                it.id ==
+                                    source.id
+                            }.grants
+                            val expanded = app.ritela.domain.PartnerSharing.union(
+                                current,
+                                selection
+                            )
+                            model.repository.grant(source.id, expanded)
+                            model.packet.value =
+                                model.repository.prepareData(source.id, device!!.id, selection)
+                        }
+                        requestedAccess = null
+                    }, enabled = !busy && device != null) {
+                        Text(stringResource(R.string.partner_confirm_and_prepare))
+                    }
+                }
+            }
+            if (profileViewing) {
+                PartnerModal(contact?.name ?: source.name, { profileViewing = false }) {
+                    Text(status)
+                    if (contact?.group == true) Text(stringResource(R.string.partner_group))
+                    last?.let { Text(PartnerFormatter(resources).exchange(it.received)) }
+                    if (identities.size > 1) {
+                        identities.forEach { person ->
+                            TextButton({
+                                identitySelection = person.id
+                                deviceSelection = null
+                            }) {
+                                Text(person.name)
+                            }
+                        }
+                    }
+                    Text(PartnerFormatter(resources).access(source.grants))
+                    TextButton(
+                        {
+                            profileViewing = false
+                            accessEditing = true
+                        },
+                        enabled = !busy && device != null
+                    ) {
+                        Text(stringResource(R.string.partner_access))
+                    }
+                    source.devices.forEachIndexed { index, phone ->
+                        Text(stringResource(R.string.partner_device_number, index + 1))
+                        Text(
+                            stringResource(
+                                if (phone.mutualConfirmed) {
+                                    R.string.partner_linked
+                                } else {
+                                    R.string.partner_pending_connection
+                                }
+                            )
+                        )
+                        phone.verificationContext?.let { value ->
+                            Text(app.ritela.data.pairingCode(value))
+                        }
+                        if (phone.enabled && phone.mutualConfirmed &&
+                            source.devices.count { it.enabled && it.mutualConfirmed } > 1
+                        ) {
+                            TextButton({
+                                deviceSelection = phone.id
+                            }) { Text(stringResource(R.string.partner_select_phone)) }
+                        }
+                    }
+                    if (source.devices.any { it.enabled && !it.mutualConfirmed }) {
+                        Button({
+                            profileViewing = false
+                            model.resumePairing(source.id, profileName)
+                        }) {
+                            Text(stringResource(R.string.partner_finish_connection))
+                        }
+                    }
+                    TextButton({
+                        profileViewing = false
+                        manage = true
+                    }) { Text(stringResource(R.string.partner_manage)) }
                 }
             }
             if (drawing &&
@@ -644,7 +617,7 @@ fun PartnerScreen(padding: PaddingValues) {
             if (manage &&
                 contact != null
             ) {
-                PartnerManagement(model, contact, source, { manage = false })
+                PartnerManagement(model, contact, source, { manage = false }, managementAction)
             }
         }
         dataViewing?.let { message ->
@@ -673,7 +646,7 @@ fun PartnerScreen(padding: PaddingValues) {
                         }
                     }
                     transport = false
-                }) { Text(stringResource(R.string.partner_share_file)) }
+                }) { Text(stringResource(R.string.partner_prepare_file)) }
                 Button({
                     transport = false
                     requestBluetooth(false)

@@ -2,6 +2,15 @@ package app.ritela.domain
 
 /** Explicit selections retain the existing wire format without DIARY's blanket grant. */
 object PartnerSharing {
+    /** Adds only the explicitly confirmed selection, preserving unrelated existing grants. */
+    fun union(existing: ShareScope, selected: ShareScope): ShareScope = ShareScope(
+        existing.categories + selected.categories,
+        existing.sections + selected.sections,
+        (existing.tags.keys + selected.tags.keys).associateWith {
+            existing.tags[it].orEmpty() + selected.tags[it].orEmpty()
+        }
+    ).normalized()
+
     fun defaultDiary(scope: ShareScope, allowed: ShareScope): ShareScope {
         val basic = setOf("mood", "pain", "symptoms", "energy", "discharge")
         return diary(

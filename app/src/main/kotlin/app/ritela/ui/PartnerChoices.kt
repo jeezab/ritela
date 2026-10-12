@@ -3,6 +3,8 @@ package app.ritela.ui
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -36,16 +38,24 @@ internal fun PartnerManagement(
     model: PartnerViewModel,
     contact: PartnerContact,
     identity: PartnerIdentity,
-    dismiss: () -> Unit
+    dismiss: () -> Unit,
+    initialAction: String? = null
 ) {
     val directory by model.directory.collectAsStateWithLifecycle()
     val messages by model.messages.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val source = directory.identities.firstOrNull { it.id == identity.id } ?: identity
-    var confirmAction by remember { mutableStateOf<String?>(null) }
+    var confirmAction by remember { mutableStateOf(initialAction?.takeIf { it == "DELETE" }) }
     var other by remember { mutableStateOf<String?>(null) }
     var name by remember { mutableStateOf(contact.name) }
     var group by remember { mutableStateOf(false) }
+    val combineFocus = remember { BringIntoViewRequester() }
+    LaunchedEffect(initialAction) {
+        if (initialAction in setOf("COMBINE", "GROUP")) {
+            androidx.compose.runtime.withFrameNanos { }
+            combineFocus.bringIntoView()
+        }
+    }
     val formatter = PartnerFormatter(LocalResources.current)
     PartnerModal(stringResource(R.string.partner_manage), dismiss) {
         Text(contact.name, style = MaterialTheme.typography.titleLarge)
@@ -118,7 +128,11 @@ internal fun PartnerManagement(
                 confirmAction = "SPLIT"
             }, enabled = !busy) { Text(stringResource(R.string.partner_split)) }
         }
-        Text(stringResource(R.string.partner_combine), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.partner_combine),
+            Modifier.bringIntoViewRequester(combineFocus),
+            style = MaterialTheme.typography.titleMedium
+        )
         directory.contacts.filter { it.id != contact.id && !it.group }.forEach { item ->
             TextButton({ other = item.id }) {
                 Text(
