@@ -373,7 +373,18 @@ fun PartnerScreen(padding: PaddingValues) {
                 retry = { message ->
                     prepareSend { model.repository.retry(message.id) }
                 },
-                senderNames = directory.identities.associate { it.id to it.name }
+                senderNames = directory.identities.associate { it.id to it.name },
+                delete = { message, erase ->
+                    if (sendRequests.message?.id == message.id ||
+                        model.packet.value?.id == message.id
+                    ) {
+                        sendRequests.invalidate()
+                        phones = false
+                    }
+                    if (dataViewing?.id == message.id) dataViewing = null
+                    if (viewing?.id == message.id) viewing = null
+                    model.deleteMessage(message.id, erase)
+                }
             )
             if (error) {
                 Surface(

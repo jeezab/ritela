@@ -1,5 +1,7 @@
 # Локальное хранение
 
+Текущая схема — Room v6, [6.json](../app/schemas/app.ritela.data.RitelaDatabase/6.json). MIGRATION_5_6 добавляет в partner_messages hiddenFromChat INTEGER NOT NULL DEFAULT 0. Миграция сохраняет все прежние поля и таблицы. Скрытый полученный DATA может сохранять body/envelope для главной и календаря; удалённое содержимое заменяется пустыми строками с сохранением ID, личности, устройства и типа. Повторный импорт не восстанавливает строку чата; ACK/OPENED обновляют только hiddenFromChat=0. Обычный backup и wire format прежние.
+
 Уточнение 2026-10-11: для новых стандартных тегов и JSON без withoutPenetration значение true по умолчанию имеют MASTURBATION и ORAL. Сохранённые явные true/false остаются прежними. В интерфейсе свойство называется «Без проникновения / Без партнёра»; SQL-схема, ID тегов и записи дней не меняются.
 
 Room database v4: исходный пользователь хранит `ritela.db`, остальные — `ritela-<UUID>.db`; схема [4.json](../app/schemas/app.ritela.data.RitelaDatabase/4.json); исходная [v1](../app/schemas/app.ritela.data.RitelaDatabase/1.json) сохранена для migration. Таблица `periods`:

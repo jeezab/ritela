@@ -45,6 +45,29 @@ class PartnerExperienceTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private val today = LocalDate.now()
 
+    @Test fun receivedHistoryKeepsOldDatesAndDoesNotExtendTheSnapshot() {
+        val old = LocalDate.of(1900, 1, 2)
+        val data = PartnerSnapshot(
+            JSONObject().put(
+                "periods",
+                JSONArray().put(
+                    JSONObject().put(
+                        "start",
+                        old.toEpochDay()
+                    ).put("end", old.plusDays(4).toEpochDay())
+                )
+            )
+        )
+        assertEquals(app.ritela.domain.CalendarDayKind.NONE, data.dayInfo(today).kind)
+        assertEquals(app.ritela.domain.CalendarDayKind.NONE, data.dayInfo(old.plusDays(28)).kind)
+        compose.activity.setContent { HomeTheme { PartnerReceivedCalendar(data) } }
+        compose.onNodeWithTag("calendar-history").performClick()
+        compose.onNodeWithTag("partner-history-${old.toEpochDay()}").performClick()
+        compose.onNodeWithTag("partner-calendar-day-$old").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("partner-day-status")
+            .assertTextEquals(compose.activity.getString(R.string.selected_day_period))
+    }
+
     private fun snapshot(day: Long) = PartnerSnapshot(
         JSONObject()
             .put("asOf", today.toEpochDay()).put("cycleDay", day).put("cycleLength", 28)

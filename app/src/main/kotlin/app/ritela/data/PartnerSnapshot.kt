@@ -86,5 +86,18 @@ fun partnerDataMessage(messages: List<PartnerMessage>, identities: Set<String>):
         .maxByOrNull { it.received }
 
 fun partnerDoodles(messages: List<PartnerMessage>, identities: Set<String>): List<PartnerMessage> =
-    messages.filter { it.identity in identities && it.kind == "DOODLE" && it.body.isNotEmpty() }
+    messages.filter {
+        !it.hiddenFromChat && it.identity in identities && it.kind == "DOODLE" &&
+            it.body.isNotEmpty()
+    }
         .sortedByDescending { it.received }
+
+/** Only incoming cycle/journal snapshots can remain useful after hiding a chat entry. */
+fun PartnerMessage.hasSharedData(): Boolean {
+    if (outgoing || kind != "DATA" || body.isEmpty()) return false
+    val data = JSONObject(body)
+    return listOf("periods", "forecasts", "days").any {
+        (data.optJSONArray(it)?.length() ?: 0) > 0
+    } ||
+        !data.isNull("cycleDay") || !data.isNull("asOf")
+}

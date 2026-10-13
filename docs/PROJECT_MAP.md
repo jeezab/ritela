@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13: ui/PartnerMessageActions.kt — меню долгого нажатия, необязательный флажок и подтверждение удаления. PartnerRepository.deleteMessage/PartnerDao сохраняют tombstones; conversationMessages скрывает их, partnerDataMessage сохраняет скрытый непустой снимок. Room v6/MIGRATION_5_6 зарегистрирована в ProfileSession и миграционных тестах, схема 6.json сохранена. PartnerMessageDeletionTest проверяет миграцию, рестарт, fallback, replay, поздние квитанции и сохранность собственных данных; PartnerMessageDeleteUiTest — выбор и подтверждения. CalendarMonthFeed расширяет диапазон получателя для всей переданной истории, включая даты старше обычных 100 лет.
+
 2026-10-13: ui/PartnerSendDialog.kt — окно отправки, общая строка действий одинаковой высоты и состояние явного запроса PartnerSendRequests. PartnerScreen привязывает запрос к профилю/переписке; сохранённый packet не открывает окно. PartnerModal поддерживает закреплённый footer редактора дудла.
 
 2026-10-13: ui/CalendarMonthFeed.kt — общий каркас календаря владельца и получателя. CalendarScreen передаёт собственную классификацию, PartnerReceivedCalendar — только полученный PartnerSnapshot. CalendarDesign делит общую легенду; история получателя только для чтения.

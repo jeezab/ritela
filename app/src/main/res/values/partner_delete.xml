@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="partner_message_delete_title">Delete message?</string>
+    <string name="partner_message_erase_data">Delete data from this message?</string>
+    <string name="partner_message_hide">Remove this message from the conversation? Its data will remain available on Home and Calendar.</string>
+    <string name="partner_message_delete_data">Delete this message and its data on this device? Home and Calendar will use the previous saved exchange, if available.</string>
+    <string name="partner_message_delete_contents">Delete this message and its contents on this device? Your records, saved doodles and copies on the other device will remain.</string>
+</resources>
