@@ -1,5 +1,9 @@
 # Точка продолжения
 
+2026-10-13: строки списка партнёров стали отдельными нажимаемыми полосами высотой 80 dp: имя, последнее событие или «Посланий пока нет», время и тонкий разделитель. Переход в переписку — короткое появление. Обмен и маршрут списка/переписки не менялись.
+
+Проверки: formatKotlin PASS; checkKotlin testDebugUnitTest --tests app.ritela.PartnerMessengerTest.dialogListOpensAChatAndBackRestoresItsScrollPosition assembleDebug -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 1 test, failures/errors/skipped 0. Проверены высота строки, клик по всей строке, пустая подпись, открытие, Back и прокрутка. APK собран assembleDebug. Lint не запускался. Новый тег не создаётся. docs/ui/ вне коммита.
+
 2026-10-13: пыль фолликулярной фазы — простая цепочка по дуге с плавным появлением у солнца и затуханием к овуляции. Лютеиновая пыль идёт так же от жемчужины к луне: от зелёного к красному, краснее начала фолликулярной дуги. Жемчужина стоит на дне цикла «длина − 14», поэтому расчётный день овуляции совпадает с ней. Луна сдвинута ближе к солнцу по орбите, до 0.92.
 
 Проверки: formatKotlin PASS; checkKotlin testDebugUnitTest --tests app.ritela.OrbitGeometryTest --tests app.ritela.OrbitDustInteractionTest -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 5 tests, failures/errors/skipped 0. Проверены совпадение жемчужины с днём овуляции для длин 21/28/29/35 и прежние попадания по пыли. APK и lint не запускались. Room и прогноз не менялись. Изменение сохраняется локальным коммитом и отправляется в master без нового тега. docs/ui/ вне коммита.

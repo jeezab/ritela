@@ -6,6 +6,7 @@
     <string name="partner_preview_doodle_caption">For you ♡</string>
     <string name="partner_chat_empty">A little closer</string>
     <string name="partner_chat_empty_hint">Your doodles and shared data will appear here.</string>
+    <string name="partner_no_messages">No messages yet</string>
     <string name="partner_share_data">Share data</string>
     <string name="partner_send_doodle">Send a doodle</string>
     <string name="partner_back">Back</string>
