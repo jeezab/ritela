@@ -163,6 +163,7 @@ fun PartnerScreen(padding: PaddingValues) {
     var profileViewing by remember { mutableStateOf(false) }
     var managementAction by remember { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<PartnerMessage?>(null) }
+    var opened by remember { mutableStateOf<String?>(null) }
     var transport by remember { mutableStateOf(false) }
     var phones by remember { mutableStateOf(false) }
     var edge by remember { mutableStateOf(ExchangeEdge.RIGHT) }
@@ -264,8 +265,12 @@ fun PartnerScreen(padding: PaddingValues) {
     // Date-locked letters are evaluated again on each real application resume.
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { now = System.currentTimeMillis() }
-    val contact =
-        directory.contacts.firstOrNull { it.id == selected } ?: directory.contacts.firstOrNull()
+    val managed = directory.contacts.firstOrNull { it.id == selected }
+    val openedContact = directory.contacts.firstOrNull { it.id == opened }
+    LaunchedEffect(opened, directory.contacts) {
+        if (opened != null && openedContact == null) opened = null
+    }
+    val contact = openedContact ?: managed
     val identities = directory.identities.filter { it.id in contact?.identities.orEmpty() }
     val identity = identities.firstOrNull { it.id == identitySelection } ?: identities.firstOrNull()
     LaunchedEffect(contact?.id, identity?.id) {
@@ -300,16 +305,25 @@ fun PartnerScreen(padding: PaddingValues) {
             it.identity in contact?.identities.orEmpty() && !it.outgoing &&
                 it.kind in setOf("DATA", "DOODLE", "ACK", "OPENED")
         }
+        val headerStatus = stringResource(
+            if (activePeer in openedContact?.identities.orEmpty()) {
+                R.string.partner_nearby
+            } else {
+                R.string.partner_unconnected
+            }
+        )
         androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(padding)) {
-            PartnerConversation(
-                directory.contacts, contact, messages, status,
-                last?.let { PartnerFormatter(resources).exchange(it.received) }, busy,
+            PartnerChats(
+                directory.contacts, opened, messages, headerStatus, busy,
                 contact?.group == false && identity?.exchangeEnabled == true && device != null, now,
-                select = { id ->
+                managed,
+                openDialog = { id ->
+                    opened = id
                     scope.launch { session.partnerPreferences.select(id) }
                     identitySelection = null
                     deviceSelection = null
                 },
+                closeDialog = { opened = null },
                 profile = { profileViewing = true },
                 action = { event ->
                     when (event) {

@@ -1,5 +1,6 @@
 package app.ritela.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -14,16 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,10 +30,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -79,17 +79,179 @@ internal fun conversationMessages(
 }
     .distinctBy { it.id }.sortedWith(compareBy<PartnerMessage> { it.received }.thenBy { it.id })
 
-@Composable
-internal fun PartnerConversation(
+internal fun orderedDialogs(
     contacts: List<PartnerContact>,
-    selected: PartnerContact?,
+    messages: List<PartnerMessage>
+): List<PartnerContact> = contacts.sortedWith(
+    compareByDescending<PartnerContact> { contact ->
+        conversationMessages(messages, contact.identities).lastOrNull()?.received ?: Long.MIN_VALUE
+    }.thenBy { it.name }.thenBy { it.id }
+)
+
+@Composable
+internal fun PartnerChats(
+    contacts: List<PartnerContact>,
+    openedId: String?,
     messages: List<PartnerMessage>,
     status: String,
-    lastExchange: String?,
     busy: Boolean,
     canSend: Boolean,
     now: Long,
-    select: (String) -> Unit,
+    managed: PartnerContact?,
+    openDialog: (String) -> Unit,
+    closeDialog: () -> Unit,
+    profile: () -> Unit,
+    action: (ConversationAction) -> Unit,
+    open: (PartnerMessage) -> Unit,
+    retry: (PartnerMessage) -> Unit,
+    modifier: Modifier = Modifier,
+    senderNames: Map<String, String> = emptyMap()
+) {
+    val holder = rememberSaveableStateHolder()
+    val opened = contacts.firstOrNull { it.id == openedId }
+    BackHandler(opened != null, closeDialog)
+    if (opened == null) {
+        PartnerDialogList(contacts, messages, managed, busy, openDialog, action, modifier)
+    } else {
+        holder.SaveableStateProvider(opened.id) {
+            PartnerConversation(
+                opened, messages, status, busy, canSend, now, closeDialog, profile, action,
+                open, retry, modifier, senderNames
+            )
+        }
+    }
+}
+
+@Composable
+internal fun PartnerDialogList(
+    contacts: List<PartnerContact>,
+    messages: List<PartnerMessage>,
+    managed: PartnerContact?,
+    busy: Boolean,
+    openDialog: (String) -> Unit,
+    action: (ConversationAction) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var menu by remember { mutableStateOf(false) }
+    val formatter = PartnerFormatter(LocalResources.current)
+    val menuLabel = stringResource(R.string.partner_chat_menu)
+    val dialogs = remember(contacts, messages) { orderedDialogs(contacts, messages) }
+    Column(modifier.fillMaxSize().background(HomeColors.background)) {
+        Surface(color = HomeColors.top) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    stringResource(R.string.partner_title),
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                IconButton(
+                    { action(ConversationAction.ADD) },
+                    Modifier.testTag("partner-list-add"),
+                    enabled = !busy
+                ) { Text("+", style = MaterialTheme.typography.headlineMedium) }
+                Box {
+                    IconButton(
+                        { menu = true },
+                        Modifier.testTag("partner-list-menu").semantics {
+                            contentDescription = menuLabel
+                        }
+                    ) { Text("\u22ee", style = MaterialTheme.typography.headlineSmall) }
+                    DropdownMenu(menu, { menu = false }) {
+                        listOf(
+                            ConversationAction.ADD to R.string.partner_add_close,
+                            ConversationAction.MERGE to R.string.partner_merge,
+                            ConversationAction.GROUP to R.string.partner_create_group,
+                            ConversationAction.DELETE to R.string.partner_delete
+                        ).forEach { (event, label) ->
+                            DropdownMenuItem(
+                                { Text(stringResource(label)) },
+                                {
+                                    menu = false
+                                    action(event)
+                                },
+                                enabled = !busy &&
+                                    (event == ConversationAction.ADD || managed != null)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (dialogs.isEmpty()) {
+            Column(
+                Modifier.weight(1f).fillMaxWidth().padding(24.dp).testTag("partner-dialog-list"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    stringResource(R.string.partner_chat_empty),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    stringResource(R.string.partner_chat_empty_hint),
+                    Modifier.padding(top = 8.dp, bottom = 16.dp),
+                    color = HomeColors.muted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Button({ action(ConversationAction.ADD) }, enabled = !busy) {
+                    Text(stringResource(R.string.partner_add_close))
+                }
+            }
+        } else {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("partner-dialog-list")) {
+                items(dialogs, key = { it.id }) { contact ->
+                    val latest = conversationMessages(messages, contact.identities).lastOrNull()
+                    Row(
+                        Modifier.fillMaxWidth().clickable(enabled = !busy) {
+                            openDialog(contact.id)
+                        }.padding(horizontal = 16.dp, vertical = 12.dp)
+                            .testTag("partner-dialog-${contact.id}"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(
+                                contact.name,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            latest?.let {
+                                Text(
+                                    formatter.dialogPreview(it),
+                                    color = HomeColors.muted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                        latest?.let {
+                            Text(
+                                formatter.dialogClock(it.received),
+                                color = HomeColors.muted,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun PartnerConversation(
+    selected: PartnerContact,
+    messages: List<PartnerMessage>,
+    status: String,
+    busy: Boolean,
+    canSend: Boolean,
+    now: Long,
+    back: () -> Unit,
     profile: () -> Unit,
     action: (ConversationAction) -> Unit,
     open: (PartnerMessage) -> Unit,
@@ -103,104 +265,75 @@ internal fun PartnerConversation(
     val reducedMotion = orbitReducedMotion()
     val menuLabel = stringResource(R.string.partner_chat_menu)
     val addLabel = stringResource(R.string.partner_chat_add)
+    val backLabel = stringResource(R.string.partner_back)
     Column(modifier.fillMaxSize().background(HomeColors.background).imePadding()) {
         Surface(color = HomeColors.top) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 16.dp, top = 6.dp, bottom = 6.dp),
+                Modifier.fillMaxWidth().padding(end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    Modifier.weight(1f).clickable(enabled = selected != null, onClick = profile)
-                        .testTag("partner-profile").padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                IconButton(
+                    back,
+                    Modifier.testTag("partner-back").semantics { contentDescription = backLabel }
+                ) { Text("\u2190", style = MaterialTheme.typography.headlineSmall) }
+                Column(
+                    Modifier.weight(1f).clickable(onClick = profile).testTag("partner-profile")
+                        .padding(vertical = 8.dp)
                 ) {
-                    PartnerAvatar(selected?.name.orEmpty())
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            selected?.name ?: stringResource(R.string.partner_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            status,
-                            color = HomeColors.muted,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        lastExchange?.let {
-                            Text(
-                                it,
-                                color = HomeColors.muted,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 2
-                            )
-                        }
-                    }
+                    Text(
+                        selected.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        status,
+                        color = HomeColors.muted,
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
                 Box {
                     IconButton(
                         { menu = true },
                         Modifier.testTag("partner-menu").semantics {
-                            contentDescription =
-                                menuLabel
-                        }
-                    ) {
-                        Text("\u22ee", style = MaterialTheme.typography.headlineSmall)
-                    }
-                    DropdownMenu(menu, { menu = false }) {
-                        listOf(
-                            ConversationAction.ADD to R.string.partner_add_close,
-                            ConversationAction.MANAGE to R.string.partner_manage,
-                            ConversationAction.MERGE to R.string.partner_merge,
-                            ConversationAction.GROUP to R.string.partner_create_group,
-                            ConversationAction.DELETE to R.string.partner_delete,
-                            ConversationAction.VERIFY to R.string.partner_check_connection
-                        ).forEach { (event, label) ->
-                            DropdownMenuItem(
-                                { Text(stringResource(label)) },
-                                {
-                                    menu = false
-                                    action(event)
-                                },
-                                enabled =
-                                    !busy && (event == ConversationAction.ADD || selected != null)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        if (contacts.size > 1) {
-            LazyRow(
-                Modifier.fillMaxWidth().testTag("partner-dialogs"),
-                contentPadding = PaddingValues(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(contacts, key = { it.id }) { contact ->
-                    FilterChip(
-                        contact.id == selected?.id,
-                        { select(contact.id) },
-                        { Text(contact.name, maxLines = 1) },
-                        leadingIcon = { Text("\u2661") },
+                            contentDescription = menuLabel
+                        },
                         enabled = !busy
-                    )
+                    ) { Text("\u22ee", style = MaterialTheme.typography.headlineSmall) }
+                    DropdownMenu(menu, { menu = false }) {
+                        DropdownMenuItem(
+                            { Text(stringResource(R.string.partner_check_connection)) },
+                            {
+                                menu = false
+                                action(ConversationAction.VERIFY)
+                            },
+                            enabled = !busy
+                        )
+                    }
                 }
             }
         }
-        key(selected?.id) {
-            val timeline = remember(messages, selected?.identities) {
-                conversationMessages(messages, selected?.identities.orEmpty())
+        run {
+            val timeline = remember(messages, selected.identities) {
+                conversationMessages(messages, selected.identities)
             }
-            val list = rememberLazyListState()
+            val list = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
             val rows = remember(timeline) {
                 timeline.groupBy {
                     Instant.ofEpochMilli(it.received).atZone(ZoneId.systemDefault()).toLocalDate()
                 }
             }
-            var loaded by remember { mutableStateOf(false) }
+            var loaded by rememberSaveable { mutableStateOf(false) }
+            var atEnd by rememberSaveable { mutableStateOf(true) }
+            LaunchedEffect(list) {
+                snapshotFlow {
+                    val info = list.layoutInfo
+                    val last = info.visibleItemsInfo.lastOrNull()
+                    last != null && last.index >= info.totalItemsCount - 1
+                }.collect { atEnd = it }
+            }
             LaunchedEffect(timeline.lastOrNull()?.id) {
-                if (timeline.isNotEmpty() && (!loaded || !list.canScrollForward)) {
+                if (timeline.isNotEmpty() && (!loaded || atEnd)) {
                     list.scrollToItem(timeline.size + rows.size - 1)
                 }
                 loaded = true
@@ -224,27 +357,11 @@ internal fun PartnerConversation(
                                 style = MaterialTheme.typography.displaySmall
                             )
                             Text(
-                                stringResource(
-                                    if (selected ==
-                                        null
-                                    ) {
-                                        R.string.partner_welcome_title
-                                    } else {
-                                        R.string.partner_chat_empty
-                                    }
-                                ),
+                                stringResource(R.string.partner_chat_empty),
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
-                                stringResource(
-                                    if (selected ==
-                                        null
-                                    ) {
-                                        R.string.partner_welcome_body
-                                    } else {
-                                        R.string.partner_chat_empty_hint
-                                    }
-                                ),
+                                stringResource(R.string.partner_chat_empty_hint),
                                 color = HomeColors.muted,
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -264,9 +381,7 @@ internal fun PartnerConversation(
                         }
                     }
                     items(values, key = { it.id }) { message ->
-                        val sender = if (selected?.group ==
-                            true
-                        ) {
+                        val sender = if (selected.group) {
                             senderNames[message.identity]?.let {
                                 if (message.outgoing) {
                                     stringResource(
@@ -326,7 +441,7 @@ internal fun PartnerConversation(
                         }
                         DropdownMenu(attachments, { attachments = false }) {
                             listOf(
-                                ConversationAction.DOODLE to R.string.partner_doodle,
+                                ConversationAction.DOODLE to R.string.partner_send_doodle,
                                 ConversationAction.FILE to R.string.partner_import,
                                 ConversationAction.RECEIVE to R.string.partner_receive
                             ).forEach { (event, label) ->
@@ -343,34 +458,11 @@ internal fun PartnerConversation(
                             }
                         }
                     }
-                    TextButton(
-                        {
-                            action(
-                                if (selected ==
-                                    null
-                                ) {
-                                    ConversationAction.ADD
-                                } else {
-                                    ConversationAction.SHARE
-                                }
-                            )
-                        },
+                    Button(
+                        { action(ConversationAction.SHARE) },
                         Modifier.weight(1f).testTag("partner-create-message"),
-                        enabled =
-                            !busy && (selected == null || canSend)
-                    ) {
-                        Text(
-                            stringResource(
-                                if (selected ==
-                                    null
-                                ) {
-                                    R.string.partner_add_close
-                                } else {
-                                    R.string.partner_share_data
-                                }
-                            )
-                        )
-                    }
+                        enabled = !busy && canSend
+                    ) { Text(stringResource(R.string.partner_share_data)) }
                 }
                 Text(
                     stringResource(R.string.partner_chat_manual),
@@ -379,20 +471,6 @@ internal fun PartnerConversation(
                     color = HomeColors.muted
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun PartnerAvatar(name: String) {
-    Surface(Modifier.size(44.dp), shape = CircleShape, color = HomeColors.rose.copy(alpha = .25f)) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                name.take(1).uppercase().ifEmpty {
-                    "\u2661"
-                },
-                style = MaterialTheme.typography.titleLarge
-            )
         }
     }
 }
@@ -577,22 +655,14 @@ internal fun ConversationPreviewContent(kind: String) {
     )
     HomeTheme {
         PartnerConversation(
-            if (kind ==
-                "multiple"
-            ) {
-                listOf(contact, contact.copy(id = "other", name = "Alex"))
-            } else {
-                listOf(contact)
-            },
-            contact,
+            if (kind == "multiple") contact.copy(id = "other", name = "Alex") else contact,
             when (kind) {
                 "empty" -> emptyList()
                 "doodle" -> listOf(received)
                 "multiple" -> listOf(data, received)
                 else -> listOf(data)
             },
-            stringResource(R.string.partner_unconnected), null, false, true, now, {
-            }, {}, {}, {}, {}
+            stringResource(R.string.partner_unconnected), false, true, now, {}, {}, {}, {}, {}
         )
     }
 }
