@@ -93,7 +93,6 @@
     <string name="partner_exchange_done">Получение подтверждено ❤️</string>
     <string name="partner_exchange_failed">Обмен прерван. Можно повторить.</string>
 
-    <string name="partner_unknown_phase">Фаза пока не определена</string>
     <string name="partner_previous">Предыдущие записи</string>
     <string name="partner_next">Следующие записи</string>
 

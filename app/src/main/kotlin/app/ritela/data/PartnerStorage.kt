@@ -80,7 +80,8 @@ data class PartnerMode(
     val recipient: Boolean = false,
     val ready: Boolean = false,
     val failed: Boolean = false,
-    val selected: String? = null
+    val selected: String? = null,
+    val homeSelected: String? = null
 )
 
 class PartnerPreferences(context: Context, profile: String) {
@@ -93,7 +94,8 @@ class PartnerPreferences(context: Context, profile: String) {
             it[SHOW] ?: false,
             it[RECIPIENT] ?: false,
             true,
-            selected = it[SELECTED]
+            selected = it[SELECTED],
+            homeSelected = it[HOME_SELECTED]
         )
     }
         .catch { error ->
@@ -112,6 +114,9 @@ class PartnerPreferences(context: Context, profile: String) {
     suspend fun select(contact: String) {
         store.edit { it[SELECTED] = contact }
     }
+    suspend fun selectHome(contact: String) {
+        store.edit { it[HOME_SELECTED] = contact }
+    }
     suspend fun close() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.let {
             it.cancel()
@@ -122,5 +127,8 @@ class PartnerPreferences(context: Context, profile: String) {
         private val SHOW = booleanPreferencesKey("show")
         private val RECIPIENT = booleanPreferencesKey("recipient")
         private val SELECTED = androidx.datastore.preferences.core.stringPreferencesKey("selected")
+        private val HOME_SELECTED = androidx.datastore.preferences.core.stringPreferencesKey(
+            "homeSelected"
+        )
     }
 }

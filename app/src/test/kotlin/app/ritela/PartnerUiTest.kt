@@ -66,7 +66,7 @@ class PartnerUiTest {
         compose.onNodeWithTag("log-day").assertIsEnabled()
         continueSave.complete(Unit)
         compose.waitUntil(10000) {
-            compose.onAllNodesWithText(compose.activity.getString(R.string.partner_no_received))
+            compose.onAllNodesWithTag("partner-home-selector")
                 .fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("log-day").assertDoesNotExist()
@@ -74,7 +74,7 @@ class PartnerUiTest {
         compose.activityRule.scenario.recreate()
         home()
         compose.onNodeWithTag("log-day").assertDoesNotExist()
-        compose.onNodeWithText(compose.activity.getString(R.string.partner_no_received))
+        compose.onNodeWithTag("partner-home-selector")
             .assertIsDisplayed()
     }
 
@@ -129,9 +129,8 @@ class PartnerUiTest {
             compose.onAllNodesWithTag("log-day").fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithTag("log-day").assertDoesNotExist()
-        compose.onNodeWithText(
-            compose.activity.getString(R.string.partner_no_received)
-        ).assertIsDisplayed()
+        compose.onNodeWithTag("partner-home-selector").assertIsDisplayed()
+        compose.onNodeWithText("Полученных данных пока нет").assertDoesNotExist()
         compose.onNodeWithTag("nav-partner").performClick()
         compose.onNodeWithTag("partner-connection-info").assertDoesNotExist()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_invite))

@@ -2,6 +2,7 @@ package app.ritela.data
 
 import app.ritela.domain.CalendarDayInfo
 import app.ritela.domain.CalendarDayKind
+import app.ritela.domain.EstimatedCyclePhase
 import java.time.LocalDate
 import org.json.JSONObject
 
@@ -20,6 +21,24 @@ class PartnerSnapshot(val data: JSONObject) {
     }
     val cycleDay: Long? = if (data.isNull("cycleDay")) null else data.getLong("cycleDay")
     val cycleLength: Int? = if (data.isNull("cycleLength")) null else data.getInt("cycleLength")
+    val phase: EstimatedCyclePhase get() = EstimatedCyclePhase.entries.firstOrNull {
+        it.name == data.optString("phase")
+    } ?: EstimatedCyclePhase.UNKNOWN
+
+    fun phaseAtCycleDay(focusDay: Long): EstimatedCyclePhase {
+        if (focusDay == cycleDay) return phase
+        val anchor = asOf ?: return EstimatedCyclePhase.UNKNOWN
+        val current = cycleDay ?: return EstimatedCyclePhase.UNKNOWN
+        val date = anchor.minusDays(current - 1).plusDays(focusDay - 1)
+        val forecast = next(anchor) ?: return EstimatedCyclePhase.UNKNOWN
+        val ovulation = forecast.getLong("ovulation")
+        return when {
+            focusDay <= data.optInt("duration", 1) -> EstimatedCyclePhase.EARLY
+            date.toEpochDay() in (ovulation - 5)..(ovulation + 1) -> EstimatedCyclePhase.OVULATION
+            date.toEpochDay() < ovulation - 5 -> EstimatedCyclePhase.FOLLICULAR
+            else -> EstimatedCyclePhase.LUTEAL
+        }
+    }
     fun next(today: LocalDate): JSONObject? = forecasts.firstOrNull {
         it.getLong("upper") >=
             today.toEpochDay()
@@ -51,6 +70,9 @@ class PartnerSnapshot(val data: JSONObject) {
         }
         if (forecasts.any { day == it.getLong("ovulation") }) {
             return CalendarDayInfo(CalendarDayKind.OVULATION_ESTIMATE)
+        }
+        if (forecasts.any { day in (it.getLong("ovulation") - 5)..(it.getLong("ovulation") + 1) }) {
+            return CalendarDayInfo(CalendarDayKind.FERTILE_ESTIMATE)
         }
         return CalendarDayInfo(CalendarDayKind.NONE)
     }

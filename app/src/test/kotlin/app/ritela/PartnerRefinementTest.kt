@@ -103,6 +103,34 @@ class PartnerRefinementTest {
             snapshot.dayInfo(asOf.plusMonths(3).minusDays(14)).kind
         )
         assertNotEquals(snapshot.next(asOf), snapshot.next(asOf.plusMonths(2)))
+        val ovulation = asOf.plusMonths(3).minusDays(14)
+        for (offset in -5L..1L) {
+            assertEquals(
+                if (offset ==
+                    0L
+                ) {
+                    CalendarDayKind.OVULATION_ESTIMATE
+                } else {
+                    CalendarDayKind.FERTILE_ESTIMATE
+                },
+                snapshot.dayInfo(ovulation.plusDays(offset)).kind
+            )
+        }
+        assertEquals(CalendarDayKind.NONE, snapshot.dayInfo(ovulation.minusDays(6)).kind)
+        assertEquals(CalendarDayKind.NONE, snapshot.dayInfo(ovulation.plusDays(2)).kind)
+        data.put("phase", "LUTEAL")
+        assertEquals(app.ritela.domain.EstimatedCyclePhase.LUTEAL, snapshot.phaseAtCycleDay(9))
+        assertEquals(app.ritela.domain.EstimatedCyclePhase.EARLY, snapshot.phaseAtCycleDay(1))
+        // Focus follows authenticated dates; the current day stays anchored to asOf.
+        val firstOvulationDay = 9L + java.time.temporal.ChronoUnit.DAYS.between(
+            asOf,
+            asOf.plusMonths(1).minusDays(14)
+        )
+        assertEquals(
+            app.ritela.domain.EstimatedCyclePhase.OVULATION,
+            snapshot.phaseAtCycleDay(firstOvulationDay)
+        )
+        assertEquals(9L, snapshot.cycleDay)
     }
 
     @Test fun acknowledgementsNeverBecomeDoodlesAndOldDataDoesNotLeakIntoNewSnapshot() {

@@ -33,6 +33,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -188,12 +189,24 @@ class PartnerReliabilityTest {
             withTimeout(5000) { prefs.mode.first { it.ready } }
             prefs.show(true)
             prefs.recipient(true)
+            prefs.selectHome("home-contact")
+            prefs.select("chat-contact")
+            val chosen = withTimeout(5000) {
+                prefs.mode.first {
+                    it.homeSelected == "home-contact" &&
+                        it.selected == "chat-contact"
+                }
+            }
+            assertEquals("home-contact", chosen.homeSelected)
+            assertNull(withTimeout(5000) { other.mode.first { it.ready } }.homeSelected)
             withTimeout(5000) { prefs.mode.first { it.show && it.recipient } }
             assertFalse(withTimeout(5000) { other.mode.first { it.ready } }.recipient)
             prefs.close()
             prefs = PartnerPreferences(context, one)
             val restored = withTimeout(5000) { prefs.mode.first { it.ready } }
             assertTrue(restored.show && restored.recipient)
+            assertEquals("home-contact", restored.homeSelected)
+            assertEquals("chat-contact", restored.selected)
         } finally {
             prefs.close()
             other.close()

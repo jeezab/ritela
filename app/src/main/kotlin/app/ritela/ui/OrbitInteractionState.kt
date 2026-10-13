@@ -1,5 +1,6 @@
 package app.ritela.ui
 
+import app.ritela.data.PartnerSnapshot
 import app.ritela.domain.CycleAnalysis
 import app.ritela.domain.EstimatedCyclePhase
 import app.ritela.domain.cycleSceneState
@@ -23,6 +24,22 @@ fun orbitDayProgress(day: Long, length: Int): Float {
     val days = length.coerceAtLeast(1)
     // Pin overdue days to the last represented day, never wrap them back to the sun.
     return (day.coerceAtLeast(1) - 1).coerceIn(0, (days - 1).toLong()).toFloat() / days
+}
+
+internal fun partnerOrbitInteractionState(
+    snapshot: PartnerSnapshot,
+    focusDay: Long
+): OrbitInteractionState? {
+    val current = snapshot.cycleDay ?: return null
+    val length = snapshot.cycleLength ?: return null
+    val reference = snapshot.asOf ?: return null
+    return OrbitInteractionState(
+        current,
+        length,
+        focusDay,
+        reference.minusDays(current - 1).plusDays(focusDay - 1),
+        snapshot.phaseAtCycleDay(focusDay)
+    )
 }
 
 fun orbitDayAtProgress(progress: Float, length: Int): Long {

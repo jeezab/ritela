@@ -93,7 +93,6 @@
     <string name="partner_exchange_done">Confirmation confirmed ❤️</string>
     <string name="partner_exchange_failed">Exchange interrupted. You can retry.</string>
 
-    <string name="partner_unknown_phase">Phase unavailable</string>
     <string name="partner_previous">Previous records</string>
     <string name="partner_next">Next records</string>
 

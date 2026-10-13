@@ -8,37 +8,34 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ritela.R
 import app.ritela.data.PartnerSnapshot
 import app.ritela.data.partnerDataMessage
+import app.ritela.domain.CycleAnalysis
 import java.time.LocalDate
 import org.json.JSONObject
 
@@ -48,45 +45,74 @@ internal fun PartnerHome(padding: PaddingValues, calendar: () -> Unit, messagesP
     val directory by session.partnerModel.directory.collectAsStateWithLifecycle()
     val messages by session.partnerModel.messages.collectAsStateWithLifecycle()
     val preferences by session.partnerPreferences.mode.collectAsStateWithLifecycle()
-    val contact =
-        directory.contacts.firstOrNull { it.id == preferences.selected }
-            ?: directory.contacts.firstOrNull()
+    val contact = directory.contacts.firstOrNull { it.id == preferences.homeSelected }
+        ?: directory.contacts.firstOrNull()
     val message = contact?.let { partnerDataMessage(messages, it.identities) }
     val snapshot = remember(message?.body) { message?.let { PartnerSnapshot(JSONObject(it.body)) } }
-    val formatter = PartnerFormatter(LocalResources.current)
+    PartnerHomeContent(padding, directory.contacts, contact, snapshot, {
+        session.partnerModel.updatePreferences { session.partnerPreferences.selectHome(it) }
+    }, calendar, messagesPage)
+}
+
+@Composable
+internal fun PartnerHomeContent(
+    padding: PaddingValues,
+    contacts: List<app.ritela.domain.PartnerContact>,
+    contact: app.ritela.domain.PartnerContact?,
+    snapshot: PartnerSnapshot?,
+    onSelect: (String) -> Unit,
+    calendar: () -> Unit,
+    messagesPage: () -> Unit
+) {
+    var choosing by remember { mutableStateOf(false) }
     HomeTheme {
         Column(
             Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
                 .verticalScroll(rememberScrollState()).padding(HomeSpacing.gutter),
             verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
         ) {
-            Text(
-                contact?.name ?: stringResource(R.string.partner_title),
-                style = MaterialTheme.typography.headlineLarge
-            )
-            if (snapshot == null) {
-                SettingsGroup { Text(stringResource(R.string.partner_no_received)) }
-            } else {
-                SettingsGroup {
-                    PartnerCycleSummary(snapshot)
-                    message?.let {
+            androidx.compose.foundation.layout.Box {
+                TextButton(
+                    { choosing = true },
+                    enabled = contacts.size > 1,
+                    modifier = Modifier.testTag("partner-home-selector")
+                ) {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text(
-                            formatter.exchange(it.received),
-                            style = MaterialTheme.typography.bodySmall
+                            contact?.name ?: stringResource(R.string.partner_title),
+                            style = MaterialTheme.typography.headlineLarge
                         )
+                        if (contacts.size > 1) {
+                            Icon(
+                                painterResource(R.drawable.ic_chevron_down),
+                                stringResource(R.string.partner_choose_home),
+                                Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+                DropdownMenu(choosing, { choosing = false }) {
+                    contacts.forEach { candidate ->
+                        DropdownMenuItem({ Text(candidate.name) }, {
+                            choosing = false
+                            onSelect(candidate.id)
+                        }, modifier = Modifier.testTag("partner-home-select-${candidate.id}"))
                     }
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    calendar,
-                    enabled =
-                        snapshot != null &&
+            key(contact?.id) {
+                snapshot?.let { PartnerCycleSummary(it) }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        calendar,
+                        enabled = snapshot != null &&
                             (snapshot.periods.isNotEmpty() || snapshot.forecasts.isNotEmpty())
-                ) {
-                    Text(stringResource(R.string.partner_calendar_view))
+                    ) {
+                        Text(stringResource(R.string.partner_calendar_view))
+                    }
+                    TextButton(messagesPage) { Text(stringResource(R.string.partner_gallery)) }
                 }
-                TextButton(messagesPage) { Text(stringResource(R.string.partner_gallery)) }
+                HelpCards(null, CycleAnalysis(), LocalDate.now())
             }
         }
     }
@@ -94,26 +120,23 @@ internal fun PartnerHome(padding: PaddingValues, calendar: () -> Unit, messagesP
 
 @Composable
 internal fun PartnerCycleSummary(snapshot: PartnerSnapshot) {
+    val reference = snapshot.asOf ?: LocalDate.now()
+    val next = snapshot.next(reference)?.let { LocalDate.ofEpochDay(it.getLong("start")) }
+    if (next == null && snapshot.cycleDay == null) return
     val formatter = PartnerFormatter(LocalResources.current)
-    snapshot.cycleDay?.let {
-        Text(
-            stringResource(R.string.hero_cycle_day, it),
-            style = MaterialTheme.typography.titleLarge
-        )
-    }
-    snapshot.data.optString("phase").takeIf { it.isNotBlank() }?.let {
-        Text(
-            stringResource(
-                when (it) {
-                    "EARLY" -> R.string.phase_early_name
-                    "FOLLICULAR" -> R.string.phase_follicular_name
-                    "OVULATION" -> R.string.phase_ovulation_name
-                    "LUTEAL" -> R.string.phase_luteal_name
-                    else -> R.string.partner_unknown_phase
-                }
-            )
-        )
-    }
+    val reducedMotion = orbitReducedMotion()
+    var showInfo by remember { mutableStateOf(false) }
+    var showOrbit by remember { mutableStateOf(false) }
+    var selectedMarker by remember { mutableStateOf<OrbitMarker?>(null) }
+    val day = snapshot.cycleDay
+    val length = snapshot.cycleLength
+    val available = next != null && day != null && length != null && snapshot.asOf != null
+    CycleForecastHero(
+        day, next, snapshot.phase,
+        if (day != null && length != null) orbitDayProgress(day, length) else 0f,
+        reference, reducedMotion, null, available,
+        { showInfo = true }, { showOrbit = true }, { selectedMarker = it }
+    )
     snapshot.asOf?.let {
         Text(
             stringResource(R.string.partner_snapshot_hint, formatter.date(it.toEpochDay())),
@@ -121,26 +144,24 @@ internal fun PartnerCycleSummary(snapshot: PartnerSnapshot) {
             color = HomeColors.muted
         )
     }
-    if (snapshot.cycleDay != null && snapshot.cycleLength != null) {
-        CycleOrbitScene(
-            snapshot.cycleDay,
-            orbitDayProgress(snapshot.cycleDay, snapshot.cycleLength),
-            orbitReducedMotion(),
-            OrbitColors(HomeColors.orbit, HomeColors.rose, HomeColors.peach, HomeColors.card),
-            Modifier.fillMaxWidth().height(180.dp)
-        )
+    if (showInfo) {
+        PartnerModal(stringResource(R.string.forecast_info), { showInfo = false }) {
+            snapshot.asOf?.let {
+                Text(
+                    stringResource(R.string.partner_snapshot_hint, formatter.date(it.toEpochDay()))
+                )
+            }
+            Text(stringResource(R.string.prediction_method_info))
+            Text(stringResource(R.string.selected_day_fertility_guide))
+        }
     }
-    snapshot.next(LocalDate.now())?.let {
-        Text(
-            stringResource(
-                R.string.partner_forecast_row,
-                formatter.date(it.getLong("start")),
-                formatter.date(it.getLong("lower")),
-                formatter.date(it.getLong("upper"))
-            ),
-            style = MaterialTheme.typography.titleMedium
-        )
+    if (showOrbit && available) {
+        val current = requireNotNull(day)
+        CycleOrbitDetails(current, reference, reducedMotion, { focus ->
+            requireNotNull(partnerOrbitInteractionState(snapshot, focus))
+        }, { showOrbit = false })
     }
+    selectedMarker?.let { OrbitPhaseInfo(it) { selectedMarker = null } }
 }
 
 @Composable
@@ -149,24 +170,22 @@ internal fun PartnerCalendarPage(padding: PaddingValues) {
     val directory by session.partnerModel.directory.collectAsStateWithLifecycle()
     val messages by session.partnerModel.messages.collectAsStateWithLifecycle()
     val preferences by session.partnerPreferences.mode.collectAsStateWithLifecycle()
-    val contact =
-        directory.contacts.firstOrNull { it.id == preferences.selected }
-            ?: directory.contacts.firstOrNull()
+    val contact = directory.contacts.firstOrNull { it.id == preferences.homeSelected }
+        ?: directory.contacts.firstOrNull()
     val message = contact?.let { partnerDataMessage(messages, it.identities) }
+    val snapshot =
+        remember(message?.body) {
+            PartnerSnapshot(message?.let { JSONObject(it.body) } ?: JSONObject())
+        }
     HomeTheme {
-        if (message == null) {
+        key(contact?.id, message?.id) {
             Column(
-                Modifier.fillMaxSize().background(
-                    HomeColors.background
-                ).padding(padding).padding(24.dp)
+                Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
+                    .padding(horizontal = HomeSpacing.gutter)
             ) {
-                Text(stringResource(R.string.partner_no_received))
+                PartnerCycleSummary(snapshot)
+                PartnerReceivedCalendar(snapshot, Modifier.weight(1f))
             }
-        } else {
-            PartnerReceivedCalendar(
-                PartnerSnapshot(JSONObject(message.body)),
-                Modifier.padding(padding)
-            )
         }
     }
 }

@@ -256,6 +256,7 @@ class HomeScreenTest {
         val day = YearMonth.from(today).minusMonths(1).atDay(15)
         compose.onNodeWithTag("month-grid").performScrollToNode(hasTestTag("calendar-day-$day"))
         compose.onNodeWithTag("calendar-day-$day").performClick()
+        compose.onNodeWithTag("selected-day-status").assertDoesNotExist()
         saveRendering("calendar-day-details", dialog = true)
         compose.onNodeWithText("Отметить месячные").performScrollTo().performClick()
         compose.onNodeWithTag("entry-save").performClick()
@@ -1703,7 +1704,7 @@ class HomeScreenTest {
         val frame = compose.onNodeWithTag("day-details-frame").fetchSemanticsNode().boundsInRoot
         val close = compose.onNodeWithTag("day-details-close").fetchSemanticsNode().boundsInRoot
         assertTrue(close.bottom <= frame.bottom + 1f)
-        assertEquals(1, compose.onAllNodesWithTag("selected-day-status").fetchSemanticsNodes().size)
+        compose.onNodeWithTag("selected-day-status").assertDoesNotExist()
         compose.onNodeWithTag("log-day").performScrollTo().performClick()
         assertEquals(date, opened)
     }

@@ -37,7 +37,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.ritela.R
 import app.ritela.domain.CycleAnalysis
@@ -94,13 +93,24 @@ fun CycleOrbitDetail(
     reducedMotion: Boolean,
     onDismiss: () -> Unit
 ) {
+    CycleOrbitDetails(analysis.cycleDay ?: 1, today, reducedMotion, {
+        orbitInteractionState(analysis, today, it)
+    }, onDismiss)
+}
+
+@Composable
+internal fun CycleOrbitDetails(
+    currentDay: Long,
+    referenceDate: LocalDate,
+    reducedMotion: Boolean,
+    stateAtDay: (Long) -> OrbitInteractionState,
+    onDismiss: () -> Unit
+) {
     val density = LocalDensity.current
-    var focusDay by rememberSaveable(analysis.cycleDay, today) {
-        mutableLongStateOf(analysis.cycleDay ?: 1)
-    }
+    var focusDay by rememberSaveable(currentDay, referenceDate) { mutableLongStateOf(currentDay) }
     var selectedMarker by rememberSaveable { mutableStateOf<OrbitMarker?>(null) }
-    val state = orbitInteractionState(analysis, today, focusDay)
-    Dialog(
+    val state = stateAtDay(focusDay)
+    JournalDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
@@ -224,6 +234,7 @@ fun CycleOrbitDetail(
                                     }
                                 }
                             }
+                            HelpCards(null, CycleAnalysis(), state.focusDate)
                         }
                     }
                 }

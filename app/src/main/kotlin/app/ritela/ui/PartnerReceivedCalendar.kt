@@ -101,10 +101,13 @@ internal fun PartnerReceivedCalendar(snapshot: PartnerSnapshot, modifier: Modifi
     }
     selected?.let { date ->
         PartnerModal(formatter.date(date.toEpochDay()), { selected = null }) {
-            Text(dayKindText(snapshot.dayInfo(date).kind))
+            if (snapshot.dayInfo(date).kind != app.ritela.domain.CalendarDayKind.NONE) {
+                Text(dayKindText(snapshot.dayInfo(date).kind))
+            }
             val forecast = snapshot.forecasts.firstOrNull {
                 date.toEpochDay() in it.getLong("lower")..it.getLong("upper") ||
-                    date.toEpochDay() == it.getLong("ovulation")
+                    date.toEpochDay() in
+                    (it.getLong("ovulation") - 5)..(it.getLong("ovulation") + 1)
             }
             forecast?.let {
                 Text(
@@ -124,7 +127,6 @@ internal fun PartnerReceivedCalendar(snapshot: PartnerSnapshot, modifier: Modifi
                 )
             }
             val log = snapshot.days.firstOrNull { it.getLong("day") == date.toEpochDay() }
-            if (log == null && forecast == null) Text(stringResource(R.string.partner_no_received))
             log?.let { PartnerReceivedDay(snapshot, it) }
         }
     }
