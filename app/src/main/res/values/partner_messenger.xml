@@ -7,6 +7,9 @@
     <string name="partner_chat_empty">A little closer</string>
     <string name="partner_chat_empty_hint">Your doodles and shared data will appear here.</string>
     <string name="partner_share_data">Share data</string>
+    <string name="partner_send_doodle">Send a doodle</string>
+    <string name="partner_back">Back</string>
+    <string name="partner_nearby">Nearby</string>
     <string name="partner_view_message">View</string>
     <string name="partner_data_recorded">Shared data (record from %1$s)</string>
     <string name="partner_choose_channel">Choose file or Bluetooth</string>

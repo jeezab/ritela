@@ -26,6 +26,7 @@ import app.ritela.ui.ConversationAction
 import app.ritela.ui.ConversationPreviewContent
 import app.ritela.ui.HomeTheme
 import app.ritela.ui.LocalProfileSession
+import app.ritela.ui.PartnerChats
 import app.ritela.ui.PartnerConversation
 import app.ritela.ui.PartnerFormatter
 import app.ritela.ui.PartnerMessageBubble
@@ -81,23 +82,52 @@ class PartnerMessengerTest {
         capture("partner-messenger-large")
     }
 
+    @Test fun dialogListOpensAChatAndBackRestoresItsScrollPosition() {
+        ready()
+        val first = PartnerContact("first", "Margo", setOf("peer"))
+        val second = PartnerContact("second", "Alex", setOf("other"))
+        val opened = mutableStateOf<String?>(null)
+        val messages = (1..60).map { message("$it", "peer", it.toLong() * 60000) }
+        compose.activity.setContent {
+            HomeTheme {
+                PartnerChats(
+                    listOf(first, second), opened.value, messages, "Not connected", false, true,
+                    1791792000000, null, { opened.value = it }, { opened.value = null }, {}, {},
+                    {}, {}
+                )
+            }
+        }
+        compose.onNodeWithTag("partner-dialog-list").assertIsDisplayed()
+        compose.onNodeWithTag("partner-composer").assertDoesNotExist()
+        compose.onNodeWithText("Alex").assertIsDisplayed()
+        compose.onNodeWithTag("partner-dialog-first").performClick()
+        compose.onNodeWithTag("partner-message-list")
+            .performScrollToNode(hasTestTag("partner-message-1"))
+        compose.onNodeWithTag("partner-message-1").assertIsDisplayed()
+        compose.onNodeWithTag("partner-back").performClick()
+        compose.onNodeWithTag("partner-dialog-list").assertIsDisplayed()
+        compose.onNodeWithTag("partner-dialog-first").performClick()
+        compose.onNodeWithTag("partner-message-1").assertIsDisplayed()
+        compose.activity.onBackPressedDispatcher.onBackPressed()
+        compose.onNodeWithTag("partner-dialog-list").assertIsDisplayed()
+        compose.onNodeWithTag("partner-list-menu").performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_delete))
+            .assertIsDisplayed()
+    }
+
     @Test fun composerAndHeaderStayFixedWhileMessagesScrollAndActionsReferToSelectedPartner() {
         ready()
         val first = PartnerContact("first", "Margo", setOf("peer"))
         val second = PartnerContact("second", "Alex", setOf("other"))
-        val selected = mutableStateOf(first)
         val messages = (1..60).map { message("$it", "peer", it.toLong() * 60000) }
         var event: ConversationAction? = null
         var profile = ""
         compose.activity.setContent {
             HomeTheme {
                 PartnerConversation(
-                    listOf(first, second), selected.value, messages, "Not connected", null,
-                    false, true, 1791792000000, { selected.value = second }, {
-                        profile =
-                            selected.value.id
-                    },
-                    { event = it }, {}, {}
+                    first, messages, "Not connected", false, true, 1791792000000, {}, {
+                        profile = "first"
+                    }, { event = it }, {}, {}
                 )
             }
         }
@@ -107,13 +137,12 @@ class PartnerMessengerTest {
         compose.onNodeWithTag("partner-composer").assertIsDisplayed()
         compose.onNodeWithTag("partner-profile").assertIsDisplayed().performClick()
         assertEquals("first", profile)
-        compose.onNodeWithText("Alex").performClick()
-        compose.onNodeWithTag("partner-profile").performClick()
-        assertEquals("second", profile)
         compose.onNodeWithTag("partner-create-message").performClick()
         assertEquals(ConversationAction.SHARE, event)
         compose.onNodeWithTag("partner-add-action").performClick()
-        compose.onNodeWithText(compose.activity.getString(R.string.partner_doodle)).performClick()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_send_doodle)
+        ).performClick()
         assertEquals(ConversationAction.DOODLE, event)
         compose.onNodeWithTag("partner-add-action").performClick()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_import)).performClick()
@@ -326,7 +355,7 @@ class PartnerMessengerTest {
         compose.activity.setContent {
             HomeTheme {
                 PartnerConversation(
-                    listOf(group), group, incoming, "Not connected", null, false, false,
+                    group, incoming, "Not connected", false, false,
                     1791792000000, {}, {}, {}, {}, {},
                     senderNames = mapOf(
                         "peer" to "Margo",

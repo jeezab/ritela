@@ -24,6 +24,21 @@ class PartnerFormatter(private val resources: Resources) {
     ).atZone(
         ZoneId.systemDefault()
     ).format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale))
+    fun dialogPreview(message: PartnerMessage): String {
+        if (message.kind == "DOODLE") {
+            val caption = runCatching {
+                app.ritela.data.PartnerCodec.doodle(JSONObject(message.body)).caption
+            }.getOrDefault("")
+            return caption.ifBlank { resources.getString(R.string.partner_doodle_kind) }
+        }
+        val data = runCatching { JSONObject(message.body) }.getOrNull()
+            ?: return resources.getString(R.string.partner_data)
+        val note = data.optString("note")
+        if (note.isNotBlank()) return note
+        return chatSummary(data).lineSequence().first()
+    }
+    fun dialogClock(time: Long): String = Instant.ofEpochMilli(time).atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))
     fun exchange(time: Long): String =
         resources.getString(R.string.partner_last_exchange, moment(time))
     fun dataTitle(created: Long): String =
