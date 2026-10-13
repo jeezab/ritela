@@ -6,6 +6,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
@@ -100,6 +101,13 @@ class PartnerMessengerTest {
         compose.onNodeWithTag("partner-dialog-list").assertIsDisplayed()
         compose.onNodeWithTag("partner-composer").assertDoesNotExist()
         compose.onNodeWithText("Alex").assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_no_messages))
+            .assertIsDisplayed()
+        val row = compose.onNodeWithTag("partner-dialog-second")
+        row.assertHasClickAction()
+        val density = compose.activity.resources.displayMetrics.density
+        val height = row.fetchSemanticsNode().boundsInRoot.height / density
+        assertTrue(height in 76f..88f)
         compose.onNodeWithTag("partner-dialog-first").performClick()
         compose.onNodeWithTag("partner-message-list")
             .performScrollToNode(hasTestTag("partner-message-1"))

@@ -1,7 +1,11 @@
 package app.ritela.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -109,15 +113,26 @@ internal fun PartnerChats(
 ) {
     val holder = rememberSaveableStateHolder()
     val opened = contacts.firstOrNull { it.id == openedId }
+    val reduced = orbitReducedMotion()
     BackHandler(opened != null, closeDialog)
-    if (opened == null) {
-        PartnerDialogList(contacts, messages, managed, busy, openDialog, action, modifier)
-    } else {
-        holder.SaveableStateProvider(opened.id) {
-            PartnerConversation(
-                opened, messages, status, busy, canSend, now, closeDialog, profile, action,
-                open, retry, modifier, senderNames
-            )
+    AnimatedContent(
+        opened,
+        modifier,
+        transitionSpec = {
+            fadeIn(tween(if (reduced) 0 else 180)) togetherWith
+                fadeOut(tween(if (reduced) 0 else 120))
+        },
+        label = "partner-chats"
+    ) { current ->
+        if (current == null) {
+            PartnerDialogList(contacts, messages, managed, busy, openDialog, action)
+        } else {
+            holder.SaveableStateProvider(current.id) {
+                PartnerConversation(
+                    current, messages, status, busy, canSend, now, closeDialog, profile,
+                    action, open, retry, senderNames = senderNames
+                )
+            }
         }
     }
 }
@@ -205,37 +220,41 @@ internal fun PartnerDialogList(
             LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("partner-dialog-list")) {
                 items(dialogs, key = { it.id }) { contact ->
                     val latest = conversationMessages(messages, contact.identities).lastOrNull()
-                    Row(
-                        Modifier.fillMaxWidth().clickable(enabled = !busy) {
-                            openDialog(contact.id)
-                        }.padding(horizontal = 16.dp, vertical = 12.dp)
-                            .testTag("partner-dialog-${contact.id}"),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(
-                                contact.name,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            latest?.let {
+                    Column(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier.fillMaxWidth().height(80.dp).clickable(enabled = !busy) {
+                                openDialog(contact.id)
+                            }.padding(horizontal = 16.dp).testTag("partner-dialog-${contact.id}"),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f).padding(end = 12.dp)) {
                                 Text(
-                                    formatter.dialogPreview(it),
+                                    contact.name,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    latest?.let(formatter::dialogPreview)
+                                        ?: stringResource(R.string.partner_no_messages),
                                     color = HomeColors.muted,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodySmall
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                            latest?.let {
+                                Text(
+                                    formatter.dialogClock(it.received),
+                                    color = HomeColors.muted,
+                                    style = MaterialTheme.typography.labelMedium
                                 )
                             }
                         }
-                        latest?.let {
-                            Text(
-                                formatter.dialogClock(it.received),
-                                color = HomeColors.muted,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
+                        Box(
+                            Modifier.fillMaxWidth().height(1.dp).padding(start = 16.dp)
+                                .background(HomeColors.border.copy(alpha = .35f))
+                        )
                     }
                 }
             }
