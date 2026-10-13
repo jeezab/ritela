@@ -36,7 +36,7 @@
     <string name="partner_password">Password</string>
     <string name="partner_selection">Choose data</string>
     <string name="partner_preview">Exchange preview</string>
-    <string name="partner_prepare">Prepare exchange</string>
+    <string name="partner_prepare">Send</string>
     <string name="partner_allow_exchange">Allow exchange with this identity</string>
     <string name="partner_device_enabled">Trust this device</string>
     <string name="partner_new_device_hint">To add a phone, open its invitation and verify the code separately. Added devices reset data access until you grant it again.</string>
