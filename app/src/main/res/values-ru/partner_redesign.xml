@@ -1,6 +1,6 @@
 <resources>
-    <string name="partner_unconnected">Не подключена</string>
-    <string name="partner_connected">Подключена</string>
+    <string name="partner_unconnected">Нет подключения</string>
+    <string name="partner_connected">Есть подключение</string>
     <string name="partner_application_mode">Режим приложения</string>
     <string name="partner_my_calendar">Мой календарь</string>
     <string name="partner_my_calendar_hint">Ведение цикла, дневник и прогнозы</string>
