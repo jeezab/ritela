@@ -261,13 +261,21 @@ class PartnerRepository(
         val selection = app.ritela.domain.PartnerSharing.outgoing(scope)
         val json = JSONObject().put("scope", PartnerCodec.scope(selection))
         val periods = database.periods().snapshot()
-        if (ShareCategory.PERIODS in
-            selection.categories
-        ) {
+        val history = ShareCategory.PERIODS in selection.categories
+        if (history || ShareCategory.FORECASTS in selection.categories) {
+            val sharedPeriods = if (history) {
+                periods
+            } else {
+                listOfNotNull(
+                    periods.maxByOrNull {
+                        it.startDay
+                    }
+                )
+            }
             json.put(
                 "periods",
                 JSONArray(
-                    periods.map {
+                    sharedPeriods.map {
                         JSONObject().put("id", it.id).put("start", it.startDay).put(
                             "end",
                             it.endDay ?: JSONObject.NULL
@@ -746,7 +754,10 @@ class PartnerRepository(
             require(value in -25567L..376199L)
         }
         content.optJSONArray("periods")?.let { array ->
-            require(ShareCategory.PERIODS in scope.categories && array.length() <= 10000)
+            require(
+                (ShareCategory.PERIODS in scope.categories && array.length() <= 10000) ||
+                    (ShareCategory.FORECASTS in scope.categories && array.length() <= 1)
+            )
             PartnerCodec.objects(array).forEach {
                 UUID.fromString(it.getString("id"))
                 day(it.getLong("start"))

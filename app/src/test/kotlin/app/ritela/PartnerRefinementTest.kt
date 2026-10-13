@@ -177,7 +177,19 @@ class PartnerRefinementTest {
             val packet = sender.prepareData(b.identityId, b.deviceId, scope)
             val received = JSONObject(receiver.receive(packet.envelope.toByteArray()).message.body)
             assertTrue(received.getJSONArray("forecasts").length() > 16)
-            assertFalse(received.has("periods"))
+            assertEquals(1, received.getJSONArray("periods").length())
+            assertEquals(
+                today.minusDays(7).toEpochDay(),
+                received.getJSONArray("periods").getJSONObject(0).getLong("start")
+            )
+            val history = sender.preview(ShareScope(setOf(ShareCategory.PERIODS)))
+            assertEquals(9, history.getJSONArray("periods").length())
+            assertFalse(history.has("forecasts"))
+            val both = sender.preview(
+                ShareScope(setOf(ShareCategory.PERIODS, ShareCategory.FORECASTS))
+            )
+            assertEquals(9, both.getJSONArray("periods").length())
+            assertTrue(both.has("forecasts"))
             assertFalse(received.has("days"))
             assertTrue(received.has("calculatedAt"))
             assertEquals("ritela-local-1", received.getString("algorithm"))
