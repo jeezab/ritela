@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13, пыль орбиты: CycleOrbitScene рисует кэшированную розово-зелёную фолликулярную область вместо планеты; OrbitGeometry.follicularDustContains/dustClearOfEndpoints задают hit testing и отступы от объектов. OrbitDustInteractionTest проверяет вызов прежней справки и независимость кнопок солнца/овуляции; OrbitGeometryTest проверяет дугу в разных размерах.
+
 2026-10-13, Partner sharing: PartnerIdentity.lastSelection / PartnerCodec — совместимое локальное JSON-поле; PartnerSharing.remembered — фиксированный набор ID тегов; PartnerRepository.confirmData — атомарное подтверждение пакета и выбора; PartnerShareSelectionTest — изоляция адресатов, legacy и отсутствие автоматического расширения. В UI одна команда «Поделиться данными».
 
 2026-10-12, messenger: ui/PartnerConversation.kt — закреплённые шапка/панель, выбор диалога, LazyColumn с датами и DATA/DOODLE, пять Compose Previews. PartnerScreen остаётся координатором настоящего защищённого обмена и модальных сценариев. PartnerFormatter централизует краткое содержание/статусы; PartnerSharing.union расширяет права только после явного подтверждения выбранного. Основной вход grants перемещён из Settings в диалог/профиль. PartnerMessengerTest проверяет ленту, навигацию действий, разрешения и рендеры; имена зарегистрированы в preview-ui.ps1. Схема БД и wire format неизменны.

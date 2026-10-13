@@ -59,6 +59,17 @@ internal class OrbitGeometry(
         return progress
     }
 
+    fun follicularDustContains(point: Offset, radius: Float): Boolean {
+        val progress = progressAt(point)
+        return progress > OrbitMarker.START.progress && progress < OrbitMarker.OVULATION.progress &&
+            (point - position(progress)).getDistance() <= radius &&
+            dustClearOfEndpoints(point, radius * 1.25f)
+    }
+
+    fun dustClearOfEndpoints(point: Offset, clearance: Float): Boolean =
+        (point - position(OrbitMarker.START.progress)).getDistance() >= clearance &&
+            (point - position(OrbitMarker.OVULATION.progress)).getDistance() >= clearance
+
     companion object {
         fun inViewport(size: Size, inset: Float): OrbitGeometry = OrbitGeometry(
             Offset(size.width / 2, size.height / 2),

@@ -1497,7 +1497,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("calendar-forecast-info").performScrollTo().performClick()
         compose.onNodeWithText(compose.activity.getString(R.string.prediction_method_info))
             .assertIsDisplayed()
-        compose.onNodeWithText(compose.activity.getString(R.string.hero_orbit_info))
+        compose.onNodeWithText("На орбите:", substring = true)
             .assertDoesNotExist()
     }
 

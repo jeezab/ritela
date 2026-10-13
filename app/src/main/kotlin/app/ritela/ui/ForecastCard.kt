@@ -240,11 +240,7 @@ fun phaseName(phase: EstimatedCyclePhase): Int = when (phase) {
 }
 
 @Composable
-fun PredictionMethodInfo(
-    analysis: CycleAnalysis,
-    includeOrbit: Boolean = true,
-    onDismiss: () -> Unit
-) {
+fun PredictionMethodInfo(analysis: CycleAnalysis, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.forecast_info)) },
@@ -268,7 +264,6 @@ fun PredictionMethodInfo(
                 }
                 Text(stringResource(R.string.prediction_method_info))
                 Text(stringResource(R.string.selected_day_fertility_guide))
-                if (includeOrbit) Text(stringResource(R.string.hero_orbit_info))
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) } }
