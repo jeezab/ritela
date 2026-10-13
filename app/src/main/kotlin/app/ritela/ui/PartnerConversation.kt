@@ -327,7 +327,6 @@ internal fun PartnerConversation(
                         DropdownMenu(attachments, { attachments = false }) {
                             listOf(
                                 ConversationAction.DOODLE to R.string.partner_doodle,
-                                ConversationAction.SHARE to R.string.partner_share_data,
                                 ConversationAction.FILE to R.string.partner_import,
                                 ConversationAction.RECEIVE to R.string.partner_receive
                             ).forEach { (event, label) ->
@@ -352,7 +351,7 @@ internal fun PartnerConversation(
                                 ) {
                                     ConversationAction.ADD
                                 } else {
-                                    ConversationAction.DOODLE
+                                    ConversationAction.SHARE
                                 }
                             )
                         },
@@ -367,7 +366,7 @@ internal fun PartnerConversation(
                                 ) {
                                     R.string.partner_add_close
                                 } else {
-                                    R.string.partner_doodle
+                                    R.string.partner_share_data
                                 }
                             )
                         )
@@ -600,4 +599,4 @@ private fun MultipleConversationsPreview() {
 
 private fun attachmentActions(canSend: Boolean): Set<ConversationAction> =
     setOf(ConversationAction.FILE, ConversationAction.RECEIVE) +
-        (if (canSend) setOf(ConversationAction.DOODLE, ConversationAction.SHARE) else emptySet())
+        (if (canSend) setOf(ConversationAction.DOODLE) else emptySet())
