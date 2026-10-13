@@ -20,6 +20,18 @@ data class OrbitInteractionState(
     val overdue: Boolean get() = currentDay > length
 }
 
+/** Calendar ovulation is 14 days before the next period, so that cycle day sits on the pearl. */
+fun orbitOvulationProgress(length: Int): Float {
+    val days = length.coerceAtLeast(1)
+    return orbitDayProgress((days - 14).coerceIn(1, days).toLong(), days)
+}
+
+fun orbitLandmarkProgress(marker: OrbitMarker, length: Int): Float = when (marker) {
+    OrbitMarker.OVULATION -> orbitOvulationProgress(length)
+    OrbitMarker.LUTEAL -> (orbitOvulationProgress(length) + OrbitMarker.END.progress) / 2f
+    else -> marker.progress
+}
+
 fun orbitDayProgress(day: Long, length: Int): Float {
     val days = length.coerceAtLeast(1)
     // Pin overdue days to the last represented day, never wrap them back to the sun.

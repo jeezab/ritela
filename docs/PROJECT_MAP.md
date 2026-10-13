@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13, пыль орбиты: CycleOrbitScene рисует две простые дуги с dustFade. orbitOvulationProgress ставит жемчужину на день длина−14; orbitLandmarkProgress сдвигает лютеиновую кнопку между жемчужиной и луной. OrbitMarker.END = 0.92.
+
 2026-10-13, список чатов: PartnerChats переключает PartnerDialogList и PartnerConversation. orderedDialogs сортирует контакты по последнему DATA/DOODLE. Прокрутка ленты хранится в SaveableStateHolder на время вкладки. BackHandler закрывает переписку. Статус шапки — partner_nearby только при activePeer.
 
 2026-10-13, срок дудла: Doodle.delayHours/delayMinutes добавляются к delayDays в unlockAt. PartnerCodec пишет hours/minutes и читает их как 0, если полей нет. DoodleEditor показывает три обведённые режима и отдельные кнопки штриха. PartnerExchangeScene использует partner_waiting и Button для закрытия.

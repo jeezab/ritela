@@ -134,7 +134,7 @@ internal fun PartnerCycleSummary(snapshot: PartnerSnapshot) {
     CycleForecastHero(
         day, next, snapshot.phase,
         if (day != null && length != null) orbitDayProgress(day, length) else 0f,
-        reference, reducedMotion, null, available,
+        reference, reducedMotion, null, available, length ?: 28,
         { showInfo = true }, { showOrbit = true }, { selectedMarker = it }
     )
     snapshot.asOf?.let {

@@ -157,7 +157,8 @@ internal fun CycleOrbitDetails(
                                     onMarker = { selectedMarker = it },
                                     onScrub = { focusDay = orbitDayAtProgress(it, state.length) },
                                     focusProgress = state.focusProgress,
-                                    centerDay = state.focusDay
+                                    centerDay = state.focusDay,
+                                    cycleLength = state.length
                                 )
                             }
                             Text(
