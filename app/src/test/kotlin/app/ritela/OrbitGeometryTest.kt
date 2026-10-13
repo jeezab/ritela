@@ -1,12 +1,14 @@
 package app.ritela
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import app.ritela.ui.OrbitGeometry
 import app.ritela.ui.OrbitMarker
 import app.ritela.ui.orbitDayAtProgress
 import app.ritela.ui.orbitDayProgress
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -18,6 +20,27 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class OrbitGeometryTest {
+    @Test fun follicularDustFollowsTheArcAndLeavesEndpointTargetsClear() {
+        for (size in listOf(Size(320f, 112f), Size(390f, 228f), Size(360f, 300f))) {
+            val geometry = OrbitGeometry.inViewport(size, 32f)
+            for (progress in listOf(.12f, .2f, .3f)) {
+                assertTrue(geometry.follicularDustContains(geometry.position(progress), 24f))
+            }
+            for (marker in listOf(
+                OrbitMarker.START,
+                OrbitMarker.OVULATION,
+                OrbitMarker.LUTEAL,
+                OrbitMarker.END
+            )) {
+                assertFalse(
+                    geometry.follicularDustContains(geometry.position(marker.progress), 24f)
+                )
+            }
+            assertFalse(geometry.follicularDustContains(geometry.center, 8f))
+            assertFalse(geometry.follicularDustContains(geometry.position(.01f), 24f))
+        }
+    }
+
     @Test fun pathIsClosedClockwiseAndEveryMarkerCanBeProjectedBack() {
         for (height in listOf(80f, 130f)) {
             val geometry = OrbitGeometry(Offset(180f, 160f), 140f, height)

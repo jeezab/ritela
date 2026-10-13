@@ -76,10 +76,6 @@ fun OrbitPhaseInfo(marker: OrbitMarker, onDismiss: () -> Unit) {
                             }
                         )
                     )
-                    Text(
-                        stringResource(R.string.hero_orbit_info),
-                        style = MaterialTheme.typography.bodySmall
-                    )
                 }
             },
             confirmButton = {

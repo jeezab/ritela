@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +33,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -46,8 +48,11 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.ritela.R
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 data class OrbitColors(val ink: Color, val rose: Color, val peach: Color, val surface: Color)
+
+private data class OrbitDustParticle(val point: Offset, val color: Color, val radius: Float)
 
 /** A flat path, five landmarks, a separate current marker. No rotation or perspective. */
 @Composable
@@ -116,155 +121,208 @@ fun CycleOrbitScene(
             .then(scrubbing)
     ) {
         Canvas(
-            Modifier.fillMaxSize().testTag("orbit-canvas").clearAndSetSemantics {}.drawWithCache {
-                val path = geometry.path
-                val active = geometry.position(progress)
-                val sun = geometry.position(OrbitMarker.START.progress)
-                val moon = geometry.position(OrbitMarker.END.progress)
-                val focus = focusProgress?.let(geometry::position)
-                val unit = 1.dp.toPx()
-                fun halo(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
-                    listOf(color.copy(alpha = 0.35f), Color.Transparent),
-                    point,
-                    radius * unit
-                )
-                val activeHalo = halo(colors.ink, active, 28f)
-                val sunHalo = halo(colors.peach, sun, 22f)
-                val pathMeasure = PathMeasure().apply { setPath(path, true) }
-                val travelled = Path().also {
-                    pathMeasure.getSegment(0f, pathMeasure.length * progress.coerceIn(0f, 1f), it)
-                }
-                val markers = OrbitMarker.entries.associateWith { geometry.position(it.progress) }
-                val activeOverLandmark = markers.values.any {
-                    (it - active).getDistance() < 14f * unit
-                }
-                val moonRadius = 8f * unit
-                val moonDisc = Path().apply {
-                    addOval(
-                        androidx.compose.ui.geometry.Rect(
-                            moon - Offset(moonRadius, moonRadius),
-                            Size(moonRadius * 2, moonRadius * 2)
-                        )
-                    )
-                }
-                val cutout = Path().apply {
-                    val center = moon + Offset(4f * unit, -3f * unit)
-                    addOval(
-                        androidx.compose.ui.geometry.Rect(
-                            center - Offset(moonRadius, moonRadius),
-                            Size(moonRadius * 2, moonRadius * 2)
-                        )
-                    )
-                }
-                val crescent = Path.combine(PathOperation.Difference, moonDisc, cutout)
-                val arrow = geometry.position(0.08f)
-                val tangent = geometry.position(0.085f) - geometry.position(0.075f)
-                val direction = tangent / tangent.getDistance().coerceAtLeast(1f)
-                val normal = Offset(-direction.y, direction.x)
-                val leaves = (0..1).map { index ->
-                    val origin = Offset(12f * unit + index * 12f * unit, size.height - 28f * unit)
-                    Path().apply {
-                        moveTo(origin.x, origin.y)
-                        quadraticTo(
-                            origin.x - 3f * unit,
-                            origin.y - 18f * unit,
-                            origin.x + 16f * unit,
-                            origin.y - 28f * unit
-                        )
-                        quadraticTo(origin.x + 14f * unit, origin.y - 8f * unit, origin.x, origin.y)
-                        close()
-                    }
-                }
-                onDrawBehind {
-                    val light = breath.value
-                    drawPath(
-                        path,
-                        colors.rose.copy(alpha = 0.07f * light),
-                        style = Stroke(5f * unit)
-                    )
-                    drawPath(
-                        path,
-                        colors.rose.copy(alpha = 0.6f * light),
-                        style = Stroke(1.1f * unit)
-                    )
-                    drawPath(
-                        travelled,
-                        colors.peach.copy(alpha = 0.8f),
-                        style = Stroke(1.5f * unit)
-                    )
-                    drawLine(
-                        colors.peach.copy(alpha = 0.8f),
-                        arrow - direction * 5f * unit + normal * 3f * unit,
-                        arrow,
-                        1.2f * unit
-                    )
-                    drawLine(
-                        colors.peach.copy(alpha = 0.8f),
-                        arrow - direction * 5f * unit - normal * 3f * unit,
-                        arrow,
-                        1.2f * unit
-                    )
-                    drawCircle(sunHalo, 22f * unit, sun, alpha = light)
-                    for (marker in OrbitMarker.entries) {
-                        val point = markers.getValue(marker)
-                        when (marker) {
-                            OrbitMarker.START -> drawCircle(colors.peach, 7f * unit, point)
-
-                            OrbitMarker.FOLLICULAR -> {
-                                drawCircle(colors.surface, 4.5f * unit, point)
-                                drawCircle(
-                                    colors.rose,
-                                    4.5f * unit,
-                                    point,
-                                    style = Stroke(1.2f * unit)
-                                )
-                            }
-
-                            OrbitMarker.OVULATION -> drawCircle(
-                                colors.ink.copy(alpha = 0.85f),
-                                9.5f * unit,
-                                point
-                            )
-
-                            OrbitMarker.LUTEAL -> drawCircle(colors.rose, 8f * unit, point)
-
-                            OrbitMarker.END -> drawPath(crescent, colors.peach.copy(alpha = 0.85f))
+            Modifier.fillMaxSize().testTag("orbit-canvas").clearAndSetSemantics {}
+                .pointerInput(geometry, onMarker, onOpen) {
+                    detectTapGestures { point ->
+                        if (onMarker != null && geometry.follicularDustContains(point, hitRadius)) {
+                            onMarker(OrbitMarker.FOLLICULAR)
+                        } else {
+                            onOpen?.invoke()
                         }
                     }
-                    for (leaf in leaves) drawPath(leaf, colors.rose.copy(alpha = 0.22f))
-                    drawCircle(
-                        colors.peach.copy(alpha = 0.4f),
-                        unit,
-                        Offset(
-                            size.width - 12f * unit,
-                            size.height * 0.3f
+                }.drawWithCache {
+                    val path = geometry.path
+                    val active = geometry.position(progress)
+                    val sun = geometry.position(OrbitMarker.START.progress)
+                    val moon = geometry.position(OrbitMarker.END.progress)
+                    val focus = focusProgress?.let(geometry::position)
+                    val unit = 1.dp.toPx()
+                    fun halo(color: Color, point: Offset, radius: Float) = Brush.radialGradient(
+                        listOf(color.copy(alpha = 0.35f), Color.Transparent),
+                        point,
+                        radius * unit
+                    )
+                    val activeHalo = halo(colors.ink, active, 28f)
+                    val sunHalo = halo(colors.peach, sun, 22f)
+                    val pathMeasure = PathMeasure().apply { setPath(path, true) }
+                    val travelled = Path().also {
+                        pathMeasure.getSegment(
+                            0f,
+                            pathMeasure.length * progress.coerceIn(0f, 1f),
+                            it
                         )
-                    )
-                    drawCircle(
-                        colors.rose.copy(alpha = 0.4f),
-                        unit,
-                        Offset(
-                            14f * unit,
-                            size.height * 0.2f
+                    }
+                    val markers = OrbitMarker.entries.associateWith {
+                        geometry.position(it.progress)
+                    }
+                    val activeOverLandmark = markers.filterKeys {
+                        it != OrbitMarker.FOLLICULAR
+                    }.values.any {
+                        (it - active).getDistance() < 14f * unit
+                    }
+                    val dust = (1..160).flatMap { index ->
+                        val fraction = index / 161f
+                        val progress = OrbitMarker.OVULATION.progress * fraction
+                        val center = geometry.position(progress)
+                        val tangent =
+                            geometry.position(progress + .001f) -
+                                geometry.position(progress - .001f)
+                        val normal =
+                            Offset(-tangent.y, tangent.x) / tangent.getDistance().coerceAtLeast(1f)
+                        val color = lerp(Color(0xFFF4BCD2), Color(0xFFD0EDBF), fraction)
+                        (0..2).mapNotNull { lane ->
+                            val scatter = sin(index * 2.399f + lane * 1.73f)
+                            val point = center + normal * scatter * 5.5f * unit
+                            val radius = (.7f + (sin(index * 1.37f + lane) + 1f) * .5f) * unit
+                            if (geometry.dustClearOfEndpoints(point, 26f * unit + radius)) {
+                                OrbitDustParticle(point, color, radius)
+                            } else {
+                                null
+                            }
+                        }
+                    }
+                    val moonRadius = 8f * unit
+                    val moonDisc = Path().apply {
+                        addOval(
+                            androidx.compose.ui.geometry.Rect(
+                                moon - Offset(moonRadius, moonRadius),
+                                Size(moonRadius * 2, moonRadius * 2)
+                            )
                         )
-                    )
-                    if (focus != null && (focus - active).getDistance() > unit) {
-                        drawCircle(colors.surface, 8f * unit, focus)
-                        drawCircle(colors.peach, 8f * unit, focus, style = Stroke(2f * unit))
                     }
-                    drawCircle(activeHalo, 28f * unit * pulse.value, active)
-                    if (!activeOverLandmark) {
-                        drawCircle(colors.surface, 11f * unit * pulse.value, active)
+                    val cutout = Path().apply {
+                        val center = moon + Offset(4f * unit, -3f * unit)
+                        addOval(
+                            androidx.compose.ui.geometry.Rect(
+                                center - Offset(moonRadius, moonRadius),
+                                Size(moonRadius * 2, moonRadius * 2)
+                            )
+                        )
                     }
-                    drawCircle(
-                        colors.ink,
-                        11f * unit * pulse.value,
-                        active,
-                        style = Stroke(2.3f * unit)
-                    )
-                    if (!activeOverLandmark) drawCircle(colors.ink, 3.5f * unit, active)
+                    val crescent = Path.combine(PathOperation.Difference, moonDisc, cutout)
+                    val arrow = geometry.position(0.08f)
+                    val tangent = geometry.position(0.085f) - geometry.position(0.075f)
+                    val direction = tangent / tangent.getDistance().coerceAtLeast(1f)
+                    val normal = Offset(-direction.y, direction.x)
+                    val leaves = (0..1).map { index ->
+                        val origin = Offset(
+                            12f * unit + index * 12f * unit,
+                            size.height - 28f * unit
+                        )
+                        Path().apply {
+                            moveTo(origin.x, origin.y)
+                            quadraticTo(
+                                origin.x - 3f * unit,
+                                origin.y - 18f * unit,
+                                origin.x + 16f * unit,
+                                origin.y - 28f * unit
+                            )
+                            quadraticTo(
+                                origin.x + 14f * unit,
+                                origin.y - 8f * unit,
+                                origin.x,
+                                origin.y
+                            )
+                            close()
+                        }
+                    }
+                    onDrawBehind {
+                        val light = breath.value
+                        drawPath(
+                            path,
+                            colors.rose.copy(alpha = 0.07f * light),
+                            style = Stroke(5f * unit)
+                        )
+                        drawPath(
+                            path,
+                            colors.rose.copy(alpha = 0.6f * light),
+                            style = Stroke(1.1f * unit)
+                        )
+                        drawPath(
+                            travelled,
+                            colors.peach.copy(alpha = 0.8f),
+                            style = Stroke(1.5f * unit)
+                        )
+                        for (particle in dust) {
+                            drawCircle(
+                                particle.color.copy(alpha = .1f),
+                                particle.radius * 2.4f,
+                                particle.point
+                            )
+                            drawCircle(
+                                particle.color.copy(alpha = .72f),
+                                particle.radius,
+                                particle.point
+                            )
+                        }
+                        drawLine(
+                            colors.peach.copy(alpha = 0.8f),
+                            arrow - direction * 5f * unit + normal * 3f * unit,
+                            arrow,
+                            1.2f * unit
+                        )
+                        drawLine(
+                            colors.peach.copy(alpha = 0.8f),
+                            arrow - direction * 5f * unit - normal * 3f * unit,
+                            arrow,
+                            1.2f * unit
+                        )
+                        drawCircle(sunHalo, 22f * unit, sun, alpha = light)
+                        for (marker in OrbitMarker.entries) {
+                            val point = markers.getValue(marker)
+                            when (marker) {
+                                OrbitMarker.START -> drawCircle(colors.peach, 7f * unit, point)
+
+                                OrbitMarker.FOLLICULAR -> Unit
+
+                                OrbitMarker.OVULATION -> drawCircle(
+                                    colors.ink.copy(alpha = 0.85f),
+                                    9.5f * unit,
+                                    point
+                                )
+
+                                OrbitMarker.LUTEAL -> drawCircle(colors.rose, 8f * unit, point)
+
+                                OrbitMarker.END -> drawPath(
+                                    crescent,
+                                    colors.peach.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                        for (leaf in leaves) drawPath(leaf, colors.rose.copy(alpha = 0.22f))
+                        drawCircle(
+                            colors.peach.copy(alpha = 0.4f),
+                            unit,
+                            Offset(
+                                size.width - 12f * unit,
+                                size.height * 0.3f
+                            )
+                        )
+                        drawCircle(
+                            colors.rose.copy(alpha = 0.4f),
+                            unit,
+                            Offset(
+                                14f * unit,
+                                size.height * 0.2f
+                            )
+                        )
+                        if (focus != null && (focus - active).getDistance() > unit) {
+                            drawCircle(colors.surface, 8f * unit, focus)
+                            drawCircle(colors.peach, 8f * unit, focus, style = Stroke(2f * unit))
+                        }
+                        drawCircle(activeHalo, 28f * unit * pulse.value, active)
+                        if (!activeOverLandmark) {
+                            drawCircle(colors.surface, 11f * unit * pulse.value, active)
+                        }
+                        drawCircle(
+                            colors.ink,
+                            11f * unit * pulse.value,
+                            active,
+                            style = Stroke(2.3f * unit)
+                        )
+                        if (!activeOverLandmark) drawCircle(colors.ink, 3.5f * unit, active)
+                    }
                 }
-            }
         ) {}
         androidx.compose.material3.Text(
             centerDay.toString(),
