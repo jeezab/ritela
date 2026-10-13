@@ -181,9 +181,7 @@ internal fun PartnerCalendarPage(padding: PaddingValues) {
         key(contact?.id, message?.id) {
             Column(
                 Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
-                    .padding(horizontal = HomeSpacing.gutter)
             ) {
-                PartnerCycleSummary(snapshot)
                 PartnerReceivedCalendar(snapshot, Modifier.weight(1f))
             }
         }

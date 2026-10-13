@@ -142,50 +142,7 @@ fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> U
                             )
                         }
                     }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        for ((icon, color, label) in listOf(
-                            Triple(
-                                R.drawable.ic_drop,
-                                CalendarDesign.period,
-                                R.string.calendar_observed
-                            ),
-                            Triple(
-                                R.drawable.ic_calendar,
-                                CalendarDesign.estimatedPeriod,
-                                R.string.calendar_predicted
-                            ),
-                            Triple(
-                                R.drawable.ic_flower,
-                                CalendarDesign.fertile,
-                                R.string.selected_day_fertile
-                            ),
-                            Triple(
-                                R.drawable.ic_flower,
-                                CalendarDesign.ovulation,
-                                R.string.ovulation_estimate
-                            )
-                        )) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    painterResource(icon),
-                                    null,
-                                    Modifier.size(14.dp),
-                                    tint = color
-                                )
-                                Text(
-                                    stringResource(label),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = HomeColors.muted
-                                )
-                            }
-                        }
-                    }
+                    CalendarLegendItems()
                 }
             }
         }
@@ -202,6 +159,62 @@ private fun CalendarSummaryCard(content: @Composable () -> Unit) {
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             content()
+        }
+    }
+}
+
+@Composable
+internal fun CalendarLegend() {
+    CalendarSummaryCard {
+        Text(stringResource(R.string.calendar_key), style = MaterialTheme.typography.labelLarge)
+        CalendarLegendItems()
+    }
+}
+
+@Composable
+private fun CalendarLegendItems() {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        for ((icon, color, label) in listOf(
+            Triple(
+                R.drawable.ic_drop,
+                CalendarDesign.period,
+                R.string.calendar_observed
+            ),
+            Triple(
+                R.drawable.ic_calendar,
+                CalendarDesign.estimatedPeriod,
+                R.string.calendar_predicted
+            ),
+            Triple(
+                R.drawable.ic_flower,
+                CalendarDesign.fertile,
+                R.string.selected_day_fertile
+            ),
+            Triple(
+                R.drawable.ic_flower,
+                CalendarDesign.ovulation,
+                R.string.ovulation_estimate
+            )
+        )) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    painterResource(icon),
+                    null,
+                    Modifier.size(14.dp),
+                    tint = color
+                )
+                Text(
+                    stringResource(label),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeColors.muted
+                )
+            }
         }
     }
 }

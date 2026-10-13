@@ -119,6 +119,16 @@ class PartnerExperienceTest {
     @Test fun calendarFertilityUsesReceivedOvulationAndOrdinaryDayHasNoStatusOrPlaceholder() {
         val data = snapshot(8)
         compose.activity.setContent { HomeTheme { PartnerReceivedCalendar(data) } }
+        compose.onNodeWithTag("orbit-open").assertDoesNotExist()
+        compose.onNodeWithTag("orbit-center-day", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("month-selector").performClick()
+        compose.onNodeWithTag("select-month-${today.monthValue}").performClick()
+        compose.onNodeWithTag("calendar-today").performClick()
+        compose.onNodeWithTag("calendar-history").performClick()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.history_empty)
+        ).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_close)).performClick()
         val ordinary = today.plusDays(7)
         compose.onNodeWithTag("partner-received-calendar")
             .performScrollToNode(hasTestTag("partner-calendar-day-$ordinary"))
@@ -132,8 +142,7 @@ class PartnerExperienceTest {
         compose.onNodeWithTag("partner-received-calendar")
             .performScrollToNode(hasTestTag("partner-calendar-day-$fertile"))
         compose.onNodeWithTag("partner-calendar-day-$fertile").performClick()
-        compose.onNodeWithText(
-            compose.activity.getString(R.string.selected_day_fertile)
-        ).assertIsDisplayed()
+        compose.onNodeWithTag("partner-day-status")
+            .assertTextEquals(compose.activity.getString(R.string.selected_day_fertile))
     }
 }
