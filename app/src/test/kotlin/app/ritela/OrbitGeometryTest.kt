@@ -21,6 +21,26 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class OrbitGeometryTest {
+    @Test fun lutealDustFollowsItsArcAndKeepsDynamicOvulationAndMoonTargetsClear() {
+        for (size in listOf(Size(320f, 112f), Size(390f, 228f), Size(360f, 300f))) {
+            val geometry = OrbitGeometry.inViewport(size, 32f)
+            for (length in listOf(21, 28, 35)) {
+                val ovulation = orbitOvulationProgress(length)
+                val middle = (ovulation + OrbitMarker.END.progress) / 2f
+                assertTrue(geometry.lutealDustContains(geometry.position(middle), 24f, ovulation))
+                for (progress in listOf(0f, .1f, ovulation, OrbitMarker.END.progress, .98f)) {
+                    assertFalse(
+                        geometry.lutealDustContains(geometry.position(progress), 24f, ovulation)
+                    )
+                }
+                assertFalse(geometry.lutealDustContains(geometry.center, 8f, ovulation))
+                assertFalse(
+                    geometry.follicularDustContains(geometry.position(ovulation), 24f, ovulation)
+                )
+            }
+        }
+    }
+
     @Test fun follicularDustFollowsTheArcAndLeavesEndpointTargetsClear() {
         for (size in listOf(Size(320f, 112f), Size(390f, 228f), Size(360f, 300f))) {
             val geometry = OrbitGeometry.inViewport(size, 32f)
