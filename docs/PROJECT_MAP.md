@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13, пузырь DATA: PartnerFormatter.dataTitle/chatStatus(dated) — момент created в заголовке и момент received со статусом внизу. PartnerConversation показывает это только для DATA; DOODLE сохраняет время получения. Строки EN/RU — partner_data_recorded. PartnerMessengerTest проверяет порядок на разных моментах.
+
 2026-10-13, интерфейс партнёра: ForecastCard.kt — общий CycleForecastHero; CycleOrbitDetail.kt — общий CycleOrbitDetails со статьями. PartnerHome/PartnerCalendarPage используют homeSelected; PartnerScreen сохраняет selected для переписки. PartnerSnapshot классифицирует семь фертильных дней и предоставляет фазу фокуса по переданным датам. PartnerExperienceTest — выбор главной отдельно от чата, общий hero/detail/articles и подробности календаря.
 
 2026-10-13, пыль орбиты: CycleOrbitScene рисует кэшированную розово-зелёную фолликулярную область вместо планеты; OrbitGeometry.follicularDustContains/dustClearOfEndpoints задают hit testing и отступы от объектов. OrbitDustInteractionTest проверяет вызов прежней справки и независимость кнопок солнца/овуляции; OrbitGeometryTest проверяет дугу в разных размерах.

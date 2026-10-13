@@ -26,9 +26,15 @@ class PartnerFormatter(private val resources: Resources) {
     ).format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale))
     fun exchange(time: Long): String =
         resources.getString(R.string.partner_last_exchange, moment(time))
-    fun chatStatus(message: PartnerMessage): String {
-        val time = Instant.ofEpochMilli(message.received).atZone(ZoneId.systemDefault())
-            .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))
+    fun dataTitle(created: Long): String =
+        resources.getString(R.string.partner_data_recorded, moment(created))
+    fun chatStatus(message: PartnerMessage, dated: Boolean = false): String {
+        val time = if (dated) {
+            moment(message.received)
+        } else {
+            Instant.ofEpochMilli(message.received).atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))
+        }
         val status = resources.getString(
             when {
                 message.opened -> R.string.partner_opened

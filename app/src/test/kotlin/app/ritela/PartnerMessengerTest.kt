@@ -27,6 +27,7 @@ import app.ritela.ui.ConversationPreviewContent
 import app.ritela.ui.HomeTheme
 import app.ritela.ui.LocalProfileSession
 import app.ritela.ui.PartnerConversation
+import app.ritela.ui.PartnerFormatter
 import app.ritela.ui.PartnerMessageBubble
 import app.ritela.ui.PartnerScopeDialog
 import app.ritela.ui.PartnerScreen
@@ -177,6 +178,40 @@ class PartnerMessengerTest {
             compose.activity.getString(R.string.partner_prepare)
         ).performClick()
         assertTrue(prepared)
+    }
+
+    @Test fun dataBubbleShowsWhenTheRecordWasCreatedAndKeepsReceiptBelow() {
+        ready()
+        val created = 1_700_000_000_000L
+        val received = created + 90_000_000L
+        val packet = message("packet", "peer", created).copy(
+            received = received,
+            delivered = true,
+            body = "{\"periods\":[{\"start\":20730}],\"forecasts\":[{\"start\":20758}]," +
+                "\"days\":[{\"day\":20740}]}"
+        )
+        compose.activity.setContent {
+            HomeTheme { PartnerMessageBubble(packet, received, {}, {}, true) }
+        }
+        val formatter = PartnerFormatter(compose.activity.resources)
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_data_recorded, formatter.moment(created))
+        ).assertIsDisplayed()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_data)
+        ).assertDoesNotExist()
+        listOf(
+            R.string.partner_chat_periods to 1,
+            R.string.partner_chat_forecasts to 1,
+            R.string.partner_chat_days to 1
+        ).forEach { (label, count) ->
+            compose.onNodeWithText(compose.activity.getString(label, count), substring = true)
+                .assertIsDisplayed()
+        }
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_view_message))
+            .assertIsDisplayed()
+        compose.onNodeWithText(formatter.chatStatus(packet, dated = true)).assertIsDisplayed()
+        compose.onNodeWithText(formatter.chatStatus(packet)).assertDoesNotExist()
     }
 
     @Test fun timelinePreservesMessagesAndUpdatesStatusesWithoutShowingAcknowledgements() {

@@ -475,7 +475,7 @@ internal fun PartnerMessageBubble(
                     }
                 } else {
                     Text(
-                        stringResource(R.string.partner_data),
+                        formatter.dataTitle(message.created),
                         style = MaterialTheme.typography.titleSmall
                     )
                     Text(
@@ -487,7 +487,7 @@ internal fun PartnerMessageBubble(
                     }
                 }
                 Text(
-                    formatter.chatStatus(message),
+                    formatter.chatStatus(message, dated = message.kind == "DATA"),
                     style = MaterialTheme.typography.labelSmall,
                     color = HomeColors.muted
                 )
