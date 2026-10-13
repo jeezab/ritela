@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13, интерфейс партнёра: ForecastCard.kt — общий CycleForecastHero; CycleOrbitDetail.kt — общий CycleOrbitDetails со статьями. PartnerHome/PartnerCalendarPage используют homeSelected; PartnerScreen сохраняет selected для переписки. PartnerSnapshot классифицирует семь фертильных дней и предоставляет фазу фокуса по переданным датам. PartnerExperienceTest — выбор главной отдельно от чата, общий hero/detail/articles и подробности календаря.
+
 2026-10-13, пыль орбиты: CycleOrbitScene рисует кэшированную розово-зелёную фолликулярную область вместо планеты; OrbitGeometry.follicularDustContains/dustClearOfEndpoints задают hit testing и отступы от объектов. OrbitDustInteractionTest проверяет вызов прежней справки и независимость кнопок солнца/овуляции; OrbitGeometryTest проверяет дугу в разных размерах.
 
 2026-10-13, Partner sharing: PartnerIdentity.lastSelection / PartnerCodec — совместимое локальное JSON-поле; PartnerSharing.remembered — фиксированный набор ID тегов; PartnerRepository.confirmData — атомарное подтверждение пакета и выбора; PartnerShareSelectionTest — изоляция адресатов, legacy и отсутствие автоматического расширения. В UI одна команда «Поделиться данными».

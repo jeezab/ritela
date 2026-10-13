@@ -68,6 +68,32 @@ fun ForecastCard(
     val orbit = orbitInteractionState(analysis, today)
     val next = analysis.forecasts.firstOrNull()
     val scene = cycleSceneState(analysis, today)
+    CycleForecastHero(
+        analysis.cycleDay, next?.predictedStartDate, scene.phase, orbit.currentProgress,
+        today, reducedMotion, analysis.unavailable, next != null,
+        { showInfo = true }, { showOrbit = true }, { selectedMarker = it }
+    )
+    if (showInfo) PredictionMethodInfo(analysis) { showInfo = false }
+    if (showOrbit && next != null) {
+        CycleOrbitDetail(analysis, today, reducedMotion) { showOrbit = false }
+    }
+    selectedMarker?.let { OrbitPhaseInfo(it) { selectedMarker = null } }
+}
+
+@Composable
+internal fun CycleForecastHero(
+    cycleDay: Long?,
+    next: LocalDate?,
+    phase: EstimatedCyclePhase,
+    progress: Float,
+    today: LocalDate,
+    reducedMotion: Boolean,
+    unavailable: ForecastUnavailable?,
+    orbitAvailable: Boolean,
+    onInformation: () -> Unit,
+    onOrbit: () -> Unit,
+    onMarker: (OrbitMarker) -> Unit
+) {
     val colors = HomeColors
     val heroSurface = HomeColors.card.copy(alpha = 0.68f)
     val locale = LocalConfiguration.current.locales[0]
@@ -75,10 +101,10 @@ fun ForecastCard(
     val openLabel = stringResource(R.string.orbit_open)
     HomeTheme {
         Column(Modifier.fillMaxWidth().testTag("forecast-hero")) {
-            if (next != null && fontScale <= 1.5f) {
+            if (orbitAvailable && fontScale <= 1.5f) {
                 CycleOrbitScene(
-                    analysis.cycleDay ?: 1,
-                    orbit.currentProgress,
+                    cycleDay ?: 1,
+                    progress,
                     reducedMotion,
                     OrbitColors(
                         HomeColors.text,
@@ -87,21 +113,21 @@ fun ForecastCard(
                         HomeColors.top
                     ),
                     Modifier.fillMaxWidth().aspectRatio(350f / 228f),
-                    onMarker = { selectedMarker = it },
-                    onOpen = { showOrbit = true }
+                    onMarker = { onMarker(it) },
+                    onOpen = { onOrbit() }
                 )
             }
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("orbit-open").semantics {
-                    if (next != null) {
+                    if (orbitAvailable) {
                         role = Role.Button
                         onClick(openLabel) {
-                            showOrbit = true
+                            onOrbit()
                             true
                         }
                     }
-                }.pointerInput(next) {
-                    detectTapGestures(onTap = { if (next != null) showOrbit = true })
+                }.pointerInput(next, orbitAvailable) {
+                    detectTapGestures(onTap = { if (orbitAvailable) onOrbit() })
                 },
                 border = androidx.compose.foundation.BorderStroke(1.dp, HomeColors.border),
                 shape = MaterialTheme.shapes.extraLarge,
@@ -113,7 +139,7 @@ fun ForecastCard(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            analysis.cycleDay?.let {
+                            cycleDay?.let {
                                 Text(
                                     stringResource(R.string.hero_cycle_day, it),
                                     style = MaterialTheme.typography.titleLarge.copy(
@@ -121,16 +147,16 @@ fun ForecastCard(
                                     )
                                 )
                             }
-                            if (scene.phase != EstimatedCyclePhase.UNKNOWN) {
+                            if (phase != EstimatedCyclePhase.UNKNOWN) {
                                 Text(
-                                    stringResource(phaseName(scene.phase)),
+                                    stringResource(phaseName(phase)),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.muted
                                 )
                             }
                         }
                         IconButton(onClick = {
-                            showInfo = true
+                            onInformation()
                         }, Modifier.testTag("forecast-info")) {
                             Icon(
                                 painterResource(R.drawable.ic_info),
@@ -146,7 +172,7 @@ fun ForecastCard(
                     if (next == null) {
                         Text(
                             stringResource(
-                                when (analysis.unavailable) {
+                                when (unavailable) {
                                     ForecastUnavailable.INVALID_HISTORY -> R.string.forecast_invalid
                                     ForecastUnavailable.ONGOING -> R.string.forecast_ongoing
                                     ForecastUnavailable.PAST_DUE -> R.string.forecast_past_due
@@ -163,7 +189,7 @@ fun ForecastCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                next.predictedStartDate.format(
+                                next.format(
                                     DateTimeFormatter.ofPattern(pattern, locale)
                                 ),
                                 style = MaterialTheme.typography.headlineLarge.copy(
@@ -174,7 +200,7 @@ fun ForecastCard(
                             )
                             val days = ChronoUnit.DAYS.between(
                                 today,
-                                next.predictedStartDate
+                                next
                             ).toInt()
                             Surface(
                                 color = colors.border.copy(alpha = 0.38f),
@@ -224,11 +250,6 @@ fun ForecastCard(
             }
         }
     }
-    if (showInfo) PredictionMethodInfo(analysis) { showInfo = false }
-    if (showOrbit && next != null) {
-        CycleOrbitDetail(analysis, today, reducedMotion) { showOrbit = false }
-    }
-    selectedMarker?.let { OrbitPhaseInfo(it) { selectedMarker = null } }
 }
 
 fun phaseName(phase: EstimatedCyclePhase): Int = when (phase) {

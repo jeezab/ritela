@@ -416,12 +416,14 @@ private fun CalendarDayDetails(
                     .padding(horizontal = 20.dp, vertical = 12.dp).testTag("day-details"),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    formatter.status(selection.day.kind),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.testTag("selected-day-status"),
-                    color = HomeColors.peach
-                )
+                if (selection.day.kind != CalendarDayKind.NONE) {
+                    Text(
+                        formatter.status(selection.day.kind),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.testTag("selected-day-status"),
+                        color = HomeColors.peach
+                    )
+                }
                 formatter.cycle(selection)?.let { Text(it, color = HomeColors.muted) }
                 selection.day.period?.let {
                     Text(
@@ -663,7 +665,8 @@ fun MonthGrid(
                                 detail.kind == CalendarDayKind.OVULATION_ESTIMATE ->
                                     CalendarDesign.ovulation
 
-                                detail.kind == CalendarDayKind.FERTILE_LIKELY ->
+                                detail.kind == CalendarDayKind.FERTILE_LIKELY ||
+                                    detail.kind == CalendarDayKind.FERTILE_ESTIMATE ->
                                     CalendarDesign.fertile
 
                                 estimatedBleeding ->
@@ -705,7 +708,9 @@ fun MonthGrid(
                                     }
                                 )
                             } else {
-                                if (detail.kind == CalendarDayKind.FERTILE_LIKELY) {
+                                if (detail.kind == CalendarDayKind.FERTILE_LIKELY ||
+                                    detail.kind == CalendarDayKind.FERTILE_ESTIMATE
+                                ) {
                                     BorderStroke(1.dp, CalendarDesign.fertileAccent)
                                 } else if (detail.kind == CalendarDayKind.PREDICTED) {
                                     BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)

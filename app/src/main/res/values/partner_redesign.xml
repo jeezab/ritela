@@ -1,4 +1,5 @@
 <resources>
+    <string name="partner_choose_home">Choose a partner for home and calendar</string>
     <string name="partner_unconnected">Not connected</string>
     <string name="partner_connected">Connected</string>
     <string name="partner_application_mode">Application mode</string>
@@ -12,7 +13,6 @@
     <string name="partner_diary_hint">Choose sections and individual tags</string>
     <string name="partner_periods_hint">All records up to and including the latest entry</string>
     <string name="partner_forecasts_hint">Latest entry, calculated dates and ranges for the next 12 months</string>
-    <string name="partner_no_received">No shared data yet</string>
     <string name="partner_snapshot_hint">As of %1$s</string>
     <string name="partner_calendar_view">View calendar</string>
     <string name="partner_received_status">Received</string>
