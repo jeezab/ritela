@@ -2,18 +2,23 @@ package app.ritela.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -43,6 +48,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.ritela.R
@@ -85,6 +91,8 @@ internal fun DoodleEditor(
     var showDate by remember { mutableStateOf(false) }
     var showTime by remember { mutableStateOf(false) }
     var days by remember { mutableStateOf("1") }
+    var hours by remember { mutableStateOf("0") }
+    var minutes by remember { mutableStateOf("0") }
     var bounds by remember { mutableStateOf(IntSize.Zero) }
     val palette =
         listOf(0xffee839dL, 0xffc9506eL, 0xfffacdabL, 0xfff8eee7L, 0xffbfb0dbL, 0xff9ab8aeL)
@@ -93,7 +101,11 @@ internal fun DoodleEditor(
         (offset.y / bounds.height.coerceAtLeast(1)).coerceIn(0f, 1f)
     )
     val moment = DoodleSchedule.timestamp(date)
-    val delay = days.toIntOrNull()?.takeIf { it in 1..365 }
+    val delayDays = days.toIntOrNull()?.takeIf { it in 0..365 }
+    val delayHours = hours.toIntOrNull()?.takeIf { it in 0..23 }
+    val delayMinutes = minutes.toIntOrNull()?.takeIf { it in 0..59 }
+    val delayReady = delayDays != null && delayHours != null && delayMinutes != null &&
+        delayDays + delayHours + delayMinutes > 0
     PartnerModal(stringResource(R.string.partner_doodle), dismiss) {
         Box(Modifier.fillMaxWidth().aspectRatio(1.15f).background(HomeColors.background)) {
             Canvas(
@@ -143,18 +155,26 @@ internal fun DoodleEditor(
             FilterChip(eraser, {
                 eraser = !eraser
             }, label = { Text(stringResource(R.string.partner_eraser)) })
-            TextButton({
-                redo = redo + strokes.last()
-                strokes = strokes.dropLast(1)
-            }, enabled = strokes.isNotEmpty(), modifier = Modifier.testTag("doodle-undo")) {
-                Text(stringResource(R.string.partner_undo))
-            }
-            TextButton({
-                strokes = strokes + redo.last()
-                redo = redo.dropLast(1)
-            }, enabled = redo.isNotEmpty(), modifier = Modifier.testTag("doodle-redo")) {
-                Text(stringResource(R.string.partner_redo))
-            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                {
+                    redo = redo + strokes.last()
+                    strokes = strokes.dropLast(1)
+                },
+                enabled = strokes.isNotEmpty(),
+                modifier = Modifier.testTag("doodle-undo"),
+                border = BorderStroke(1.dp, HomeColors.border)
+            ) { Text(stringResource(R.string.partner_undo)) }
+            OutlinedButton(
+                {
+                    strokes = strokes + redo.last()
+                    redo = redo.dropLast(1)
+                },
+                enabled = redo.isNotEmpty(),
+                modifier = Modifier.testTag("doodle-redo"),
+                border = BorderStroke(1.dp, HomeColors.border)
+            ) { Text(stringResource(R.string.partner_redo)) }
         }
         Text(stringResource(R.string.partner_brush))
         Slider(width, { width = it }, valueRange = 0.003f..0.05f)
@@ -166,7 +186,16 @@ internal fun DoodleEditor(
             }
         }, label = { Text(stringResource(R.string.partner_caption)) })
         DoodleOpening.entries.forEach { mode ->
-            FilterChip(opening == mode, { opening = mode }, label = {
+            val selected = opening == mode
+            OutlinedButton(
+                { opening = mode },
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(if (selected) 2.dp else 1.dp, HomeColors.border),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (selected) HomeColors.top else Color.Transparent,
+                    contentColor = HomeColors.text
+                )
+            ) {
                 Text(
                     stringResource(
                         when (mode) {
@@ -174,9 +203,10 @@ internal fun DoodleEditor(
                             DoodleOpening.AFTER_DATE -> R.string.partner_after_date
                             DoodleOpening.AFTER_DAYS -> R.string.partner_after_days
                         }
-                    )
+                    ),
+                    textAlign = TextAlign.Center
                 )
-            })
+            }
         }
         if (opening == DoodleOpening.AFTER_DATE) {
             TextButton({ showDate = true }) {
@@ -187,28 +217,64 @@ internal fun DoodleEditor(
                         ).moment(requireNotNull(moment))
                 )
             }
+            Text(
+                stringResource(R.string.partner_after_date_hint),
+                color = HomeColors.muted,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+            )
         }
-        if (opening ==
-            DoodleOpening.AFTER_DAYS
-        ) {
-            OutlinedTextField(
-                days,
-                {
-                    days = it.take(3)
-                },
-                label = { Text(stringResource(R.string.partner_days)) },
-                isError =
-                    delay == null,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+        if (opening == DoodleOpening.AFTER_DAYS) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    days,
+                    { days = it.take(3) },
+                    Modifier.weight(1f),
+                    label = { Text(stringResource(R.string.partner_days)) },
+                    isError = delayDays == null,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    )
                 )
+                OutlinedTextField(
+                    hours,
+                    { hours = it.take(2) },
+                    Modifier.weight(1f),
+                    label = { Text(stringResource(R.string.partner_hours)) },
+                    isError = delayHours == null,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    )
+                )
+                OutlinedTextField(
+                    minutes,
+                    { minutes = it.take(2) },
+                    Modifier.weight(1f),
+                    label = { Text(stringResource(R.string.partner_minutes)) },
+                    isError = delayMinutes == null,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    )
+                )
+            }
+            Text(
+                stringResource(R.string.partner_after_delay_hint),
+                color = HomeColors.muted,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall
             )
         }
         Text(stringResource(R.string.partner_doodle_limits))
         val ready = strokes.isNotEmpty() &&
             (opening != DoodleOpening.AFTER_DATE || moment != null) &&
-            (opening != DoodleOpening.AFTER_DAYS || delay != null)
-        fun drawn() = Doodle(strokes, caption, opening, moment ?: 0, delay ?: 0)
+            (opening != DoodleOpening.AFTER_DAYS || delayReady)
+        fun drawn() = Doodle(
+            strokes,
+            caption,
+            opening,
+            moment ?: 0,
+            delayDays ?: 0,
+            delayHours ?: 0,
+            delayMinutes ?: 0
+        )
         if (save != null) {
             TextButton(
                 { save(drawn()) },

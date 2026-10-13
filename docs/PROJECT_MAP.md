@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13, срок дудла: Doodle.delayHours/delayMinutes добавляются к delayDays в unlockAt. PartnerCodec пишет hours/minutes и читает их как 0, если полей нет. DoodleEditor показывает три обведённые режима и отдельные кнопки штриха. PartnerExchangeScene использует partner_waiting и Button для закрытия.
+
 2026-10-13, послание и дудл в обмене: domain/SavedDoodles.kt — предел 15, сортировка по использованию и послание до 500 знаков. data/SavedDoodleLibrary.kt хранит рисунки профиля в partner-<id>.doodles и удаляется вместе с профилем. confirmData кладёт необязательные note/doodle в DATA; validateData их проверяет. ui/SavedDoodleUi.kt — карусель, редактор с сохранением и галерея удаления. PartnerScopeDialog добавляет кнопку и поле. Пузырь DATA показывает послание и рисунок.
 
 2026-10-13, файловое получение: PartnerViewModel.receiveFile сохраняет пакет и не ставит ACK в транспорт. PartnerScreen открывает «Как отправить» только для исходящих DATA/DOODLE. openDoodle(reply = false) отмечает дудл открытым без файла OPENED. Bluetooth ACK на том же сокете сохранён.

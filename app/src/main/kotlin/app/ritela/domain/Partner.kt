@@ -207,16 +207,23 @@ data class Doodle(
     val caption: String = "",
     val opening: DoodleOpening = DoodleOpening.IMMEDIATE,
     val openAt: Long = 0,
-    val delayDays: Int = 0
+    val delayDays: Int = 0,
+    val delayHours: Int = 0,
+    val delayMinutes: Int = 0
 ) {
     init {
         require(strokes.size in 1..256 && strokes.sumOf { it.points.size } <= 20000)
-        require(caption.length <= 240 && delayDays in 0..365 && openAt >= 0)
+        require(caption.length <= 240 && openAt >= 0)
+        require(delayDays in 0..365 && delayHours in 0..23 && delayMinutes in 0..59)
     }
     fun unlockAt(receivedAt: Long): Long = when (opening) {
         DoodleOpening.IMMEDIATE -> receivedAt
+
         DoodleOpening.AFTER_DATE -> openAt
-        DoodleOpening.AFTER_DAYS -> receivedAt + delayDays * 86400000L
+
+        DoodleOpening.AFTER_DAYS ->
+            receivedAt + delayDays * 86400000L +
+                delayHours * 3600000L + delayMinutes * 60000L
     }
     fun canOpen(receivedAt: Long, now: Long): Boolean = now >= unlockAt(receivedAt)
 }

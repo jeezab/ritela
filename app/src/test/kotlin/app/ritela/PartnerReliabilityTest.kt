@@ -266,6 +266,26 @@ class PartnerReliabilityTest {
             }.isFailure
         )
         assertTrue(runCatching { Doodle(listOf(stroke), delayDays = 366) }.isFailure)
+        assertTrue(runCatching { Doodle(listOf(stroke), delayHours = 24) }.isFailure)
+        val twoDays = Doodle(listOf(stroke), opening = DoodleOpening.AFTER_DAYS, delayDays = 2)
+        assertEquals(1000 + 2 * 86400000L, twoDays.unlockAt(1000))
+        assertFalse(twoDays.canOpen(1000, 1000 + 2 * 86400000L - 1))
+        assertTrue(twoDays.canOpen(1000, 1000 + 2 * 86400000L))
+        val timed = Doodle(
+            listOf(stroke),
+            opening = DoodleOpening.AFTER_DAYS,
+            delayDays = 1,
+            delayHours = 2,
+            delayMinutes = 3
+        )
+        assertEquals(1000 + 86400000L + 2 * 3600000L + 3 * 60000L, timed.unlockAt(1000))
+        val legacy = JSONObject(PartnerCodec.doodle(timed).toString())
+        legacy.remove("hours")
+        legacy.remove("minutes")
+        val restored = PartnerCodec.doodle(legacy)
+        assertEquals(1, restored.delayDays)
+        assertEquals(0, restored.delayHours)
+        assertEquals(0, restored.delayMinutes)
         assertEquals(doodle, PartnerCodec.doodle(PartnerCodec.doodle(doodle)))
     }
 
