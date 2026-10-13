@@ -189,6 +189,7 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
         }
     )
     val partnerPreferences = PartnerPreferences(context.applicationContext, profileId)
+    val savedDoodles = SavedDoodleLibrary(context.applicationContext, profileId)
     private val partnerVault by lazy { PartnerKeyVault(context.applicationContext, profileId) }
     val partner by lazy {
         PartnerRepository(database, partnerVault::loadOrCreate, partnerVault::save)
@@ -322,6 +323,11 @@ class ProfileManager(private val context: Context) {
                 }
             }
             PartnerKeyVault.delete(context, id)
+            val savedDoodles = SavedDoodleLibrary.location(context, id)
+            check(savedDoodles.parentFile == context.filesDir)
+            check(!savedDoodles.exists() || savedDoodles.delete())
+            val savedDoodleBackup = java.io.File(savedDoodles.path + ".bak")
+            check(!savedDoodleBackup.exists() || savedDoodleBackup.delete())
             val partnerPrefs = java.io.File(
                 context.filesDir,
                 "datastore/partner-$id.preferences_pb"

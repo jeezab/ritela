@@ -17,4 +17,14 @@
     <string name="partner_chat_periods">Period records: %1$d</string>
     <string name="partner_chat_forecasts">Forecasts: %1$d</string>
     <string name="partner_chat_days">Journal days: %1$d</string>
+    <string name="partner_attach_doodle">Attach a doodle</string>
+    <string name="partner_saved_doodles">Saved doodles</string>
+    <string name="partner_no_saved_doodles">No saved doodles yet</string>
+    <string name="partner_draw_doodle">Draw a new doodle</string>
+    <string name="partner_save_doodle">Save doodle</string>
+    <string name="partner_share_note">A message</string>
+    <string name="partner_remove_doodle">Remove doodle</string>
+    <string name="partner_delete_doodle">Delete doodle</string>
+    <string name="partner_delete_doodle_confirm">Delete this saved doodle?</string>
+    <string name="partner_doodle_full">Fifteen doodles are saved. Delete one to save another.</string>
 </resources>

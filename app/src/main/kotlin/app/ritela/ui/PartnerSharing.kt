@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -34,14 +36,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ritela.R
+import app.ritela.domain.DataShare
+import app.ritela.domain.Doodle
 import app.ritela.domain.JournalLayout
 import app.ritela.domain.PartnerSharing
+import app.ritela.domain.SavedDoodles
 import app.ritela.domain.ShareCategory
 import app.ritela.domain.ShareScope
 import app.ritela.domain.historySections
@@ -54,9 +60,10 @@ internal fun PartnerScopeDialog(
     initial: ShareScope,
     dismiss: () -> Unit,
     recipient: String = "",
-    confirm: (ShareScope) -> Unit
+    confirm: (DataShare) -> Unit
 ) {
-    val repository = LocalProfileSession.current?.partner ?: return
+    val session = LocalProfileSession.current ?: return
+    val repository = session.partner
     val formatter = PartnerFormatter(LocalResources.current)
     val sections = layout.historySections()
     val maximum = ShareScope(
@@ -74,6 +81,12 @@ internal fun PartnerScopeDialog(
     var expanded by remember { mutableStateOf(setOf<String>()) }
     var summary by remember { mutableStateOf("") }
     var ready by remember { mutableStateOf(false) }
+    var note by remember { mutableStateOf("") }
+    var attached by remember { mutableStateOf<Doodle?>(null) }
+    var attachedId by remember { mutableStateOf<String?>(null) }
+    var choosing by remember { mutableStateOf(false) }
+    var drawing by remember { mutableStateOf(false) }
+    val library by session.savedDoodles.items.collectAsStateWithLifecycle()
     LaunchedEffect(selected) {
         ready = false
         val data =
@@ -110,6 +123,19 @@ internal fun PartnerScopeDialog(
                     Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Button(
+                        { choosing = true },
+                        Modifier.fillMaxWidth().testTag("partner-attach-doodle")
+                    ) { Text(stringResource(R.string.partner_attach_doodle)) }
+                    attached?.let { doodle ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            DoodleThumbnail(doodle.strokes, Modifier.size(72.dp))
+                            TextButton({
+                                attached = null
+                                attachedId = null
+                            }) { Text(stringResource(R.string.partner_remove_doodle)) }
+                        }
+                    }
                     listOf(
                         Triple(
                             ShareCategory.PERIODS,
@@ -264,6 +290,12 @@ internal fun PartnerScopeDialog(
                             Text(stringResource(R.string.partner_note_category))
                         }
                     }
+                    OutlinedTextField(
+                        note,
+                        { if (it.length <= SavedDoodles.NOTE_LIMIT) note = it },
+                        Modifier.fillMaxWidth().testTag("partner-share-note"),
+                        label = { Text(stringResource(R.string.partner_share_note)) }
+                    )
                     run {
                         Text(
                             stringResource(R.string.partner_preview),
@@ -276,7 +308,14 @@ internal fun PartnerScopeDialog(
                     TextButton(dismiss) { Text(stringResource(R.string.cancel)) }
                     Button(
                         {
-                            confirm(PartnerSharing.remembered(selected, layout))
+                            confirm(
+                                DataShare(
+                                    PartnerSharing.remembered(selected, layout),
+                                    note,
+                                    attached,
+                                    attachedId
+                                )
+                            )
                         },
                         enabled =
                             ready && maximum.permits(selected) && selected.categories.isNotEmpty()
@@ -286,5 +325,20 @@ internal fun PartnerScopeDialog(
                 }
             }
         }
+    }
+    if (choosing) {
+        SavedDoodleChooser(library, { choosing = false }, { item ->
+            attached = item.doodle
+            attachedId = item.id
+            choosing = false
+        }) { drawing = true }
+    }
+    if (drawing) {
+        DoodleEditorWithLibrary({ drawing = false }, { doodle ->
+            attached = doodle
+            attachedId = null
+            drawing = false
+            choosing = false
+        }) { drawing = false }
     }
 }

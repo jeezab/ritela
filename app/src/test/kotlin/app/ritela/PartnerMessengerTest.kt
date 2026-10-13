@@ -153,7 +153,7 @@ class PartnerMessengerTest {
                             ShareScope(setOf(ShareCategory.PERIODS)),
                             { showing.value = false },
                             "Margo"
-                        ) { prepared = true }
+                        ) { _ -> prepared = true }
                     }
                 }
             }
@@ -212,6 +212,35 @@ class PartnerMessengerTest {
             .assertIsDisplayed()
         compose.onNodeWithText(formatter.chatStatus(packet, dated = true)).assertIsDisplayed()
         compose.onNodeWithText(formatter.chatStatus(packet)).assertDoesNotExist()
+    }
+
+    @Test fun dataBubbleShowsTheMessageAndAttachedDoodle() {
+        ready()
+        val doodle = app.ritela.domain.Doodle(
+            listOf(
+                app.ritela.domain.DoodleStroke(
+                    listOf(
+                        app.ritela.domain.DoodlePoint(.2f, .3f),
+                        app.ritela.domain.DoodlePoint(.6f, .4f)
+                    ),
+                    0xffee839d,
+                    .02f
+                )
+            ),
+            "drawn"
+        )
+        val packet = message("packet", "peer", 1_700_000_000_000L).copy(
+            delivered = true,
+            body = org.json.JSONObject().put("note", "With love")
+                .put("periods", org.json.JSONArray().put(org.json.JSONObject().put("start", 1)))
+                .put("doodle", app.ritela.data.PartnerCodec.doodle(doodle)).toString()
+        )
+        compose.activity.setContent {
+            HomeTheme { PartnerMessageBubble(packet, packet.received, {}, {}, true) }
+        }
+        compose.onNodeWithText("With love").assertIsDisplayed()
+        compose.onNodeWithText("drawn").assertIsDisplayed()
+        compose.onNodeWithTag("partner-attached-doodle").assertIsDisplayed()
     }
 
     @Test fun timelinePreservesMessagesAndUpdatesStatusesWithoutShowingAcknowledgements() {

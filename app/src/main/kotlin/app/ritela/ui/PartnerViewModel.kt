@@ -11,7 +11,6 @@ import app.ritela.data.PartnerRepository
 import app.ritela.domain.Doodle
 import app.ritela.domain.ExchangeEdge
 import app.ritela.domain.PartnerDirectory
-import app.ritela.domain.ShareScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -120,9 +119,6 @@ class PartnerViewModel(
         verificationCode.value =
             app.ritela.data.pairingCode(requireNotNull(pending.verificationContext))
         invitation.value = repository.invitation(name, target)
-    }
-    fun data(identity: String, device: String, scope: ShareScope) = run {
-        packet.value = repository.confirmData(identity, device, scope)
     }
     fun doodle(identity: String, device: String, value: Doodle) = run {
         packet.value = repository.prepareDoodle(identity, device, value)
