@@ -63,16 +63,21 @@ internal class OrbitGeometry(
         point: Offset,
         radius: Float,
         until: Float = OrbitMarker.OVULATION.progress
-    ): Boolean {
-        val progress = progressAt(point)
-        return progress > OrbitMarker.START.progress && progress < until &&
-            (point - position(progress)).getDistance() <= radius &&
-            dustClearOfEndpoints(point, radius * 1.25f)
-    }
+    ): Boolean = dustContains(point, radius, OrbitMarker.START.progress, until)
 
-    fun dustClearOfEndpoints(point: Offset, clearance: Float): Boolean =
-        (point - position(OrbitMarker.START.progress)).getDistance() >= clearance &&
-            (point - position(OrbitMarker.OVULATION.progress)).getDistance() >= clearance
+    fun lutealDustContains(
+        point: Offset,
+        radius: Float,
+        from: Float = OrbitMarker.OVULATION.progress
+    ): Boolean = dustContains(point, radius, from, OrbitMarker.END.progress)
+
+    private fun dustContains(point: Offset, radius: Float, from: Float, to: Float): Boolean {
+        val progress = progressAt(point)
+        return progress > from && progress < to &&
+            (point - position(progress)).getDistance() <= radius &&
+            (point - position(from)).getDistance() >= radius * 1.25f &&
+            (point - position(to)).getDistance() >= radius * 1.25f
+    }
 
     companion object {
         fun inViewport(size: Size, inset: Float): OrbitGeometry = OrbitGeometry(

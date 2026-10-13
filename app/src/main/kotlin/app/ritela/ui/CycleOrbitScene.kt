@@ -146,6 +146,14 @@ fun CycleOrbitScene(
                             )
                         ) {
                             onMarker(OrbitMarker.FOLLICULAR)
+                        } else if (onMarker != null &&
+                            geometry.lutealDustContains(
+                                point,
+                                hitRadius,
+                                orbitOvulationProgress(cycleLength)
+                            )
+                        ) {
+                            onMarker(OrbitMarker.LUTEAL)
                         } else {
                             onOpen?.invoke()
                         }
@@ -177,7 +185,7 @@ fun CycleOrbitScene(
                         geometry.position(orbitLandmarkProgress(it, cycleLength))
                     }
                     val activeOverLandmark = markers.filterKeys {
-                        it != OrbitMarker.FOLLICULAR
+                        it != OrbitMarker.FOLLICULAR && it != OrbitMarker.LUTEAL
                     }.values.any {
                         (it - active).getDistance() < 14f * unit
                     }
@@ -188,9 +196,12 @@ fun CycleOrbitScene(
                             OrbitDustParticle(
                                 geometry.position(place),
                                 lerp(start, end, along),
-                                1.15f * unit,
+                                1.45f * unit,
                                 dustFade(along)
                             )
+                        }.filter {
+                            (it.point - geometry.position(from)).getDistance() >= 13f * unit &&
+                                (it.point - geometry.position(to)).getDistance() >= 13f * unit
                         }
                     val dust = band(
                         OrbitMarker.START.progress,
@@ -267,12 +278,12 @@ fun CycleOrbitScene(
                         )
                         for (particle in dust) {
                             drawCircle(
-                                particle.color.copy(alpha = particle.alpha * .16f),
-                                particle.radius * 2.2f,
+                                particle.color.copy(alpha = particle.alpha * .22f),
+                                particle.radius * 2.4f,
                                 particle.point
                             )
                             drawCircle(
-                                particle.color.copy(alpha = particle.alpha * .82f),
+                                particle.color.copy(alpha = particle.alpha * .92f),
                                 particle.radius,
                                 particle.point
                             )
@@ -303,7 +314,7 @@ fun CycleOrbitScene(
                                     point
                                 )
 
-                                OrbitMarker.LUTEAL -> drawCircle(colors.rose, 8f * unit, point)
+                                OrbitMarker.LUTEAL -> Unit
 
                                 OrbitMarker.END -> drawPath(
                                     crescent,

@@ -67,7 +67,23 @@ class OrbitDustInteractionTest {
             ).assertIsDisplayed()
             compose.onNodeWithTag("orbit-phase-close").performClick()
         }
-        for (marker in listOf(OrbitMarker.START, OrbitMarker.OVULATION, OrbitMarker.FOLLICULAR)) {
+        for (progress in listOf(.54f, .78f)) {
+            compose.onNodeWithTag("orbit-canvas").performTouchInput {
+                click(geometry.position(progress))
+            }
+            assertEquals(OrbitMarker.LUTEAL, selected.value)
+            compose.onNodeWithText(
+                compose.activity.getString(R.string.help_luteal_body)
+            ).assertIsDisplayed()
+            compose.onNodeWithTag("orbit-phase-close").performClick()
+        }
+        for (marker in listOf(
+            OrbitMarker.START,
+            OrbitMarker.OVULATION,
+            OrbitMarker.END,
+            OrbitMarker.FOLLICULAR,
+            OrbitMarker.LUTEAL
+        )) {
             compose.onNodeWithTag("orbit-marker-${marker.name}").performClick()
             assertEquals(marker, selected.value)
             compose.onNodeWithTag("orbit-phase-close").performClick()
