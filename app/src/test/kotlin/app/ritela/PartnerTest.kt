@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.ritela.data.LocalPartnerKeys
+import app.ritela.data.PartnerCodec
 import app.ritela.data.PartnerCrypto
 import app.ritela.data.PartnerRepository
 import app.ritela.data.RitelaDatabase
@@ -18,6 +19,7 @@ import app.ritela.domain.ShareCategory
 import app.ritela.domain.ShareScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -208,6 +210,46 @@ class PartnerTest {
             val stored = rb.messages.first()
             assertEquals(listOf("DOODLE"), stored.map { it.kind })
             assertTrue(stored.single().opened)
+        } finally {
+            dbA.close()
+            dbB.close()
+        }
+    }
+
+    @Test fun sharedDataKeepsTheMessageAndDoodleTogether() = runBlocking {
+        val dbA = database()
+        val dbB = database()
+        val a = LocalPartnerKeys.create()
+        val b = LocalPartnerKeys.create()
+        try {
+            val ra = repo(dbA, a)
+            val rb = repo(dbB, b)
+            confirmedPair(ra, b, "B")
+            confirmedPair(rb, a, "A")
+            val doodle = Doodle(
+                listOf(DoodleStroke(listOf(DoodlePoint(.2f, .3f)), 0xffee839d, .02f)),
+                "drawn"
+            )
+            val message = ra.confirmData(
+                b.identityId,
+                b.deviceId,
+                ShareScope(setOf(ShareCategory.PERIODS)),
+                "  With love  ",
+                doodle
+            )
+            val body = JSONObject(rb.receive(message.envelope.toByteArray()).message.body)
+            assertEquals("With love", body.getString("note"))
+            assertEquals("drawn", PartnerCodec.doodle(body.getJSONObject("doodle")).caption)
+            assertTrue(
+                runCatching {
+                    ra.confirmData(
+                        b.identityId,
+                        b.deviceId,
+                        ShareScope(setOf(ShareCategory.PERIODS)),
+                        "x".repeat(501)
+                    )
+                }.isFailure
+            )
         } finally {
             dbA.close()
             dbB.close()

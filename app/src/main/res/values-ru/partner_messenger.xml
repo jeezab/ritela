@@ -17,4 +17,14 @@
     <string name="partner_chat_periods">Записи месячных: %1$d</string>
     <string name="partner_chat_forecasts">Прогнозы: %1$d</string>
     <string name="partner_chat_days">Дни дневника: %1$d</string>
+    <string name="partner_attach_doodle">Прикрепить дудл</string>
+    <string name="partner_saved_doodles">Сохранённые дудлы</string>
+    <string name="partner_no_saved_doodles">Пока нет сохранённых дудлов</string>
+    <string name="partner_draw_doodle">Нарисовать новый дудл</string>
+    <string name="partner_save_doodle">Сохранить дудл</string>
+    <string name="partner_share_note">Послание</string>
+    <string name="partner_remove_doodle">Убрать дудл</string>
+    <string name="partner_delete_doodle">Удалить дудл</string>
+    <string name="partner_delete_doodle_confirm">Удалить этот сохранённый дудл?</string>
+    <string name="partner_doodle_full">Сохранено 15 дудлов. Удалите один, чтобы сохранить новый.</string>
 </resources>

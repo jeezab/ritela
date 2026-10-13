@@ -66,7 +66,11 @@ object DoodleSchedule {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun DoodleEditor(dismiss: () -> Unit, send: (Doodle) -> Unit) {
+internal fun DoodleEditor(
+    dismiss: () -> Unit,
+    send: (Doodle) -> Unit,
+    save: ((Doodle) -> Unit)? = null
+) {
     var strokes by remember { mutableStateOf<List<DoodleStroke>>(emptyList()) }
     var redo by remember { mutableStateOf<List<DoodleStroke>>(emptyList()) }
     var current by remember { mutableStateOf<List<DoodlePoint>>(emptyList()) }
@@ -201,13 +205,21 @@ internal fun DoodleEditor(dismiss: () -> Unit, send: (Doodle) -> Unit) {
             )
         }
         Text(stringResource(R.string.partner_doodle_limits))
+        val ready = strokes.isNotEmpty() &&
+            (opening != DoodleOpening.AFTER_DATE || moment != null) &&
+            (opening != DoodleOpening.AFTER_DAYS || delay != null)
+        fun drawn() = Doodle(strokes, caption, opening, moment ?: 0, delay ?: 0)
+        if (save != null) {
+            TextButton(
+                { save(drawn()) },
+                enabled = ready,
+                modifier = Modifier.testTag("doodle-save")
+            ) { Text(stringResource(R.string.partner_save_doodle)) }
+        }
         Button(
-            { send(Doodle(strokes, caption, opening, moment ?: 0, delay ?: 0)) },
+            { send(drawn()) },
             modifier = Modifier.testTag("doodle-prepare"),
-            enabled =
-                strokes.isNotEmpty() &&
-                    (opening != DoodleOpening.AFTER_DATE || moment != null) &&
-                    (opening != DoodleOpening.AFTER_DAYS || delay != null)
+            enabled = ready
         ) {
             Text(stringResource(R.string.partner_prepare))
         }
@@ -235,6 +247,13 @@ internal fun DoodleEditor(dismiss: () -> Unit, send: (Doodle) -> Unit) {
                 showTime = false
             }) { Text(stringResource(R.string.done)) }
         }
+    }
+}
+
+@Composable
+internal fun DoodleThumbnail(strokes: List<DoodleStroke>, modifier: Modifier = Modifier) {
+    Canvas(modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+        drawDoodle(strokes)
     }
 }
 

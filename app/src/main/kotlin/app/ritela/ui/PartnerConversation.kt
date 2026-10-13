@@ -478,6 +478,7 @@ internal fun PartnerMessageBubble(
                         formatter.dataTitle(message.created),
                         style = MaterialTheme.typography.titleSmall
                     )
+                    AttachedShare(message, now)
                     Text(
                         formatter.chatSummary(JSONObject(message.body)),
                         style = MaterialTheme.typography.bodyMedium
@@ -502,6 +503,35 @@ internal fun PartnerMessageBubble(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AttachedShare(message: PartnerMessage, now: Long) {
+    val body = remember(message.body) { runCatching { JSONObject(message.body) }.getOrNull() }
+        ?: return
+    val note = body.optString("note")
+    if (note.isNotBlank()) {
+        Text(note, style = MaterialTheme.typography.bodyMedium)
+    }
+    val doodle = remember(message.body) {
+        runCatching { body.optJSONObject("doodle")?.let(PartnerCodec::doodle) }.getOrNull()
+    } ?: return
+    val visible = message.outgoing || doodle.canOpen(message.received, now)
+    if (visible) {
+        DoodleThumbnail(
+            doodle.strokes,
+            Modifier.fillMaxWidth().height(104.dp).testTag("partner-attached-doodle")
+        )
+        if (doodle.caption.isNotBlank()) {
+            Text(doodle.caption, style = MaterialTheme.typography.bodyMedium)
+        }
+    } else {
+        Text("\u2661", color = HomeColors.rose, style = MaterialTheme.typography.headlineMedium)
+        Text(
+            PartnerFormatter(LocalResources.current).locked(doodle.unlockAt(message.received)),
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 

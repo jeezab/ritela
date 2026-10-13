@@ -415,15 +415,28 @@ class PartnerRepository(
     suspend fun confirmData(
         identity: String,
         device: String,
-        selection: ShareScope
-    ): PartnerMessage = prepare(identity, device, "DATA", JSONObject(), selection, confirmed = true)
+        selection: ShareScope,
+        note: String = "",
+        doodle: Doodle? = null
+    ): PartnerMessage = prepare(
+        identity,
+        device,
+        "DATA",
+        JSONObject(),
+        selection,
+        confirmed = true,
+        note = note,
+        doodle = doodle
+    )
     private suspend fun prepare(
         identity: String,
         device: String,
         kind: String,
         content: JSONObject,
         selection: ShareScope? = null,
-        confirmed: Boolean = false
+        confirmed: Boolean = false,
+        note: String = "",
+        doodle: Doodle? = null
     ): PartnerMessage = withContext(Dispatchers.IO) {
         mutex.withLock {
             database.withTransaction {
@@ -439,7 +452,15 @@ class PartnerRepository(
                 } else {
                     selection?.also { require(contact.grants.permits(it)) }
                 }
-                val payload = if (confirmed) preview(requireNotNull(chosen)) else content
+                val payload = if (confirmed) {
+                    preview(requireNotNull(chosen)).also { json ->
+                        val text = app.ritela.domain.SavedDoodles.note(note)
+                        if (text.isNotEmpty()) json.put("note", text)
+                        doodle?.let { json.put("doodle", PartnerCodec.doodle(it)) }
+                    }
+                } else {
+                    content
+                }
                 val remote = contact.devices.single {
                     it.id == device && it.enabled &&
                         it.mutualConfirmed
@@ -808,12 +829,18 @@ class PartnerRepository(
             require(it.getString("language") in listOf("system", "ru", "en"))
             ThemeMode.valueOf(it.getString("theme"))
         }
+        if (content.has("note")) {
+            require(
+                content.getString("note").length in 1..app.ritela.domain.SavedDoodles.NOTE_LIMIT
+            )
+        }
+        if (content.has("doodle")) PartnerCodec.doodle(content.getJSONObject("doodle"))
         require(
             content.keys().asSequence().all {
                 it in setOf(
                     "scope", "periods", "days", "labels", "forecasts",
                     "cycleDay", "duration", "settings", "phase", "asOf",
-                    "calculatedAt", "algorithm", "cycleLength"
+                    "calculatedAt", "algorithm", "cycleLength", "note", "doodle"
                 )
             }
         )

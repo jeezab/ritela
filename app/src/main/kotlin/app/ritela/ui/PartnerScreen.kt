@@ -485,8 +485,17 @@ fun PartnerScreen(padding: PaddingValues) {
                     source.lastSelection ?: ShareScope(),
                     { sharing = false },
                     source.name
-                ) { selection ->
-                    model.data(source.id, device.id, selection)
+                ) { share ->
+                    model.run {
+                        model.packet.value = model.repository.confirmData(
+                            source.id,
+                            device.id,
+                            share.scope,
+                            share.note,
+                            share.doodle
+                        )
+                        share.savedDoodleId?.let { session.savedDoodles.use(it) }
+                    }
                     sharing = false
                 }
             }
@@ -544,11 +553,10 @@ fun PartnerScreen(padding: PaddingValues) {
             if (drawing &&
                 device != null
             ) {
-                DoodleEditor({ drawing = false }) { doodle ->
+                DoodleEditorWithLibrary({ drawing = false }, { doodle ->
                     model.doodle(source.id, device.id, doodle)
-                    drawing =
-                        false
-                }
+                    drawing = false
+                })
             }
             if (manage &&
                 contact != null

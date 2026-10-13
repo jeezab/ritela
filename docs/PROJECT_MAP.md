@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13, послание и дудл в обмене: domain/SavedDoodles.kt — предел 15, сортировка по использованию и послание до 500 знаков. data/SavedDoodleLibrary.kt хранит рисунки профиля в partner-<id>.doodles и удаляется вместе с профилем. confirmData кладёт необязательные note/doodle в DATA; validateData их проверяет. ui/SavedDoodleUi.kt — карусель, редактор с сохранением и галерея удаления. PartnerScopeDialog добавляет кнопку и поле. Пузырь DATA показывает послание и рисунок.
+
 2026-10-13, файловое получение: PartnerViewModel.receiveFile сохраняет пакет и не ставит ACK в транспорт. PartnerScreen открывает «Как отправить» только для исходящих DATA/DOODLE. openDoodle(reply = false) отмечает дудл открытым без файла OPENED. Bluetooth ACK на том же сокете сохранён.
 
 2026-10-13, пузырь DATA: PartnerFormatter.dataTitle/chatStatus(dated) — момент created в заголовке и момент received со статусом внизу. PartnerConversation показывает это только для DATA; DOODLE сохраняет время получения. Строки EN/RU — partner_data_recorded. PartnerMessengerTest проверяет порядок на разных моментах.
