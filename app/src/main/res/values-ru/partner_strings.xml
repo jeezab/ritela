@@ -36,7 +36,7 @@
     <string name="partner_password">Пароль</string>
     <string name="partner_selection">Выберите данные</string>
     <string name="partner_preview">Состав передачи</string>
-    <string name="partner_prepare">Подготовить обмен</string>
+    <string name="partner_prepare">Отправить</string>
     <string name="partner_allow_exchange">Разрешить обмен с этой личностью</string>
     <string name="partner_device_enabled">Доверять этому устройству</string>
     <string name="partner_new_device_hint">Чтобы добавить телефон, отдельно откройте его приглашение и проверьте код. При добавлении устройства доступ к данным нужно выдать заново.</string>
