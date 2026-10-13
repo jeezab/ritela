@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13, файловое получение: PartnerViewModel.receiveFile сохраняет пакет и не ставит ACK в транспорт. PartnerScreen открывает «Как отправить» только для исходящих DATA/DOODLE. openDoodle(reply = false) отмечает дудл открытым без файла OPENED. Bluetooth ACK на том же сокете сохранён.
+
 2026-10-13, пузырь DATA: PartnerFormatter.dataTitle/chatStatus(dated) — момент created в заголовке и момент received со статусом внизу. PartnerConversation показывает это только для DATA; DOODLE сохраняет время получения. Строки EN/RU — partner_data_recorded. PartnerMessengerTest проверяет порядок на разных моментах.
 
 2026-10-13, интерфейс партнёра: ForecastCard.kt — общий CycleForecastHero; CycleOrbitDetail.kt — общий CycleOrbitDetails со статьями. PartnerHome/PartnerCalendarPage используют homeSelected; PartnerScreen сохраняет selected для переписки. PartnerSnapshot классифицирует семь фертильных дней и предоставляет фазу фокуса по переданным датам. PartnerExperienceTest — выбор главной отдельно от чата, общий hero/detail/articles и подробности календаря.

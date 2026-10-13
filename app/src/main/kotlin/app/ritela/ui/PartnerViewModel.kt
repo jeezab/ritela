@@ -134,15 +134,7 @@ class PartnerViewModel(
             inspectReceivedInvitation(invitation)
             return
         }
-        val received = repository.receive(bytes)
-        packet.value =
-            if (received.message.kind in
-                listOf("DATA", "DOODLE")
-            ) {
-                repository.acknowledgement(received.message)
-            } else {
-                null
-            }
+        repository.receive(bytes)
     }
     fun exchangeInvitation(address: String?, name: String) = run {
         val local = repository.invitation(name, pairingTarget.value)

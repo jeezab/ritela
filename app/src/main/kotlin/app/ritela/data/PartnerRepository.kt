@@ -620,35 +620,41 @@ class PartnerRepository(
     suspend fun acknowledgement(message: PartnerMessage): PartnerMessage =
         prepare(message.identity, message.device, "ACK", JSONObject().put("message", message.id))
     private val openingMutex = Mutex()
-    suspend fun openDoodle(id: String): PartnerMessage? = openingMutex.withLock {
-        // prepare persists the receipt before marking opened; recovery reuses that receipt.
-        run {
-            val message = dao.message(id) ?: error("Unknown doodle")
-            require(message.kind == "DOODLE" && !message.outgoing && message.body.isNotEmpty())
-            require(PartnerCodec.doodle(JSONObject(message.body)).canOpen(message.received, now()))
-            val previousReceipt = dao.history(message.identity).firstOrNull {
-                it.outgoing && it.kind == "OPENED" && it.body.isNotEmpty() &&
-                    JSONObject(it.body).optString("message") == id
-            }
-            if (message.opened && previousReceipt != null) return@run null
-            val contact = snapshot().identities.firstOrNull { it.id == message.identity }
-            val canReply = contact?.exchangeEnabled == true && contact.devices.any {
-                it.id == message.device && it.enabled && it.mutualConfirmed
-            }
-            val receipt = if (canReply) {
-                previousReceipt ?: prepare(
-                    message.identity,
-                    message.device,
-                    "OPENED",
-                    JSONObject().put("message", id)
+    suspend fun openDoodle(id: String, reply: Boolean = true): PartnerMessage? =
+        openingMutex.withLock {
+            // A file reply is optional. Bluetooth still returns ACK on the same connection.
+            run {
+                val message = dao.message(id) ?: error("Unknown doodle")
+                require(message.kind == "DOODLE" && !message.outgoing && message.body.isNotEmpty())
+                require(
+                    PartnerCodec.doodle(JSONObject(message.body)).canOpen(
+                        message.received,
+                        now()
+                    )
                 )
-            } else {
-                null
+                val previousReceipt = dao.history(message.identity).firstOrNull {
+                    it.outgoing && it.kind == "OPENED" && it.body.isNotEmpty() &&
+                        JSONObject(it.body).optString("message") == id
+                }
+                if (message.opened && (previousReceipt != null || !reply)) return@run null
+                val contact = snapshot().identities.firstOrNull { it.id == message.identity }
+                val canReply = reply && contact?.exchangeEnabled == true && contact.devices.any {
+                    it.id == message.device && it.enabled && it.mutualConfirmed
+                }
+                val receipt = if (canReply) {
+                    previousReceipt ?: prepare(
+                        message.identity,
+                        message.device,
+                        "OPENED",
+                        JSONObject().put("message", id)
+                    )
+                } else {
+                    null
+                }
+                dao.opened(id)
+                receipt
             }
-            dao.opened(id)
-            receipt
         }
-    }
     suspend fun retry(id: String): PartnerMessage {
         val message = requireNotNull(dao.message(id))
         require(message.outgoing && message.envelope.isNotEmpty())
