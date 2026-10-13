@@ -23,9 +23,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SettingsGroup(content: @Composable () -> Unit) {
+fun SettingsGroup(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Card(
-        Modifier.fillMaxWidth(),
+        modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         border = BorderStroke(1.dp, HomeColors.border.copy(alpha = 0.6f)),
         colors = CardDefaults.cardColors(containerColor = HomeColors.card.copy(alpha = 0.5f))

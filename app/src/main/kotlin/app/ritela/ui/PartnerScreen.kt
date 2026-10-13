@@ -68,7 +68,7 @@ import org.json.JSONObject
 fun PartnerSettings() {
     val session = LocalProfileSession.current ?: return
     val mode by session.partnerPreferences.mode.collectAsStateWithLifecycle()
-    SettingsGroup {
+    SettingsGroup(Modifier.testTag("partner-settings-card")) {
         Text(
             stringResource(R.string.partner_application_mode),
             style = MaterialTheme.typography.titleMedium
@@ -124,8 +124,8 @@ fun PartnerSettings() {
             )
         }
         Text(stringResource(R.string.partner_private), style = MaterialTheme.typography.bodySmall)
+        PartnerSecuritySettings()
     }
-    PartnerSecuritySettings()
 }
 
 @Composable
