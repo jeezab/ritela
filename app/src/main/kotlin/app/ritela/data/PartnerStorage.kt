@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStoreFile
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -36,7 +37,8 @@ data class PartnerMessage(
     val body: String,
     val envelope: String,
     val delivered: Boolean = false,
-    val opened: Boolean = false
+    val opened: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val hiddenFromChat: Boolean = false
 )
 
 @Dao
@@ -62,11 +64,19 @@ interface PartnerDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(message: PartnerMessage)
 
-    @Query("UPDATE partner_messages SET delivered=1 WHERE id=:id AND outgoing=1")
+    @Query(
+        "UPDATE partner_messages SET delivered=1 WHERE id=:id AND outgoing=1 AND hiddenFromChat=0"
+    )
     suspend fun delivered(id: String)
 
-    @Query("UPDATE partner_messages SET opened=1 WHERE id=:id")
+    @Query("UPDATE partner_messages SET opened=1 WHERE id=:id AND hiddenFromChat=0")
     suspend fun opened(id: String)
+
+    @Query("UPDATE partner_messages SET hiddenFromChat=1 WHERE id=:id")
+    suspend fun hide(id: String)
+
+    @Query("UPDATE partner_messages SET hiddenFromChat=1, body='', envelope='' WHERE id=:id")
+    suspend fun erase(id: String)
 
     // Retain IDs as replay tombstones when the user clears locally received contents.
     @Query(

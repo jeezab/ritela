@@ -79,7 +79,7 @@ internal fun conversationMessages(
     identities: Set<String>
 ): List<PartnerMessage> = messages.filter {
     it.identity in identities && it.kind in setOf("DATA", "DOODLE") &&
-        it.body.isNotEmpty()
+        it.body.isNotEmpty() && !it.hiddenFromChat
 }
     .distinctBy { it.id }.sortedWith(compareBy<PartnerMessage> { it.received }.thenBy { it.id })
 
@@ -109,7 +109,8 @@ internal fun PartnerChats(
     open: (PartnerMessage) -> Unit,
     retry: (PartnerMessage) -> Unit,
     modifier: Modifier = Modifier,
-    senderNames: Map<String, String> = emptyMap()
+    senderNames: Map<String, String> = emptyMap(),
+    delete: ((PartnerMessage, Boolean) -> Unit)? = null
 ) {
     val holder = rememberSaveableStateHolder()
     val opened = contacts.firstOrNull { it.id == openedId }
@@ -130,7 +131,7 @@ internal fun PartnerChats(
             holder.SaveableStateProvider(current.id) {
                 PartnerConversation(
                     current, messages, status, busy, canSend, now, closeDialog, profile,
-                    action, open, retry, senderNames = senderNames
+                    action, open, retry, senderNames = senderNames, delete = delete
                 )
             }
         }
@@ -276,7 +277,8 @@ internal fun PartnerConversation(
     open: (PartnerMessage) -> Unit,
     retry: (PartnerMessage) -> Unit,
     modifier: Modifier = Modifier,
-    senderNames: Map<String, String> = emptyMap()
+    senderNames: Map<String, String> = emptyMap(),
+    delete: ((PartnerMessage, Boolean) -> Unit)? = null
 ) {
     var menu by remember { mutableStateOf(false) }
     var attachments by remember { mutableStateOf(false) }
@@ -431,7 +433,8 @@ internal fun PartnerConversation(
                                     fadeOutSpec = tween(120)
                                 )
                             },
-                            sender = sender
+                            sender = sender,
+                            delete = delete?.let { action -> { erase -> action(message, erase) } }
                         )
                     }
                 }
@@ -502,102 +505,109 @@ internal fun PartnerMessageBubble(
     retry: () -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier,
-    sender: String? = null
+    sender: String? = null,
+    delete: ((Boolean) -> Unit)? = null
 ) {
     val formatter = PartnerFormatter(LocalResources.current)
     Row(
         modifier.fillMaxWidth().testTag("partner-message-${message.id}"),
         horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start
     ) {
-        Surface(
-            Modifier.fillMaxWidth(.86f),
-            color = if (message.outgoing) HomeColors.card else HomeColors.top,
-            shape = RoundedCornerShape(
-                18.dp,
-                18.dp,
-                if (message.outgoing) 4.dp else 18.dp,
-                if (message.outgoing) 18.dp else 4.dp
-            ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                HomeColors.border.copy(alpha = .28f)
-            )
-        ) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                sender?.let {
-                    Text(it, style = MaterialTheme.typography.labelMedium, color = HomeColors.muted)
-                }
-                if (message.kind == "DOODLE") {
-                    val doodle =
-                        remember(message.body) { PartnerCodec.doodle(JSONObject(message.body)) }
-                    val visible = message.outgoing || message.opened ||
-                        (
-                            doodle.opening == app.ritela.domain.DoodleOpening.IMMEDIATE &&
-                                doodle.canOpen(message.received, now)
-                            )
-                    if (visible) {
-                        Canvas(
-                            Modifier.fillMaxWidth().height(104.dp).graphicsLayer {
-                                compositingStrategy = CompositingStrategy.Offscreen
-                            }.testTag("partner-thumbnail-${message.id}")
-                        ) { drawDoodle(doodle.strokes) }
-                        if (doodle.caption.isNotBlank()) {
+        PartnerMessageActions(message, enabled, delete) {
+            Surface(
+                Modifier.fillMaxWidth(),
+                color = if (message.outgoing) HomeColors.card else HomeColors.top,
+                shape = RoundedCornerShape(
+                    18.dp,
+                    18.dp,
+                    if (message.outgoing) 4.dp else 18.dp,
+                    if (message.outgoing) 18.dp else 4.dp
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    HomeColors.border.copy(alpha = .28f)
+                )
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    sender?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = HomeColors.muted
+                        )
+                    }
+                    if (message.kind == "DOODLE") {
+                        val doodle =
+                            remember(message.body) { PartnerCodec.doodle(JSONObject(message.body)) }
+                        val visible = message.outgoing || message.opened ||
+                            (
+                                doodle.opening == app.ritela.domain.DoodleOpening.IMMEDIATE &&
+                                    doodle.canOpen(message.received, now)
+                                )
+                        if (visible) {
+                            Canvas(
+                                Modifier.fillMaxWidth().height(104.dp).graphicsLayer {
+                                    compositingStrategy = CompositingStrategy.Offscreen
+                                }.testTag("partner-thumbnail-${message.id}")
+                            ) { drawDoodle(doodle.strokes) }
+                            if (doodle.caption.isNotBlank()) {
+                                Text(
+                                    doodle.caption,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        } else {
                             Text(
-                                doodle.caption,
-                                style = MaterialTheme.typography.bodyMedium
+                                "\u2661",
+                                color = HomeColors.rose,
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                stringResource(R.string.partner_doodle_kind),
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                        }
+                        if (message.outgoing || message.opened ||
+                            doodle.canOpen(message.received, now)
+                        ) {
+                            TextButton(open, contentPadding = PaddingValues(horizontal = 0.dp)) {
+                                Text(stringResource(R.string.partner_open_doodle))
+                            }
+                        } else {
+                            Text(
+                                formatter.locked(doodle.unlockAt(message.received)),
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     } else {
                         Text(
-                            "\u2661",
-                            color = HomeColors.rose,
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                        Text(
-                            stringResource(R.string.partner_doodle_kind),
+                            formatter.dataTitle(message.created),
                             style = MaterialTheme.typography.titleSmall
                         )
-                    }
-                    if (message.outgoing || message.opened ||
-                        doodle.canOpen(message.received, now)
-                    ) {
-                        TextButton(open, contentPadding = PaddingValues(horizontal = 0.dp)) {
-                            Text(stringResource(R.string.partner_open_doodle))
-                        }
-                    } else {
+                        AttachedShare(message, now)
                         Text(
-                            formatter.locked(doodle.unlockAt(message.received)),
-                            style = MaterialTheme.typography.bodySmall
+                            formatter.chatSummary(JSONObject(message.body)),
+                            style = MaterialTheme.typography.bodyMedium
                         )
+                        TextButton(open, contentPadding = PaddingValues(horizontal = 0.dp)) {
+                            Text(stringResource(R.string.partner_view_message))
+                        }
                     }
-                } else {
+                    if (message.outgoing && !message.delivered) {
+                        Button(
+                            retry,
+                            enabled = enabled,
+                            modifier = Modifier.testTag("partner-send-${message.id}")
+                        ) {
+                            Text(stringResource(R.string.partner_choose_channel))
+                        }
+                    }
                     Text(
-                        formatter.dataTitle(message.created),
-                        style = MaterialTheme.typography.titleSmall
+                        formatter.chatStatus(message, dated = message.kind == "DATA"),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = HomeColors.muted
                     )
-                    AttachedShare(message, now)
-                    Text(
-                        formatter.chatSummary(JSONObject(message.body)),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    TextButton(open, contentPadding = PaddingValues(horizontal = 0.dp)) {
-                        Text(stringResource(R.string.partner_view_message))
-                    }
                 }
-                if (message.outgoing && !message.delivered) {
-                    Button(
-                        retry,
-                        enabled = enabled,
-                        modifier = Modifier.testTag("partner-send-${message.id}")
-                    ) {
-                        Text(stringResource(R.string.partner_choose_channel))
-                    }
-                }
-                Text(
-                    formatter.chatStatus(message, dated = message.kind == "DATA"),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = HomeColors.muted
-                )
             }
         }
     }

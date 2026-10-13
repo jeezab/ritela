@@ -123,6 +123,10 @@ class PartnerViewModel(
     fun doodle(identity: String, device: String, value: Doodle) = run {
         packet.value = repository.prepareDoodle(identity, device, value)
     }
+    fun deleteMessage(id: String, eraseSharedData: Boolean = false) = run {
+        repository.deleteMessage(id, eraseSharedData)
+        if (packet.value?.id == id) packet.value = null
+    }
     fun receive(bytes: ByteArray) = run { receiveFile(bytes) }
     suspend fun receiveFile(bytes: ByteArray) {
         val invitation = PartnerInvitationFile.decode(bytes)

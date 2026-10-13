@@ -52,6 +52,18 @@ class PartnerRepository(
             ?: PartnerDirectory()
     }
     val messages = dao.messages()
+
+    /** Keep the row ID to make re-import idempotent, even after contents were erased. */
+    suspend fun deleteMessage(id: String, eraseSharedData: Boolean = false) =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                database.withTransaction {
+                    val message = requireNotNull(dao.message(id))
+                    require(message.kind in setOf("DATA", "DOODLE"))
+                    if (eraseSharedData || !message.hasSharedData()) dao.erase(id) else dao.hide(id)
+                }
+            }
+        }
     suspend fun identity(): LocalPartnerKeys = withContext(Dispatchers.IO) { loadKeys() }
     suspend fun snapshot(): PartnerDirectory =
         dao.snapshot()?.let { PartnerCodec.directory(it.json) } ?: PartnerDirectory()
@@ -678,7 +690,7 @@ class PartnerRepository(
         }
     suspend fun retry(id: String): PartnerMessage {
         val message = requireNotNull(dao.message(id))
-        require(message.outgoing && message.envelope.isNotEmpty())
+        require(message.outgoing && !message.hiddenFromChat && message.envelope.isNotEmpty())
         val keys = identity()
         val header = JSONObject(JSONObject(message.envelope).getString("header"))
         require(

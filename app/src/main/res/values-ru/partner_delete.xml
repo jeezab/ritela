@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="partner_message_delete_title">Удалить сообщение?</string>
+    <string name="partner_message_erase_data">Удалить данные из сообщения?</string>
+    <string name="partner_message_hide">Удалить сообщение из переписки? Его данные сохранятся для главной и календаря.</string>
+    <string name="partner_message_delete_data">Удалить сообщение и его данные на этом устройстве? Главная и календарь используют предыдущий сохранённый обмен, если он есть.</string>
+    <string name="partner_message_delete_contents">Удалить сообщение и его содержимое на этом устройстве? Собственные записи, сохранённые дудлы и копии на другом устройстве сохранятся.</string>
+</resources>

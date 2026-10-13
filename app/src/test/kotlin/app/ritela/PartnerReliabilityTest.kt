@@ -243,7 +243,7 @@ class PartnerReliabilityTest {
             context,
             RitelaDatabase::class.java,
             name
-        ).addMigrations(RitelaDatabase.MIGRATION_4_5).build()
+        ).addMigrations(RitelaDatabase.MIGRATION_4_5, RitelaDatabase.MIGRATION_5_6).build()
         try {
             assertEquals("ru", upgraded.profileSettings().snapshot()?.language)
             assertTrue(upgraded.partner().snapshot() == null)

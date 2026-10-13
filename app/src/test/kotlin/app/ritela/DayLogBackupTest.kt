@@ -274,7 +274,8 @@ class DayLogBackupTest {
                 RitelaDatabase.MIGRATION_1_2,
                 RitelaDatabase.MIGRATION_2_3,
                 RitelaDatabase.MIGRATION_3_4,
-                RitelaDatabase.MIGRATION_4_5
+                RitelaDatabase.MIGRATION_4_5,
+                RitelaDatabase.MIGRATION_5_6
             ).build()
         try {
             assertEquals(id, upgraded.periods().snapshot().single().id)
@@ -367,7 +368,8 @@ class DayLogBackupTest {
             .addMigrations(
                 RitelaDatabase.MIGRATION_2_3,
                 RitelaDatabase.MIGRATION_3_4,
-                RitelaDatabase.MIGRATION_4_5
+                RitelaDatabase.MIGRATION_4_5,
+                RitelaDatabase.MIGRATION_5_6
             ).build()
         try {
             val log = upgraded.dayLogs().snapshot().single().toLog()
