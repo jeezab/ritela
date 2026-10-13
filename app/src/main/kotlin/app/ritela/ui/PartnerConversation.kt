@@ -9,6 +9,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,7 +119,7 @@ internal fun PartnerChats(
     BackHandler(opened != null, closeDialog)
     AnimatedContent(
         opened,
-        modifier,
+        modifier.fillMaxSize().background(HomeColors.background),
         transitionSpec = {
             fadeIn(tween(if (reduced) 0 else 180)) togetherWith
                 fadeOut(tween(if (reduced) 0 else 120))
@@ -223,7 +224,11 @@ internal fun PartnerDialogList(
                     val latest = conversationMessages(messages, contact.identities).lastOrNull()
                     Column(Modifier.fillMaxWidth()) {
                         Row(
-                            Modifier.fillMaxWidth().height(80.dp).clickable(enabled = !busy) {
+                            Modifier.fillMaxWidth().height(80.dp).clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                enabled = !busy
+                            ) {
                                 openDialog(contact.id)
                             }.padding(horizontal = 16.dp).testTag("partner-dialog-${contact.id}"),
                             verticalAlignment = Alignment.CenterVertically
