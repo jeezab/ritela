@@ -13,8 +13,8 @@
     <string name="partner_nearby">Nearby</string>
     <string name="partner_view_message">View</string>
     <string name="partner_data_recorded">Shared data (record from %1$s)</string>
-    <string name="partner_choose_channel">Choose file or Bluetooth</string>
-    <string name="partner_prepare_file">Prepare file</string>
+    <string name="partner_choose_channel">Send</string>
+    <string name="partner_prepare_file">File</string>
     <string name="partner_check_connection">Check connection</string>
     <string name="partner_select_phone">Use this phone</string>
     <string name="partner_dismiss_error">Dismiss</string>

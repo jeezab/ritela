@@ -157,14 +157,14 @@ class PartnerUiTest {
         home()
         var result: Doodle? = null
         compose.activity.setContent { HomeTheme { DoodleEditor({}, { result = it }) } }
-        compose.onNodeWithTag("doodle-prepare").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("doodle-prepare").assertIsNotEnabled()
         compose.onNodeWithTag("doodle-canvas").performScrollTo().performTouchInput {
             swipe(Offset(width * .2f, height * .2f), Offset(width * .7f, height * .6f), 300)
         }
         compose.onNodeWithTag("doodle-undo").performScrollTo().assertIsEnabled().performClick()
-        compose.onNodeWithTag("doodle-prepare").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("doodle-prepare").assertIsNotEnabled()
         compose.onNodeWithTag("doodle-redo").performScrollTo().performClick()
-        compose.onNodeWithTag("doodle-prepare").performScrollTo().assertIsEnabled().performClick()
+        compose.onNodeWithTag("doodle-prepare").assertIsEnabled().performClick()
         assertTrue(requireNotNull(result).strokes.isNotEmpty())
         assertTrue(
             requireNotNull(result).strokes.all { stroke ->

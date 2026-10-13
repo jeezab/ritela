@@ -30,7 +30,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -164,7 +166,8 @@ fun PartnerScreen(padding: PaddingValues) {
     var managementAction by remember { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<PartnerMessage?>(null) }
     var opened by remember { mutableStateOf<String?>(null) }
-    var transport by remember { mutableStateOf(false) }
+    val sendRequests = remember { PartnerSendRequests() }
+    DisposableEffect(sendRequests) { onDispose { sendRequests.invalidate() } }
     var phones by remember { mutableStateOf(false) }
     var edge by remember { mutableStateOf(ExchangeEdge.RIGHT) }
     var showExchange by rememberSaveable { mutableStateOf(false) }
@@ -255,10 +258,6 @@ fun PartnerScreen(padding: PaddingValues) {
             phones = true
         }
     }
-    LaunchedEffect(packet?.id) {
-        val outgoing = packet
-        if (outgoing != null && outgoing.kind in setOf("DATA", "DOODLE")) transport = true
-    }
     LaunchedEffect(candidate, connectedNotice, legacyInvitation) {
         if (candidate != null || connectedNotice || legacyInvitation) showExchange = false
     }
@@ -281,6 +280,17 @@ fun PartnerScreen(padding: PaddingValues) {
         managementAction = null
         dataViewing = null
         viewing = null
+    }
+    SideEffect { sendRequests.bind(session.token.toString(), opened, identity?.id) }
+    fun prepareSend(action: suspend () -> PartnerMessage) {
+        val request = sendRequests.request()
+        model.run {
+            val prepared = action()
+            model.packet.value = prepared
+            withContext(Dispatchers.Main) {
+                if (activeSession()) sendRequests.present(request, prepared)
+            }
+        }
     }
     val device =
         identity?.devices?.firstOrNull {
@@ -361,10 +371,7 @@ fun PartnerScreen(padding: PaddingValues) {
                     }
                 },
                 retry = { message ->
-                    model.run {
-                        model.packet.value =
-                            model.repository.retry(message.id)
-                    }
+                    prepareSend { model.repository.retry(message.id) }
                 },
                 senderNames = directory.identities.associate { it.id to it.name }
             )
@@ -500,8 +507,8 @@ fun PartnerScreen(padding: PaddingValues) {
                     { sharing = false },
                     source.name
                 ) { share ->
-                    model.run {
-                        model.packet.value = model.repository.confirmData(
+                    prepareSend {
+                        val prepared = model.repository.confirmData(
                             source.id,
                             device.id,
                             share.scope,
@@ -509,6 +516,7 @@ fun PartnerScreen(padding: PaddingValues) {
                             share.doodle
                         )
                         share.savedDoodleId?.let { session.savedDoodles.use(it) }
+                        prepared
                     }
                     sharing = false
                 }
@@ -568,7 +576,7 @@ fun PartnerScreen(padding: PaddingValues) {
                 device != null
             ) {
                 DoodleEditorWithLibrary({ drawing = false }, { doodle ->
-                    model.doodle(source.id, device.id, doodle)
+                    prepareSend { model.repository.prepareDoodle(source.id, device.id, doodle) }
                     drawing = false
                 })
             }
@@ -587,29 +595,22 @@ fun PartnerScreen(padding: PaddingValues) {
             }
         }
         viewing?.let { DoodleViewer(PartnerCodec.doodle(JSONObject(it.body)), { viewing = null }) }
-        if (transport &&
-            packet != null
-        ) {
-            PartnerModal(stringResource(R.string.partner_transport), {
-                transport =
-                    false
-            }) {
-                Text(PartnerFormatter(resources).message(requireNotNull(packet)))
-                PartnerFileGlow()
-                Button({
-                    model.run {
-                        val outgoing = model.repository.retry(requireNotNull(packet).id)
-                        withContext(Dispatchers.Main) {
-                            PartnerFiles.share(context, session.profileId, outgoing)
+        sendRequests.message?.let { outgoing ->
+            PartnerSendDialog(outgoing, busy, sendRequests::dismiss, file = {
+                sendRequests.dismiss()
+                val request = sendRequests.request()
+                model.run {
+                    val current = model.repository.retry(outgoing.id)
+                    withContext(Dispatchers.Main) {
+                        if (activeSession() && sendRequests.request() == request) {
+                            PartnerFiles.share(context, session.profileId, current)
                         }
                     }
-                    transport = false
-                }) { Text(stringResource(R.string.partner_prepare_file)) }
-                Button({
-                    transport = false
-                    requestBluetooth(false)
-                }, enabled = !busy) { Text(stringResource(R.string.partner_bluetooth)) }
-            }
+                }
+            }, bluetooth = {
+                sendRequests.dismiss()
+                requestBluetooth(false)
+            })
         }
         if (phones) {
             PartnerModal(stringResource(R.string.partner_where), { phones = false }) {
@@ -696,6 +697,8 @@ private fun android.content.Context.legacyRotation(): Int =
 internal fun PartnerModal(
     title: String,
     dismiss: () -> Unit,
+    closeButton: Boolean = false,
+    footer: (@Composable () -> Unit)? = null,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
     val maximumHeight =
@@ -711,14 +714,24 @@ internal fun PartnerModal(
             color = HomeColors.card
         ) {
             Column(
-                Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+                Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                    TextButton(dismiss) { Text(stringResource(R.string.partner_close)) }
+                    if (closeButton) {
+                        Button(dismiss, Modifier.testTag("partner-send-close")) {
+                            Text(stringResource(R.string.partner_close))
+                        }
+                    } else {
+                        TextButton(dismiss) { Text(stringResource(R.string.partner_close)) }
+                    }
                 }
-                content()
+                Column(
+                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) { content() }
+                footer?.invoke()
             }
         }
     }

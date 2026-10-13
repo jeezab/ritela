@@ -21,7 +21,8 @@
     <string name="partner_verify_title">Verify each other</string>
     <string name="partner_verify">Compare the code on both phones. If it matches, confirm the connection.</string>
     <string name="partner_verified">Codes match — connect</string>
-    <string name="partner_transport">Choose how to send</string>
+    <string name="partner_transport">Send</string>
+    <string name="partner_waiting_to_send">Message waiting to be sent</string>
     <string name="partner_bluetooth">Bluetooth</string>
     <string name="partner_where">Where is your little heart?</string>
     <string name="partner_pair_android">Pair the phones in Android Bluetooth settings first. On the other phone, tap Receive via Bluetooth. Choose the side only on the sending phone.</string>
@@ -35,7 +36,7 @@
     <string name="partner_close">Close</string>
     <string name="partner_password">Password</string>
     <string name="partner_selection">Choose data</string>
-    <string name="partner_preview">Exchange preview</string>
+    <string name="partner_preview">Selected</string>
     <string name="partner_prepare">Send</string>
     <string name="partner_allow_exchange">Allow exchange with this identity</string>
     <string name="partner_device_enabled">Trust this device</string>

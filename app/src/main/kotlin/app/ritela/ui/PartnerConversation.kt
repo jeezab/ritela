@@ -584,20 +584,20 @@ internal fun PartnerMessageBubble(
                         Text(stringResource(R.string.partner_view_message))
                     }
                 }
+                if (message.outgoing && !message.delivered) {
+                    Button(
+                        retry,
+                        enabled = enabled,
+                        modifier = Modifier.testTag("partner-send-${message.id}")
+                    ) {
+                        Text(stringResource(R.string.partner_choose_channel))
+                    }
+                }
                 Text(
                     formatter.chatStatus(message, dated = message.kind == "DATA"),
                     style = MaterialTheme.typography.labelSmall,
                     color = HomeColors.muted
                 )
-                if (message.outgoing && !message.delivered) {
-                    TextButton(
-                        retry,
-                        enabled = enabled,
-                        contentPadding = PaddingValues(horizontal = 0.dp)
-                    ) {
-                        Text(stringResource(R.string.partner_choose_channel))
-                    }
-                }
             }
         }
     }
