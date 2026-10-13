@@ -2,7 +2,6 @@ package app.ritela.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -111,36 +110,6 @@ internal fun PartnerScopeDialog(
                     Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    FlowRow {
-                        TextButton({
-                            selected = permitted
-                        }) { Text(stringResource(R.string.partner_everything)) }
-                        TextButton({
-                            selected = ShareScope()
-                        }) { Text(stringResource(R.string.partner_clear_selection)) }
-                    }
-                    run {
-                        FlowRow {
-                            TextButton({
-                                selected =
-                                    ShareScope(
-                                        setOf(ShareCategory.PERIODS).intersect(maximum.categories)
-                                    )
-                            }) {
-                                Text(stringResource(R.string.partner_cycle_only))
-                            }
-                            TextButton({
-                                selected =
-                                    ShareScope(
-                                        setOf(ShareCategory.PERIODS, ShareCategory.FORECASTS)
-                                            .intersect(maximum.categories)
-                                    )
-                            }) { Text(stringResource(R.string.partner_cycle_forecasts)) }
-                            TextButton({
-                                expanded = expanded + "diary"
-                            }) { Text(stringResource(R.string.partner_manual_selection)) }
-                        }
-                    }
                     listOf(
                         Triple(
                             ShareCategory.PERIODS,

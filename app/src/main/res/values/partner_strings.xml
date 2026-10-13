@@ -35,7 +35,6 @@
     <string name="partner_close">Close</string>
     <string name="partner_password">Password</string>
     <string name="partner_selection">Choose data</string>
-    <string name="partner_everything">Everything allowed</string>
     <string name="partner_preview">Exchange preview</string>
     <string name="partner_prepare">Prepare exchange</string>
     <string name="partner_allow_exchange">Allow exchange with this identity</string>
