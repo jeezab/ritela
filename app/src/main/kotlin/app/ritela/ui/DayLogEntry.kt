@@ -623,8 +623,16 @@ internal fun JournalDialog(
     content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val resources = androidx.compose.ui.platform.LocalResources.current
     Dialog(onDismissRequest = onDismissRequest, properties = properties) {
-        androidx.compose.runtime.CompositionLocalProvider(LocalDensity provides density) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalDensity provides density,
+            androidx.compose.ui.platform.LocalContext provides context,
+            androidx.compose.ui.platform.LocalConfiguration provides configuration,
+            androidx.compose.ui.platform.LocalResources provides resources
+        ) {
             content()
         }
     }

@@ -3,12 +3,16 @@ package app.ritela
 import androidx.activity.ComponentDialog
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -42,6 +46,41 @@ class PeriodEntryUiTest {
     private val today = LocalDate.of(2026, 10, 9)
     private fun record(start: LocalDate, end: LocalDate) =
         Period(UUID(0, start.toEpochDay()), start, end, Instant.EPOCH, Instant.EPOCH)
+
+    @Test
+    @Config(qualifiers = "en-rUS-w390dp-h844dp")
+    fun russianAppLanguageKeepsMonthNamesRussianInsidePeriodDialog() {
+        val configuration = android.content.res.Configuration(
+            compose.activity.resources.configuration
+        )
+            .apply { setLocale(java.util.Locale.forLanguageTag("ru")) }
+        val context = android.view.ContextThemeWrapper(compose.activity, 0).apply {
+            applyOverrideConfiguration(configuration)
+        }
+        compose.activity.setContent {
+            CompositionLocalProvider(
+                LocalContext provides context,
+                LocalConfiguration provides context.resources.configuration,
+                LocalResources provides context.resources
+            ) {
+                PeriodEntry(
+                    PeriodUiState(today = today, loading = false),
+                    {},
+                    { _, _ -> },
+                    initialStart = LocalDate.of(2026, 8, 1)
+                )
+            }
+        }
+        compose.onNodeWithTag("month-selector")
+            .assertTextEquals("август 2026")
+        compose.onNodeWithTag("month-selector").performClick()
+        compose.onNodeWithTag("select-month-10").assertTextEquals(
+            java.time.Month.OCTOBER.getDisplayName(
+                java.time.format.TextStyle.SHORT_STANDALONE,
+                java.util.Locale.forLanguageTag("ru")
+            )
+        )
+    }
 
     @Test fun reverseHistoricRangeIsClosedAndOngoingIsDisabledBeforeNextPeriod() {
         val first = LocalDate.of(2026, 8, 1)
