@@ -61,8 +61,6 @@
     <string name="partner_opened">Открыто</string>
     <string name="partner_delivered">Доставлено</string>
     <string name="partner_summary">Месячные: %1$d · прогнозы: %2$d · дни дневника: %3$d</string>
-    <string name="partner_yes">да</string>
-    <string name="partner_no">нет</string>
     <string name="partner_periods">Месячные и история</string>
     <string name="partner_forecasts">Прогнозы и фазы</string>
     <string name="partner_diary">Записи дневника</string>
@@ -82,10 +80,10 @@
     <string name="partner_brush">Толщина линии</string>
     <string name="partner_caption">Короткое послание</string>
     <string name="partner_immediate">Открыть сразу</string>
-    <string name="partner_after_date">Открыть в...</string>
-    <string name="partner_after_days">Открыть через...</string>
-    <string name="partner_after_date_hint">Открыть в... откроет послание для получателя при первом заходе в приложение после наступления выбранной даты</string>
-    <string name="partner_after_delay_hint">Открыть через... откроет послание для получателя при первом заходе в приложение после истечения указанного времени</string>
+    <string name="partner_after_date">Открыть в…</string>
+    <string name="partner_after_days">Открыть через…</string>
+    <string name="partner_after_date_hint">Открыть в… откроет послание для получателя при первом заходе в приложение после наступления выбранной даты</string>
+    <string name="partner_after_delay_hint">Открыть через… откроет послание для получателя при первом заходе в приложение после истечения указанного времени</string>
     <string name="partner_datetime">Выбрать дату и время</string>
     <string name="partner_days">Дней</string>
     <string name="partner_hours">Часов</string>
