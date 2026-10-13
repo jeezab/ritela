@@ -16,7 +16,6 @@
     <string name="partner_diary_hint">Choose sections and individual tags</string>
     <string name="partner_periods_hint">Recorded period dates</string>
     <string name="partner_forecasts_hint">Calculated dates and ranges for the next 12 months</string>
-    <string name="partner_settings_hint">Language and appearance only</string>
     <string name="partner_no_received">No shared data yet</string>
     <string name="partner_snapshot_hint">As of %1$s</string>
     <string name="partner_calendar_view">View calendar</string>

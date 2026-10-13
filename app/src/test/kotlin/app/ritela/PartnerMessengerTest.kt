@@ -110,8 +110,10 @@ class PartnerMessengerTest {
         compose.onNodeWithTag("partner-profile").performClick()
         assertEquals("second", profile)
         compose.onNodeWithTag("partner-add-action").performClick()
-        compose.onNodeWithText(compose.activity.getString(R.string.partner_access)).performClick()
-        assertEquals(ConversationAction.ACCESS, event)
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_share_data)
+        ).performClick()
+        assertEquals(ConversationAction.SHARE, event)
         compose.onNodeWithTag("partner-add-action").performClick()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_import)).performClick()
         assertEquals(ConversationAction.FILE, event)
@@ -135,38 +137,46 @@ class PartnerMessengerTest {
         compose.onNodeWithText(compose.activity.getString(R.string.partner_import)).performClick()
     }
 
-    @Test fun forbiddenSelectionRequestsConsentAndDoesNotPrepareOrGrantAutomatically() {
+    @Test fun selectionRequiresConfirmationAndCancellationDoesNotPrepare() {
         ready()
         val session = (compose.activity.application as RitelaApplication).profiles.session.value
         val layout = session.model.uiState.value.journalLayout
         var prepared = false
-        var requested: ShareScope? = null
+        val showing = mutableStateOf(true)
         compose.activity.setContent {
             CompositionLocalProvider(LocalProfileSession provides session) {
                 HomeTheme {
-                    PartnerScopeDialog(
-                        layout,
-                        ShareScope(),
-                        ShareScope(setOf(ShareCategory.PERIODS)),
-                        false,
-                        {},
-                        "Margo",
-                        requestAccess = { requested = it }
-                    ) { prepared = true }
+                    if (showing.value) {
+                        PartnerScopeDialog(
+                            layout,
+                            ShareScope(setOf(ShareCategory.PERIODS)),
+                            { showing.value = false },
+                            "Margo"
+                        ) { prepared = true }
+                    }
                 }
             }
         }
         compose.waitUntil(10000) {
-            compose.onNodeWithText(compose.activity.getString(R.string.partner_confirm_access))
+            compose.onNodeWithText(compose.activity.getString(R.string.partner_prepare))
                 .fetchSemanticsNode().config.contains(
                     androidx.compose.ui.semantics.SemanticsProperties.Disabled
                 ).not()
         }
-        compose.onNodeWithText(
-            compose.activity.getString(R.string.partner_confirm_access)
-        ).performClick()
         assertFalse(prepared)
-        assertEquals(ShareScope(setOf(ShareCategory.PERIODS)), requested)
+        compose.onNodeWithText(compose.activity.getString(R.string.cancel)).performClick()
+        assertFalse(prepared)
+        compose.runOnIdle { showing.value = true }
+        compose.waitUntil(10000) {
+            !compose.onNodeWithText(compose.activity.getString(R.string.partner_prepare))
+                .fetchSemanticsNode().config.contains(
+                    androidx.compose.ui.semantics.SemanticsProperties.Disabled
+                )
+        }
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_prepare)
+        ).performClick()
+        assertTrue(prepared)
     }
 
     @Test fun timelinePreservesMessagesAndUpdatesStatusesWithoutShowingAcknowledgements() {

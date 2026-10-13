@@ -2,6 +2,21 @@ package app.ritela.domain
 
 /** Explicit selections retain the existing wire format without DIARY's blanket grant. */
 object PartnerSharing {
+    /** Freeze section-wide choices to current tag IDs; future tags require fresh consent. */
+    fun remembered(scope: ShareScope, layout: JournalLayout): ShareScope {
+        val selected = explicit(scope, layout)
+        val tags = selected.tags.toMutableMap()
+        layout.historySections().filter { it.id in selected.sections }.forEach { section ->
+            tags[section.id] = section.tags.map { it.id }.toSet()
+        }
+        return diary(selected, selected.sections.intersect(setOf("note")), tags)
+    }
+
+    /** SETTINGS remains readable in legacy packages, but is never shared in new exchanges. */
+    fun outgoing(scope: ShareScope): ShareScope = scope.copy(
+        categories = scope.categories - ShareCategory.SETTINGS
+    ).normalized()
+
     /** Adds only the explicitly confirmed selection, preserving unrelated existing grants. */
     fun union(existing: ShareScope, selected: ShareScope): ShareScope = ShareScope(
         existing.categories + selected.categories,
@@ -22,11 +37,12 @@ object PartnerSharing {
         )
     }
     fun explicit(scope: ShareScope, layout: JournalLayout): ShareScope {
-        if (ShareCategory.DIARY !in scope.categories) return scope.normalized()
-        return scope.copy(
+        val selection = outgoing(scope)
+        if (ShareCategory.DIARY !in selection.categories) return selection
+        return selection.copy(
             categories =
-                scope.categories - ShareCategory.DIARY + ShareCategory.SECTIONS,
-            sections = scope.sections + layout.historySections().map {
+                selection.categories - ShareCategory.DIARY + ShareCategory.SECTIONS,
+            sections = selection.sections + layout.historySections().map {
                 it.id
             } + "note"
         ).normalized()

@@ -122,7 +122,7 @@ class PartnerViewModel(
         invitation.value = repository.invitation(name, target)
     }
     fun data(identity: String, device: String, scope: ShareScope) = run {
-        packet.value = repository.prepareData(identity, device, scope)
+        packet.value = repository.confirmData(identity, device, scope)
     }
     fun doodle(identity: String, device: String, value: Doodle) = run {
         packet.value = repository.prepareDoodle(identity, device, value)

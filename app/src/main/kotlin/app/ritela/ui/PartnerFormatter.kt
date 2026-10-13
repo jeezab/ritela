@@ -81,10 +81,7 @@ class PartnerFormatter(private val resources: Resources) {
             R.string.partner_summary,
             data.optJSONArray("periods")?.length() ?: 0,
             data.optJSONArray("forecasts")?.length() ?: 0,
-            data.optJSONArray("days")?.length() ?: 0,
-            resources.getString(
-                if (data.has("settings")) R.string.partner_yes else R.string.partner_no
-            )
+            data.optJSONArray("days")?.length() ?: 0
         )
         val dates = listOf(
             "periods" to "start",

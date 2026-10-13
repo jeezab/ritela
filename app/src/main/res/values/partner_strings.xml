@@ -12,7 +12,6 @@
     <string name="partner_group">Shared view</string>
     <string name="partner_linked">Connection confirmed</string>
     <string name="partner_disabled">Exchange disabled</string>
-    <string name="partner_access">What to share</string>
     <string name="partner_doodle">Send a Doodle</string>
     <string name="partner_manage">Manage close contacts</string>
     <string name="partner_gallery">Our little messages</string>
@@ -62,7 +61,7 @@
     <string name="partner_data">Shared data</string>
     <string name="partner_opened">Opened</string>
     <string name="partner_delivered">Delivered</string>
-    <string name="partner_summary">Periods: %1$d · forecasts: %2$d · diary days: %3$d · settings: %4$s</string>
+    <string name="partner_summary">Periods: %1$d · forecasts: %2$d · diary days: %3$d</string>
     <string name="partner_yes">yes</string>
     <string name="partner_no">no</string>
     <string name="partner_periods">Periods and history</string>

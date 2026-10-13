@@ -52,28 +52,24 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun PartnerScopeDialog(
     layout: JournalLayout,
-    allowed: ShareScope?,
     initial: ShareScope,
-    granting: Boolean,
     dismiss: () -> Unit,
     recipient: String = "",
-    requestAccess: ((ShareScope) -> Unit)? = null,
     confirm: (ShareScope) -> Unit
 ) {
     val repository = LocalProfileSession.current?.partner ?: return
     val formatter = PartnerFormatter(LocalResources.current)
     val sections = layout.historySections()
-    val maximum = allowed?.takeIf { requestAccess == null } ?: ShareScope(
+    val maximum = ShareScope(
         setOf(
             ShareCategory.PERIODS,
             ShareCategory.FORECASTS,
-            ShareCategory.SETTINGS,
             ShareCategory.SECTIONS
         ),
         sections.map { it.id }.toSet() + "note"
     )
     val permitted = PartnerSharing.explicit(maximum, layout)
-    var selected by remember(initial, allowed) {
+    var selected by remember(initial) {
         mutableStateOf(PartnerSharing.explicit(initial, layout))
     }
     var expanded by remember { mutableStateOf(setOf<String>()) }
@@ -81,7 +77,10 @@ internal fun PartnerScopeDialog(
     var ready by remember { mutableStateOf(false) }
     LaunchedEffect(selected) {
         ready = false
-        val data = withContext(Dispatchers.IO) { repository.preview(selected) }
+        val data =
+            withContext(Dispatchers.IO) {
+                repository.preview(PartnerSharing.remembered(selected, layout))
+            }
         summary = formatter.preview(data)
         ready = true
     }
@@ -100,9 +99,7 @@ internal fun PartnerScopeDialog(
         ) {
             Column(Modifier.safeDrawingPadding().imePadding().padding(16.dp)) {
                 Text(
-                    stringResource(
-                        if (granting) R.string.partner_access else R.string.partner_selection
-                    ),
+                    stringResource(R.string.partner_selection),
                     style = MaterialTheme.typography.titleLarge
                 )
                 if (recipient.isNotBlank()) {
@@ -122,7 +119,7 @@ internal fun PartnerScopeDialog(
                             selected = ShareScope()
                         }) { Text(stringResource(R.string.partner_clear_selection)) }
                     }
-                    if (!granting) {
+                    run {
                         FlowRow {
                             TextButton({
                                 selected =
@@ -154,11 +151,6 @@ internal fun PartnerScopeDialog(
                             ShareCategory.FORECASTS,
                             R.string.partner_forecast_category,
                             R.string.partner_forecasts_hint
-                        ),
-                        Triple(
-                            ShareCategory.SETTINGS,
-                            R.string.partner_app_settings,
-                            R.string.partner_settings_hint
                         )
                     ).forEach { (category, title, hint) ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -303,7 +295,7 @@ internal fun PartnerScopeDialog(
                             Text(stringResource(R.string.partner_note_category))
                         }
                     }
-                    if (!granting) {
+                    run {
                         Text(
                             stringResource(R.string.partner_preview),
                             style = MaterialTheme.typography.titleMedium
@@ -315,30 +307,12 @@ internal fun PartnerScopeDialog(
                     TextButton(dismiss) { Text(stringResource(R.string.cancel)) }
                     Button(
                         {
-                            val selection = selected.normalized()
-                            if (requestAccess != null && allowed?.permits(selection) == false) {
-                                requestAccess(selection)
-                            } else {
-                                confirm(selection)
-                            }
+                            confirm(PartnerSharing.remembered(selected, layout))
                         },
                         enabled =
-                            ready && maximum.permits(selected) &&
-                                (granting || selected.categories.isNotEmpty())
+                            ready && maximum.permits(selected) && selected.categories.isNotEmpty()
                     ) {
-                        Text(
-                            stringResource(
-                                if (granting) {
-                                    R.string.save
-                                } else if (requestAccess != null &&
-                                    allowed?.permits(selected) == false
-                                ) {
-                                    R.string.partner_confirm_access
-                                } else {
-                                    R.string.partner_prepare
-                                }
-                            )
-                        )
+                        Text(stringResource(R.string.partner_prepare))
                     }
                 }
             }

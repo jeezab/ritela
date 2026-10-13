@@ -258,7 +258,7 @@ class PartnerRepository(
     }
 
     suspend fun preview(scope: ShareScope): JSONObject = database.withTransaction {
-        val selection = scope.normalized()
+        val selection = app.ritela.domain.PartnerSharing.outgoing(scope)
         val json = JSONObject().put("scope", PartnerCodec.scope(selection))
         val periods = database.periods().snapshot()
         if (ShareCategory.PERIODS in
@@ -389,13 +389,6 @@ class PartnerRepository(
                 }
             )
         }
-        if (ShareCategory.SETTINGS in selection.categories) {
-            val settings = database.profileSettings().snapshot() ?: ProfileSettings()
-            json.put(
-                "settings",
-                JSONObject().put("language", settings.language).put("theme", settings.theme)
-            )
-        }
         json
     }
     suspend fun prepareData(
@@ -403,24 +396,42 @@ class PartnerRepository(
         device: String,
         selection: ShareScope
     ): PartnerMessage {
-        require(selection.categories.isNotEmpty())
-        val normalized = selection.normalized()
+        val normalized = app.ritela.domain.PartnerSharing.outgoing(selection)
+        require(normalized.categories.isNotEmpty())
         return prepare(identity, device, "DATA", preview(normalized), normalized)
     }
     suspend fun prepareDoodle(identity: String, device: String, doodle: Doodle): PartnerMessage =
         prepare(identity, device, "DOODLE", PartnerCodec.doodle(doodle))
+
+    /** Called only after the user confirms the recipient and preview for this exchange. */
+    suspend fun confirmData(
+        identity: String,
+        device: String,
+        selection: ShareScope
+    ): PartnerMessage = prepare(identity, device, "DATA", JSONObject(), selection, confirmed = true)
     private suspend fun prepare(
         identity: String,
         device: String,
         kind: String,
         content: JSONObject,
-        selection: ShareScope? = null
+        selection: ShareScope? = null,
+        confirmed: Boolean = false
     ): PartnerMessage = withContext(Dispatchers.IO) {
         mutex.withLock {
             database.withTransaction {
-                val contact = snapshot().identities.single { it.id == identity }
+                val directory = snapshot()
+                val contact = directory.identities.single { it.id == identity }
                 check(contact.exchangeEnabled)
-                selection?.let { require(contact.grants.permits(it)) }
+                val chosen = if (confirmed) {
+                    val layout =
+                        database.journal().snapshot()?.let { JournalCodec.decode(it.config) }
+                            ?: JournalLayout()
+                    app.ritela.domain.PartnerSharing.remembered(requireNotNull(selection), layout)
+                        .also { require(it.categories.isNotEmpty()) }
+                } else {
+                    selection?.also { require(contact.grants.permits(it)) }
+                }
+                val payload = if (confirmed) preview(requireNotNull(chosen)) else content
                 val remote = contact.devices.single {
                     it.id == device && it.enabled &&
                         it.mutualConfirmed
@@ -436,7 +447,7 @@ class PartnerRepository(
                     .put(
                         "link",
                         remote.remoteNonce
-                    ).put("kind", kind).put("created", created).put("content", content).toString()
+                    ).put("kind", kind).put("created", created).put("content", payload).toString()
                 val secret = PartnerCrypto.random(32)
                 val iv = PartnerCrypto.random(12)
                 val key = SecretKeySpec(secret, "AES")
@@ -468,9 +479,29 @@ class PartnerRepository(
                 ).toString()
                 require(envelope.toByteArray().size <= PartnerCrypto.MAX_PACKET)
                 PartnerMessage(
-                    id, identity, device, true, kind, created, created, content.toString(), envelope
+                    id, identity, device, true, kind, created, created, payload.toString(), envelope
                 ).also {
                     dao.insert(it)
+                    if (confirmed) {
+                        dao.save(
+                            PartnerDirectoryRow(
+                                json = PartnerCodec.directory(
+                                    directory.copy(
+                                        identities = directory.identities.map { partner ->
+                                            if (partner.id == identity) {
+                                                partner.copy(
+                                                    grants = requireNotNull(chosen),
+                                                    lastSelection = chosen
+                                                )
+                                            } else {
+                                                partner
+                                            }
+                                        }
+                                    )
+                                )
+                            )
+                        )
+                    }
                 }
             }
         }
