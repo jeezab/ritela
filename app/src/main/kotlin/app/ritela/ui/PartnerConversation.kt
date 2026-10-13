@@ -65,7 +65,6 @@ internal enum class ConversationAction {
     VERIFY,
     DOODLE,
     SHARE,
-    ACCESS,
     FILE,
     RECEIVE
 }
@@ -329,7 +328,6 @@ internal fun PartnerConversation(
                             listOf(
                                 ConversationAction.DOODLE to R.string.partner_doodle,
                                 ConversationAction.SHARE to R.string.partner_share_data,
-                                ConversationAction.ACCESS to R.string.partner_access,
                                 ConversationAction.FILE to R.string.partner_import,
                                 ConversationAction.RECEIVE to R.string.partner_receive
                             ).forEach { (event, label) ->
@@ -341,7 +339,7 @@ internal fun PartnerConversation(
                                     },
                                     enabled =
                                         !busy &&
-                                            event in attachmentActions(selected != null, canSend)
+                                            event in attachmentActions(canSend)
                                 )
                             }
                         }
@@ -600,7 +598,6 @@ private fun MultipleConversationsPreview() {
     ConversationPreviewContent("multiple")
 }
 
-private fun attachmentActions(hasContact: Boolean, canSend: Boolean): Set<ConversationAction> =
+private fun attachmentActions(canSend: Boolean): Set<ConversationAction> =
     setOf(ConversationAction.FILE, ConversationAction.RECEIVE) +
-        (if (hasContact) setOf(ConversationAction.ACCESS) else emptySet()) +
         (if (canSend) setOf(ConversationAction.DOODLE, ConversationAction.SHARE) else emptySet())

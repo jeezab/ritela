@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.ritela.data.LocalPartnerKeys
+import app.ritela.data.PartnerCodec
 import app.ritela.data.PartnerMessage
 import app.ritela.data.PartnerRepository
 import app.ritela.data.PartnerSnapshot
@@ -186,7 +187,7 @@ class PartnerRefinementTest {
         }
     }
 
-    @Test fun renameAndSettingsExportDoNotChangeTrustOrExposeSecrets() = runBlocking {
+    @Test fun renameAndLegacySettingsSelectionDoNotChangeTrustOrExposeSecrets() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val database = Room.inMemoryDatabaseBuilder(context, RitelaDatabase::class.java).build()
         try {
@@ -201,10 +202,8 @@ class PartnerRefinementTest {
             assertEquals(before.identities, after.identities)
             assertEquals("Local nickname", after.contacts.single().name)
             val preview = repository.preview(ShareScope(setOf(ShareCategory.SETTINGS)))
-            assertEquals(
-                setOf("language", "theme"),
-                preview.getJSONObject("settings").keys().asSequence().toSet()
-            )
+            assertFalse(preview.has("settings"))
+            assertTrue(PartnerCodec.scope(preview.getJSONObject("scope")).categories.isEmpty())
             assertFalse(preview.toString().contains(keys.identityPrivate))
             assertFalse(preview.has("days"))
             assertFalse(preview.has("forecasts"))

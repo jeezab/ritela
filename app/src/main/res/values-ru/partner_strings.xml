@@ -12,7 +12,6 @@
     <string name="partner_group">Общий профиль</string>
     <string name="partner_linked">Связь подтверждена</string>
     <string name="partner_disabled">Обмен отключён</string>
-    <string name="partner_access">Чем поделиться</string>
     <string name="partner_doodle">Отправить дудл</string>
     <string name="partner_manage">Управление партнёрами</string>
     <string name="partner_gallery">Наши послания</string>
@@ -62,7 +61,7 @@
     <string name="partner_data">Переданные данные</string>
     <string name="partner_opened">Открыто</string>
     <string name="partner_delivered">Доставлено</string>
-    <string name="partner_summary">Месячные: %1$d · прогнозы: %2$d · дни дневника: %3$d · настройки: %4$s</string>
+    <string name="partner_summary">Месячные: %1$d · прогнозы: %2$d · дни дневника: %3$d</string>
     <string name="partner_yes">да</string>
     <string name="partner_no">нет</string>
     <string name="partner_periods">Месячные и история</string>

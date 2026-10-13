@@ -74,10 +74,8 @@ class PartnerReliabilityTest {
             assertFalse(text.contains("private synthetic"))
             assertFalse(text.contains("mood"))
             val settings = r.preview(ShareScope(setOf(ShareCategory.SETTINGS)))
-            assertEquals(
-                setOf("language", "theme"),
-                settings.getJSONObject("settings").keys().asSequence().toSet()
-            )
+            assertFalse(settings.has("settings"))
+            assertTrue(PartnerCodec.scope(settings.getJSONObject("scope")).categories.isEmpty())
         } finally {
             db.close()
         }

@@ -52,6 +52,7 @@ object PartnerCodec {
                             "grants",
                             scope(identity.grants)
                         ).put("enabled", identity.exchangeEnabled)
+                        .put("lastSelection", identity.lastSelection?.let(::scope))
                         .put(
                             "devices",
                             JSONArray(
@@ -124,7 +125,8 @@ object PartnerCodec {
                         )
                     },
                     scope(json.getJSONObject("grants")),
-                    json.getBoolean("enabled")
+                    json.getBoolean("enabled"),
+                    json.optJSONObject("lastSelection")?.let(::scope)
                 )
             },
             objects(root.getJSONArray("contacts")).map { json ->

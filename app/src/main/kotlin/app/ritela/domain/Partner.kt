@@ -43,7 +43,8 @@ data class PartnerIdentity(
     val name: String,
     val devices: List<PartnerDevice>,
     val grants: ShareScope = ShareScope(),
-    val exchangeEnabled: Boolean = true
+    val exchangeEnabled: Boolean = true,
+    val lastSelection: ShareScope? = null
 )
 
 data class PartnerContact(

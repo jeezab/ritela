@@ -16,7 +16,6 @@
     <string name="partner_diary_hint">Выберите разделы и отдельные теги</string>
     <string name="partner_periods_hint">Отмеченные даты месячных</string>
     <string name="partner_forecasts_hint">Расчётные даты и диапазоны на следующие 12 месяцев</string>
-    <string name="partner_settings_hint">Только язык и оформление</string>
     <string name="partner_no_received">Полученных данных пока нет</string>
     <string name="partner_snapshot_hint">По данным на %1$s</string>
     <string name="partner_calendar_view">Открыть календарь</string>

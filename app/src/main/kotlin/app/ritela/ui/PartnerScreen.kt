@@ -161,9 +161,7 @@ fun PartnerScreen(padding: PaddingValues) {
     var drawing by remember { mutableStateOf(false) }
     var dataViewing by remember { mutableStateOf<PartnerMessage?>(null) }
     var profileViewing by remember { mutableStateOf(false) }
-    var accessEditing by remember { mutableStateOf(false) }
     var managementAction by remember { mutableStateOf<String?>(null) }
-    var requestedAccess by remember { mutableStateOf<ShareScope?>(null) }
     var viewing by remember { mutableStateOf<PartnerMessage?>(null) }
     var transport by remember { mutableStateOf(false) }
     var phones by remember { mutableStateOf(false) }
@@ -270,8 +268,6 @@ fun PartnerScreen(padding: PaddingValues) {
     LaunchedEffect(contact?.id, identity?.id) {
         // A draft for one recipient must never carry into another recipient's permissions or packet.
         sharing = false
-        accessEditing = false
-        requestedAccess = null
         drawing = false
         manage = false
         managementAction = null
@@ -319,8 +315,6 @@ fun PartnerScreen(padding: PaddingValues) {
                         ConversationAction.DOODLE -> drawing = true
 
                         ConversationAction.SHARE -> sharing = true
-
-                        ConversationAction.ACCESS -> accessEditing = true
 
                         ConversationAction.FILE -> importFile.launch(arrayOf("*/*"))
 
@@ -488,60 +482,14 @@ fun PartnerScreen(padding: PaddingValues) {
             if (sharing &&
                 device != null
             ) {
-                PartnerScopeDialog(periodState.journalLayout, source.grants, ShareScope(), false, {
-                    sharing = false
-                }, source.name, requestAccess = { selection ->
-                    sharing = false
-                    requestedAccess = selection
-                }) { selection ->
-                    model.data(source.id, device.id, selection)
-                    sharing = false
-                }
-            }
-            if (accessEditing) {
                 PartnerScopeDialog(
                     periodState.journalLayout,
-                    null,
-                    source.grants,
-                    true,
-                    { accessEditing = false },
+                    source.lastSelection ?: ShareScope(),
+                    { sharing = false },
                     source.name
                 ) { selection ->
-                    model.run { model.repository.grant(source.id, selection) }
-                    accessEditing = false
-                }
-            }
-            requestedAccess?.let { selection ->
-                PartnerModal(stringResource(R.string.partner_confirm_access), {
-                    requestedAccess =
-                        null
-                }) {
-                    Text(stringResource(R.string.partner_confirm_access_hint, source.name))
-                    Text(PartnerFormatter(resources).access(selection))
-                    TextButton({
-                        accessEditing = true
-                        requestedAccess = null
-                    }) {
-                        Text(stringResource(R.string.partner_access))
-                    }
-                    Button({
-                        model.run {
-                            val current = model.repository.snapshot().identities.single {
-                                it.id ==
-                                    source.id
-                            }.grants
-                            val expanded = app.ritela.domain.PartnerSharing.union(
-                                current,
-                                selection
-                            )
-                            model.repository.grant(source.id, expanded)
-                            model.packet.value =
-                                model.repository.prepareData(source.id, device!!.id, selection)
-                        }
-                        requestedAccess = null
-                    }, enabled = !busy && device != null) {
-                        Text(stringResource(R.string.partner_confirm_and_prepare))
-                    }
+                    model.data(source.id, device.id, selection)
+                    sharing = false
                 }
             }
             if (profileViewing) {
@@ -558,16 +506,6 @@ fun PartnerScreen(padding: PaddingValues) {
                                 Text(person.name)
                             }
                         }
-                    }
-                    Text(PartnerFormatter(resources).access(source.grants))
-                    TextButton(
-                        {
-                            profileViewing = false
-                            accessEditing = true
-                        },
-                        enabled = !busy && device != null
-                    ) {
-                        Text(stringResource(R.string.partner_access))
                     }
                     source.devices.forEachIndexed { index, phone ->
                         Text(stringResource(R.string.partner_device_number, index + 1))

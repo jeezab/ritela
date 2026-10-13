@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13, Partner sharing: PartnerIdentity.lastSelection / PartnerCodec — совместимое локальное JSON-поле; PartnerSharing.remembered — фиксированный набор ID тегов; PartnerRepository.confirmData — атомарное подтверждение пакета и выбора; PartnerShareSelectionTest — изоляция адресатов, legacy и отсутствие автоматического расширения. В UI одна команда «Поделиться данными».
+
 2026-10-12, messenger: ui/PartnerConversation.kt — закреплённые шапка/панель, выбор диалога, LazyColumn с датами и DATA/DOODLE, пять Compose Previews. PartnerScreen остаётся координатором настоящего защищённого обмена и модальных сценариев. PartnerFormatter централизует краткое содержание/статусы; PartnerSharing.union расширяет права только после явного подтверждения выбранного. Основной вход grants перемещён из Settings в диалог/профиль. PartnerMessengerTest проверяет ленту, навигацию действий, разрешения и рендеры; имена зарегистрированы в preview-ui.ps1. Схема БД и wire format неизменны.
 
 2026-10-12: PartnerInvitationFile.kt различает публичное подписанное приглашение и зашифрованный обмен. PartnerFiles сохраняет/отправляет приглашение через SAF/FileProvider; PartnerViewModel маршрутизирует импорт. PartnerBluetooth добавляет отдельный ограниченный RFCOMM-сеанс приглашений. PartnerQr.kt и PartnerCaptureActivity.kt удалены вместе с ZXing; новая инструкция — PARTNER_CONNECT.md. Room/форматы ключей и сообщений прежние.
