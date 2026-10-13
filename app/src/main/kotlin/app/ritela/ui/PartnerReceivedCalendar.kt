@@ -42,67 +42,64 @@ import app.ritela.data.PartnerSnapshot
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun PartnerReceivedCalendar(snapshot: PartnerSnapshot, modifier: Modifier = Modifier) {
     val resources = LocalResources.current
     val formatter = PartnerFormatter(resources)
     val today = LocalDate.now()
-    val months = remember(snapshot) {
-        val points =
-            snapshot.periods.map { it.getLong("start") } +
-                snapshot.forecasts.map { it.getLong("start") } +
-                snapshot.days.map { it.getLong("day") } + today.toEpochDay()
-        val first = YearMonth.from(LocalDate.ofEpochDay(points.min()))
-        val last = YearMonth.from(LocalDate.ofEpochDay(points.max())).plusMonths(1)
-        generateSequence(first) { it.plusMonths(1) }.takeWhile { it <= last }.toList()
-    }
+    val base = remember { YearMonth.from(today) }
     var selected by remember { mutableStateOf<LocalDate?>(null) }
-    val list = rememberLazyListState(months.indexOf(YearMonth.from(today)).coerceAtLeast(0))
-    LazyColumn(
-        modifier.fillMaxSize().background(
-            HomeColors.background
-        ).testTag("partner-received-calendar"),
-        state = list,
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        snapshot.asOf?.let { asOf ->
-            item {
-                Text(
-                    stringResource(
-                        R.string.partner_snapshot_hint,
-                        formatter.date(asOf.toEpochDay())
-                    ),
-                    style = MaterialTheme.typography.bodySmall
-                )
+    var history by remember { mutableStateOf(false) }
+    val list = rememberLazyListState(1200)
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    CalendarMonthFeed(
+        base, today, selected, list, { selected = it }, { history = true }, snapshot::dayInfo,
+        modifier = modifier,
+        hasLog = { day -> snapshot.days.any { it.getLong("day") == day.toEpochDay() } },
+        dayTag = "partner-calendar-day", listTag = "partner-received-calendar"
+    ) { CalendarLegend() }
+    if (history) {
+        PartnerModal(stringResource(R.string.calendar_history), { history = false }) {
+            if (snapshot.periods.isEmpty()) Text(stringResource(R.string.history_empty))
+            snapshot.periods.sortedByDescending { it.getLong("start") }.forEach { period ->
+                TextButton({
+                    history = false
+                    val month = YearMonth.from(LocalDate.ofEpochDay(period.getLong("start")))
+                    scope.launch {
+                        list.scrollToItem(
+                            (
+                                1200 + (month.year - base.year) * 12 +
+                                    month.monthValue -
+                                    base.monthValue
+                                ).coerceIn(0, 2400)
+                        )
+                    }
+                }, Modifier.fillMaxWidth()) {
+                    Text(
+                        formatter.date(period.getLong("start")) + " \u2013 " +
+                            if (period.isNull(
+                                    "end"
+                                )
+                            ) {
+                                "\u2026"
+                            } else {
+                                formatter.date(period.getLong("end"))
+                            }
+                    )
+                }
             }
         }
-        items(months, key = { it.toString() }) { month ->
-            Text(
-                month.format(
-                    DateTimeFormatter.ofPattern(
-                        "LLLL yyyy"
-                    ).withLocale(resources.configuration.locales[0])
-                ),
-                style = MaterialTheme.typography.titleLarge
-            )
-            MonthGrid(
-                month,
-                today,
-                selected,
-                atmospheric = true,
-                tagPrefix = "partner-calendar-day",
-                info = snapshot::dayInfo,
-                hasLog = { day -> snapshot.days.any { it.getLong("day") == day.toEpochDay() } },
-                onDay = { selected = it }
-            )
-        }
     }
+
     selected?.let { date ->
         PartnerModal(formatter.date(date.toEpochDay()), { selected = null }) {
             if (snapshot.dayInfo(date).kind != app.ritela.domain.CalendarDayKind.NONE) {
-                Text(dayKindText(snapshot.dayInfo(date).kind))
+                Text(
+                    dayKindText(snapshot.dayInfo(date).kind),
+                    Modifier.testTag("partner-day-status")
+                )
             }
             val forecast = snapshot.forecasts.firstOrNull {
                 date.toEpochDay() in it.getLong("lower")..it.getLong("upper") ||

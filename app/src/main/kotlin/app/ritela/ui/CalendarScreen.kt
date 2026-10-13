@@ -108,125 +108,23 @@ private fun CalendarContent(
     val list = rememberLazyListState(initialFirstVisibleItemIndex = 1200)
     val scope = rememberCoroutineScope()
     var selectedDay by rememberSaveable { mutableStateOf<Long?>(null) }
-    var choosingMonth by rememberSaveable { mutableStateOf(false) }
     var historyOpen by rememberSaveable { mutableStateOf(false) }
     var summariesExpanded by rememberSaveable { mutableStateOf(true) }
-    val visibleIndex by remember { derivedStateOf { list.firstVisibleItemIndex } }
-    val month = base.plusMonths((visibleIndex - 1200).toLong())
-    val cellHeight = maxOf(56.dp, (40 * LocalDensity.current.fontScale).dp)
     fun showMonth(index: Int) {
         scope.launch { list.scrollToItem(index.coerceIn(0, 2400)) }
     }
-    Column(
-        Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
-            .padding(horizontal = HomeSpacing.gutter)
-    ) {
-        TextButton(
-            onClick = { choosingMonth = true },
-            modifier = Modifier.fillMaxWidth().testTag("month-selector")
-        ) {
-            Text(
-                month.format(
-                    DateTimeFormatter.ofPattern("LLLL yyyy", LocalConfiguration.current.locales[0])
-                ),
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        }
-        LazyColumn(
-            state = list,
-            modifier = Modifier.weight(1f).fillMaxWidth().testTag("month-grid")
-        ) {
-            items(2401, key = { it }) { index ->
-                val displayed = base.plusMonths((index - 1200).toLong())
-                Column(Modifier.testTag("calendar-month-$displayed")) {
-                    Text(
-                        displayed.format(
-                            DateTimeFormatter.ofPattern(
-                                "LLLL yyyy",
-                                LocalConfiguration.current.locales[0]
-                            )
-                        ),
-                        Modifier.padding(
-                            horizontal = Spacing.medium,
-                            vertical = Spacing.medium
-                        ),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    MonthGrid(
-                        displayed,
-                        state.today,
-                        selectedDay?.let(LocalDate::ofEpochDay),
-                        modifier = Modifier.border(
-                            1.dp,
-                            HomeColors.border.copy(alpha = 0.6f),
-                            MaterialTheme.shapes.large
-                        )
-                            .background(
-                                HomeColors.card.copy(alpha = 0.2f),
-                                MaterialTheme.shapes.large
-                            )
-                            .padding(vertical = 8.dp),
-                        cellHeight = cellHeight,
-                        atmospheric = true,
-                        info = {
-                            calendarDisplayDay(
-                                state.periods,
-                                state.analysis,
-                                it,
-                                state.today,
-                                compactWindows
-                            )
-                        },
-                        hasLog = { markers[it]?.record != null },
-                        hasSex = { markers[it]?.intimacy == true },
-                        filledSex = { markers[it]?.filledHeart == true },
-                        logIcon = {
-                            journalIcon(markers[it]?.record ?: app.ritela.domain.JournalIcon.NOTE)
-                        },
-                        onDay = { selectedDay = it.toEpochDay() }
-                    )
-                    if (index == 1200) {
-                        CalendarSummaries(state, summariesExpanded) {
-                            summariesExpanded = !summariesExpanded
-                        }
-                    }
-                }
-            }
-        }
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            TextButton(onClick = {
-                showMonth(1200)
-            }, modifier = Modifier.weight(1f).testTag("calendar-today")) {
-                if (LocalDensity.current.fontScale > 1.3f) {
-                    Icon(painterResource(R.drawable.ic_today), stringResource(R.string.home_title))
-                } else {
-                    Text(stringResource(R.string.home_title))
-                }
-            }
-            TextButton(onClick = {
-                historyOpen = true
-            }, modifier = Modifier.weight(1f).testTag("calendar-history")) {
-                if (LocalDensity.current.fontScale > 1.3f) {
-                    Icon(
-                        painterResource(R.drawable.ic_chart),
-                        stringResource(R.string.history_short)
-                    )
-                } else {
-                    Text(stringResource(R.string.history_short))
-                }
-            }
-        }
-    }
-    if (choosingMonth) {
-        MonthYearPicker(month, (base.year - 100)..(base.year + 100), { choosingMonth = false }) {
-            choosingMonth = false
-            showMonth(1200 + (it.year - base.year) * 12 + it.monthValue - base.monthValue)
-        }
-    }
+    CalendarMonthFeed(
+        base, state.today, selectedDay?.let(LocalDate::ofEpochDay), list,
+        onDay = { selectedDay = it.toEpochDay() }, onHistory = { historyOpen = true },
+        info = {
+            calendarDisplayDay(state.periods, state.analysis, it, state.today, compactWindows)
+        },
+        modifier = Modifier.padding(padding),
+        hasLog = { markers[it]?.record != null }, hasSex = { markers[it]?.intimacy == true },
+        filledSex = { markers[it]?.filledHeart == true },
+        logIcon = { journalIcon(markers[it]?.record ?: app.ritela.domain.JournalIcon.NOTE) }
+    ) { CalendarSummaries(state, summariesExpanded) { summariesExpanded = !summariesExpanded } }
+
     selectedDay?.let { epoch ->
         CalendarDayDetails(
             LocalDate.ofEpochDay(epoch),

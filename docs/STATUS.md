@@ -1,5 +1,9 @@
 # Точка продолжения
 
+2026-10-13: календарь партнёра использует общий CalendarMonthFeed с обычным режимом: заголовки, выбор месяца/года, вертикальная лента, «Сегодня», история и легенда. Орбита и карточка цикла убраны только со страницы календаря; главная прежняя. История и детали полученного снимка доступны только для чтения. Заливка, включая окно −5…+1, берётся из PartnerSnapshot без нового прогноза.
+
+Проверки: formatKotlin PASS; checkKotlin testDebugUnitTest --tests app.ritela.PartnerExperienceTest --tests app.ritela.PartnerControlsTest.twelveMonthForecastRemainsAccessibleInReadOnlyCalendar -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 3 tests. Первая проверка выявила неоднозначный поиск подписи фертильности после добавления легенды; тест уточнён тегом статуса дня, повтор PASS. APK, lint, PNG, галерея и эмулятор не запускались. Следующий шаг — явная отправка и кнопки, затем удаление сообщений с Room v6. docs/ui/ вне коммита; push не выполнять.
+
 2026-10-13: строки списка партнёров стали отдельными нажимаемыми полосами высотой 80 dp: имя, последнее событие или «Посланий пока нет», время и тонкий разделитель. Переход в переписку — короткое появление. Обмен и маршрут списка/переписки не менялись.
 
 Проверки: formatKotlin PASS; checkKotlin testDebugUnitTest --tests app.ritela.PartnerMessengerTest.dialogListOpensAChatAndBackRestoresItsScrollPosition assembleDebug -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 1 test, failures/errors/skipped 0. Проверены высота строки, клик по всей строке, пустая подпись, открытие, Back и прокрутка. APK собран assembleDebug. Lint не запускался. Новый тег не создаётся. docs/ui/ вне коммита.
