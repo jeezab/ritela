@@ -16,6 +16,7 @@ import app.ritela.domain.PartnerDirectory
 import app.ritela.domain.PartnerIdentity
 import app.ritela.domain.ShareCategory
 import app.ritela.domain.ShareScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -178,6 +179,35 @@ class PartnerTest {
             assertTrue(ra.retry(message.id).opened)
             assertNull(rb.openDoodle(message.id))
             assertTrue(rb.receive(message.envelope.toByteArray()).duplicate)
+        } finally {
+            dbA.close()
+            dbB.close()
+        }
+    }
+
+    @Test fun savedDoodleOpensWithoutAReturnFile() = runBlocking {
+        val dbA = database()
+        val dbB = database()
+        val a = LocalPartnerKeys.create()
+        val b = LocalPartnerKeys.create()
+        try {
+            val ra = repo(dbA, a)
+            val rb = repo(dbB, b)
+            confirmedPair(ra, b, "B")
+            confirmedPair(rb, a, "A")
+            val message = ra.prepareDoodle(
+                b.identityId,
+                b.deviceId,
+                Doodle(
+                    listOf(DoodleStroke(listOf(DoodlePoint(.1f, .2f)), 0xffee5577, .01f)),
+                    "synthetic"
+                )
+            )
+            assertEquals("DOODLE", rb.receive(message.envelope.toByteArray()).message.kind)
+            assertNull(rb.openDoodle(message.id, reply = false))
+            val stored = rb.messages.first()
+            assertEquals(listOf("DOODLE"), stored.map { it.kind })
+            assertTrue(stored.single().opened)
         } finally {
             dbA.close()
             dbB.close()

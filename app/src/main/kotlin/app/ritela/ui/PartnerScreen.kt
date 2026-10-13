@@ -254,7 +254,10 @@ fun PartnerScreen(padding: PaddingValues) {
             phones = true
         }
     }
-    LaunchedEffect(packet?.id) { if (packet != null) transport = true }
+    LaunchedEffect(packet?.id) {
+        val outgoing = packet
+        if (outgoing != null && outgoing.kind in setOf("DATA", "DOODLE")) transport = true
+    }
     LaunchedEffect(candidate, connectedNotice, legacyInvitation) {
         if (candidate != null || connectedNotice || legacyInvitation) showExchange = false
     }
@@ -339,12 +342,7 @@ fun PartnerScreen(padding: PaddingValues) {
                     } else {
                         viewing = message
                         if (!message.outgoing) {
-                            model.run {
-                                model.repository.openDoodle(message.id)?.let {
-                                    model.packet.value =
-                                        it
-                                }
-                            }
+                            model.run { model.repository.openDoodle(message.id, reply = false) }
                         }
                     }
                 },

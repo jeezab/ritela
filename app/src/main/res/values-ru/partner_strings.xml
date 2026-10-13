@@ -26,7 +26,7 @@
     <string name="partner_where">Где сейчас твоё сердечко?</string>
     <string name="partner_pair_android">Сначала сопрягите телефоны в настройках Bluetooth Android. На другом телефоне нажмите «Получить по Bluetooth». Сторону выбирает только отправитель.</string>
     <string name="partner_android_settings">Настройки Bluetooth</string>
-    <string name="partner_file_received">Подлинность файла проверена, данные сохранены. Отправьте зашифрованную подтверждение обратно, чтобы отправитель увидел подтверждение доставки.</string>
+    <string name="partner_file_received">Подлинность файла проверена, данные сохранены.</string>
     <string name="partner_identity_hint">Этот файл переносит ключи вашей личности, но не дудлы, контакты или историю обмена. Для календарных записей нужен экспорт данных в настройках. Пароль — не короче 4 символов. Восстановление доступно в профиле без контактов. Новый телефон нужно подключить заново.</string>
     <string name="partner_export_identity">Экспорт личности</string>
     <string name="partner_restore_identity">Восстановить личность</string>

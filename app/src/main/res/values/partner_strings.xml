@@ -26,7 +26,7 @@
     <string name="partner_where">Where is your little heart?</string>
     <string name="partner_pair_android">Pair the phones in Android Bluetooth settings first. On the other phone, tap Receive via Bluetooth. Choose the side only on the sending phone.</string>
     <string name="partner_android_settings">Bluetooth settings</string>
-    <string name="partner_file_received">The authenticated file has been saved. Send the encrypted confirmation back so the sender can confirm delivery.</string>
+    <string name="partner_file_received">The authenticated file has been saved.</string>
     <string name="partner_identity_hint">This file transfers your identity keys, not doodles, contacts or exchange history. For calendar records, use the data export in Settings. Use a password of at least 4 characters. Restore only in a profile without contacts. Connect your new phone again.</string>
     <string name="partner_export_identity">Export identity</string>
     <string name="partner_restore_identity">Restore identity</string>
