@@ -13,8 +13,8 @@
     <string name="partner_nearby">Рядом</string>
     <string name="partner_view_message">Посмотреть</string>
     <string name="partner_data_recorded">Переданные данные (запись от %1$s)</string>
-    <string name="partner_choose_channel">Выбрать файл или Bluetooth</string>
-    <string name="partner_prepare_file">Подготовить файл</string>
+    <string name="partner_choose_channel">Отправить</string>
+    <string name="partner_prepare_file">Файл</string>
     <string name="partner_check_connection">Проверить связь</string>
     <string name="partner_select_phone">Использовать этот телефон</string>
     <string name="partner_dismiss_error">Закрыть</string>

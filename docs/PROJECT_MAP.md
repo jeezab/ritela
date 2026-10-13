@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13: ui/PartnerSendDialog.kt — окно отправки, общая строка действий одинаковой высоты и состояние явного запроса PartnerSendRequests. PartnerScreen привязывает запрос к профилю/переписке; сохранённый packet не открывает окно. PartnerModal поддерживает закреплённый footer редактора дудла.
+
 2026-10-13: ui/CalendarMonthFeed.kt — общий каркас календаря владельца и получателя. CalendarScreen передаёт собственную классификацию, PartnerReceivedCalendar — только полученный PartnerSnapshot. CalendarDesign делит общую легенду; история получателя только для чтения.
 
 2026-10-13, пыль орбиты: CycleOrbitScene рисует две простые дуги с dustFade. orbitOvulationProgress ставит жемчужину на день длина−14; orbitLandmarkProgress сдвигает лютеиновую кнопку между жемчужиной и луной. OrbitMarker.END = 0.92.

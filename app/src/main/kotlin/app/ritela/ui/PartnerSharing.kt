@@ -115,9 +115,11 @@ internal fun PartnerScopeDialog(
                     style = MaterialTheme.typography.titleLarge
                 )
                 if (recipient.isNotBlank()) {
+                    androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     Text(
                         stringResource(R.string.partner_preview_recipient, recipient)
                     )
+                    androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 }
                 Column(
                     Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),

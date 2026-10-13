@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -106,7 +107,34 @@ internal fun DoodleEditor(
     val delayMinutes = minutes.toIntOrNull()?.takeIf { it in 0..59 }
     val delayReady = delayDays != null && delayHours != null && delayMinutes != null &&
         delayDays + delayHours + delayMinutes > 0
-    PartnerModal(stringResource(R.string.partner_doodle), dismiss) {
+    val ready = strokes.isNotEmpty() &&
+        (opening != DoodleOpening.AFTER_DATE || moment != null) &&
+        (opening != DoodleOpening.AFTER_DAYS || delayReady)
+    fun drawn() = Doodle(
+        strokes,
+        caption,
+        opening,
+        moment ?: 0,
+        delayDays ?: 0,
+        delayHours ?: 0,
+        delayMinutes ?: 0
+    )
+    PartnerModal(stringResource(R.string.partner_doodle), dismiss, footer = {
+        EqualHeightActions {
+            if (save != null) {
+                OutlinedButton({
+                    save(drawn())
+                }, Modifier.weight(1f).fillMaxHeight().testTag("doodle-save"), enabled = ready) {
+                    Text(stringResource(R.string.partner_save_doodle), textAlign = TextAlign.Center)
+                }
+            }
+            Button({
+                send(drawn())
+            }, Modifier.weight(1f).fillMaxHeight().testTag("doodle-prepare"), enabled = ready) {
+                Text(stringResource(R.string.partner_prepare), textAlign = TextAlign.Center)
+            }
+        }
+    }) {
         Box(Modifier.fillMaxWidth().aspectRatio(1.15f).background(HomeColors.background)) {
             Canvas(
                 Modifier.fillMaxWidth().aspectRatio(1.15f).testTag("doodle-canvas")
@@ -263,32 +291,6 @@ internal fun DoodleEditor(
             )
         }
         Text(stringResource(R.string.partner_doodle_limits))
-        val ready = strokes.isNotEmpty() &&
-            (opening != DoodleOpening.AFTER_DATE || moment != null) &&
-            (opening != DoodleOpening.AFTER_DAYS || delayReady)
-        fun drawn() = Doodle(
-            strokes,
-            caption,
-            opening,
-            moment ?: 0,
-            delayDays ?: 0,
-            delayHours ?: 0,
-            delayMinutes ?: 0
-        )
-        if (save != null) {
-            TextButton(
-                { save(drawn()) },
-                enabled = ready,
-                modifier = Modifier.testTag("doodle-save")
-            ) { Text(stringResource(R.string.partner_save_doodle)) }
-        }
-        Button(
-            { send(drawn()) },
-            modifier = Modifier.testTag("doodle-prepare"),
-            enabled = ready
-        ) {
-            Text(stringResource(R.string.partner_prepare))
-        }
     }
     if (showDate) {
         PickDate(

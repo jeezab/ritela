@@ -21,7 +21,8 @@
     <string name="partner_verify_title">Проверьте друг друга</string>
     <string name="partner_verify">Сравните код на двух телефонах. Если он одинаковый, подтвердите подключение.</string>
     <string name="partner_verified">Коды совпадают — подключить</string>
-    <string name="partner_transport">Как отправить</string>
+    <string name="partner_transport">Отправить</string>
+    <string name="partner_waiting_to_send">Послание ожидает отправки</string>
     <string name="partner_bluetooth">Bluetooth</string>
     <string name="partner_where">Где сейчас твоё сердечко?</string>
     <string name="partner_pair_android">Сначала сопрягите телефоны в настройках Bluetooth Android. На другом телефоне нажмите «Получить по Bluetooth». Сторону выбирает только отправитель.</string>
@@ -35,7 +36,7 @@
     <string name="partner_close">Закрыть</string>
     <string name="partner_password">Пароль</string>
     <string name="partner_selection">Выберите данные</string>
-    <string name="partner_preview">Состав передачи</string>
+    <string name="partner_preview">Выбрано</string>
     <string name="partner_prepare">Отправить</string>
     <string name="partner_allow_exchange">Разрешить обмен с этой личностью</string>
     <string name="partner_device_enabled">Доверять этому устройству</string>
