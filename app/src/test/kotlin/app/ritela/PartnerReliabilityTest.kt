@@ -394,7 +394,12 @@ class PartnerReliabilityTest {
                     forecast.getLong("ovulationLower")
                 )
                 assertEquals(original, database.periods().snapshot())
-                assertFalse(shared.has("periods"))
+                val sharedPeriods = shared.getJSONArray("periods")
+                assertEquals(1, sharedPeriods.length())
+                assertEquals(
+                    original.maxBy { it.startDay }.startDay,
+                    sharedPeriods.getJSONObject(0).getLong("start")
+                )
                 assertFalse(shared.has("days"))
             } finally {
                 database.close()

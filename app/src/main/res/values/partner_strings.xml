@@ -61,8 +61,6 @@
     <string name="partner_opened">Opened</string>
     <string name="partner_delivered">Delivered</string>
     <string name="partner_summary">Periods: %1$d · forecasts: %2$d · diary days: %3$d</string>
-    <string name="partner_yes">yes</string>
-    <string name="partner_no">no</string>
     <string name="partner_periods">Periods and history</string>
     <string name="partner_forecasts">Forecasts and phases</string>
     <string name="partner_diary">Day records</string>
@@ -82,10 +80,10 @@
     <string name="partner_brush">Brush width</string>
     <string name="partner_caption">A short message</string>
     <string name="partner_immediate">Open immediately</string>
-    <string name="partner_after_date">Open at...</string>
-    <string name="partner_after_days">Open after...</string>
-    <string name="partner_after_date_hint">Open at... shows the message the first time the recipient opens the app after the chosen date.</string>
-    <string name="partner_after_delay_hint">Open after... shows the message the first time the recipient opens the app after the chosen time has passed.</string>
+    <string name="partner_after_date">Open at…</string>
+    <string name="partner_after_days">Open after…</string>
+    <string name="partner_after_date_hint">Open at… shows the message the first time the recipient opens the app after the chosen date.</string>
+    <string name="partner_after_delay_hint">Open after… shows the message the first time the recipient opens the app after the chosen time has passed.</string>
     <string name="partner_datetime">Choose date and time</string>
     <string name="partner_days">Days</string>
     <string name="partner_hours">Hours</string>
