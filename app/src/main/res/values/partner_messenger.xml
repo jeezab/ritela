@@ -8,6 +8,7 @@
     <string name="partner_chat_empty_hint">Your doodles and shared data will appear here.</string>
     <string name="partner_share_data">Share data</string>
     <string name="partner_view_message">View</string>
+    <string name="partner_data_recorded">Shared data (record from %1$s)</string>
     <string name="partner_choose_channel">Choose file or Bluetooth</string>
     <string name="partner_prepare_file">Prepare file</string>
     <string name="partner_check_connection">Check connection</string>

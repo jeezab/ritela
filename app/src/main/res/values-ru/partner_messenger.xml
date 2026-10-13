@@ -8,6 +8,7 @@
     <string name="partner_chat_empty_hint">Здесь появятся ваши дудлы и переданные данные.</string>
     <string name="partner_share_data">Поделиться данными</string>
     <string name="partner_view_message">Посмотреть</string>
+    <string name="partner_data_recorded">Переданные данные (запись от %1$s)</string>
     <string name="partner_choose_channel">Выбрать файл или Bluetooth</string>
     <string name="partner_prepare_file">Подготовить файл</string>
     <string name="partner_check_connection">Проверить связь</string>
