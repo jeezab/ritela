@@ -141,7 +141,8 @@ object PartnerCodec {
     }
     fun doodle(value: Doodle): JSONObject =
         JSONObject().put("caption", value.caption).put("opening", value.opening.name)
-            .put("openAt", value.openAt).put("days", value.delayDays).put(
+            .put("openAt", value.openAt).put("days", value.delayDays)
+            .put("hours", value.delayHours).put("minutes", value.delayMinutes).put(
                 "strokes",
                 JSONArray(
                     value.strokes.map { stroke ->
@@ -184,7 +185,9 @@ object PartnerCodec {
             value.getString("caption"),
             DoodleOpening.valueOf(value.getString("opening")),
             value.getLong("openAt"),
-            value.getInt("days")
+            value.getInt("days"),
+            value.optInt("hours"),
+            value.optInt("minutes")
         )
     }
 }
