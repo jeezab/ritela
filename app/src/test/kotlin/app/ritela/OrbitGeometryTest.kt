@@ -6,6 +6,7 @@ import app.ritela.ui.OrbitGeometry
 import app.ritela.ui.OrbitMarker
 import app.ritela.ui.orbitDayAtProgress
 import app.ritela.ui.orbitDayProgress
+import app.ritela.ui.orbitOvulationProgress
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -74,5 +75,13 @@ class OrbitGeometryTest {
         }
         assertEquals(7f / 29f, orbitDayProgress(8, 29), 0f)
         assertTrue(orbitDayProgress(40, 29) < 1f)
+    }
+
+    @Test fun ovulationPearlMatchesTheCalendarDayAndTheMoonSitsCloserToTheSun() {
+        for (length in listOf(21, 28, 29, 35)) {
+            val day = (length - 14).coerceIn(1, length).toLong()
+            assertEquals(day, orbitDayAtProgress(orbitOvulationProgress(length), length))
+        }
+        assertTrue(OrbitMarker.END.progress > .9f)
     }
 }

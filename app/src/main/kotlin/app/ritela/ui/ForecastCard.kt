@@ -70,7 +70,7 @@ fun ForecastCard(
     val scene = cycleSceneState(analysis, today)
     CycleForecastHero(
         analysis.cycleDay, next?.predictedStartDate, scene.phase, orbit.currentProgress,
-        today, reducedMotion, analysis.unavailable, next != null,
+        today, reducedMotion, analysis.unavailable, next != null, orbit.length,
         { showInfo = true }, { showOrbit = true }, { selectedMarker = it }
     )
     if (showInfo) PredictionMethodInfo(analysis) { showInfo = false }
@@ -90,6 +90,7 @@ internal fun CycleForecastHero(
     reducedMotion: Boolean,
     unavailable: ForecastUnavailable?,
     orbitAvailable: Boolean,
+    cycleLength: Int = 28,
     onInformation: () -> Unit,
     onOrbit: () -> Unit,
     onMarker: (OrbitMarker) -> Unit
@@ -114,7 +115,8 @@ internal fun CycleForecastHero(
                     ),
                     Modifier.fillMaxWidth().aspectRatio(350f / 228f),
                     onMarker = { onMarker(it) },
-                    onOpen = { onOrbit() }
+                    onOpen = { onOrbit() },
+                    cycleLength = cycleLength
                 )
             }
             Card(

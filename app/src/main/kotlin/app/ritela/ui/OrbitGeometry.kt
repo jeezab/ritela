@@ -59,9 +59,13 @@ internal class OrbitGeometry(
         return progress
     }
 
-    fun follicularDustContains(point: Offset, radius: Float): Boolean {
+    fun follicularDustContains(
+        point: Offset,
+        radius: Float,
+        until: Float = OrbitMarker.OVULATION.progress
+    ): Boolean {
         val progress = progressAt(point)
-        return progress > OrbitMarker.START.progress && progress < OrbitMarker.OVULATION.progress &&
+        return progress > OrbitMarker.START.progress && progress < until &&
             (point - position(progress)).getDistance() <= radius &&
             dustClearOfEndpoints(point, radius * 1.25f)
     }
@@ -85,5 +89,5 @@ enum class OrbitMarker(val progress: Float) {
     FOLLICULAR(0.2f),
     OVULATION(0.42f),
     LUTEAL(0.65f),
-    END(0.87f)
+    END(0.92f)
 }

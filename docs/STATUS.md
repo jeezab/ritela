@@ -1,5 +1,9 @@
 # Точка продолжения
 
+2026-10-13: пыль фолликулярной фазы — простая цепочка по дуге с плавным появлением у солнца и затуханием к овуляции. Лютеиновая пыль идёт так же от жемчужины к луне: от зелёного к красному, краснее начала фолликулярной дуги. Жемчужина стоит на дне цикла «длина − 14», поэтому расчётный день овуляции совпадает с ней. Луна сдвинута ближе к солнцу по орбите, до 0.92.
+
+Проверки: formatKotlin PASS; checkKotlin testDebugUnitTest --tests app.ritela.OrbitGeometryTest --tests app.ritela.OrbitDustInteractionTest -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 5 tests, failures/errors/skipped 0. Проверены совпадение жемчужины с днём овуляции для длин 21/28/29/35 и прежние попадания по пыли. APK и lint не запускались. Room и прогноз не менялись. Изменение сохраняется локальным коммитом и отправляется в master без нового тега. docs/ui/ вне коммита.
+
 2026-10-13: исправлен CI. Неиспользуемые partner_yes/partner_no удалены. Многоточие в подписях «Открыть в…» и «Открыть через…» заменено на символ многоточия, иначе lint TypographyEllipsis. Тест прогноза для партнёра ожидает одну последнюю запись месячных в пакете только с прогнозами; история в базе не меняется. CalendarDayFormatterTest локально проходит; сбой CI был на загрузке артефакта Robolectric (FileNotFoundException), не на проверке дат.
 
 Проверки: formatKotlin PASS; checkKotlin lintDebug testDebugUnitTest --tests app.ritela.PartnerReliabilityTest.ownCycleForecastSnapshotKeepsCentralDatesAndUncertaintyWithoutChangingHistory --tests app.ritela.CalendarDayFormatterTest -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS. Lint Debug без ошибок. APK не собирался. Следующий шаг — перезаписать с fb29715 сообщения коммитов без Co-authored-by и отправить master. docs/ui/ вне коммита.

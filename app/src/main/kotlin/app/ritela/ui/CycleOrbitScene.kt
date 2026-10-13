@@ -48,11 +48,24 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.ritela.R
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 data class OrbitColors(val ink: Color, val rose: Color, val peach: Color, val surface: Color)
 
-private data class OrbitDustParticle(val point: Offset, val color: Color, val radius: Float)
+private data class OrbitDustParticle(
+    val point: Offset,
+    val color: Color,
+    val radius: Float,
+    val alpha: Float
+)
+
+private fun dustFade(along: Float): Float {
+    val edge = 0.34f
+    fun rise(value: Float): Float {
+        val x = (value / edge).coerceIn(0f, 1f)
+        return x * x * (3f - 2f * x)
+    }
+    return rise(along) * rise(1f - along)
+}
 
 /** A flat path, five landmarks, a separate current marker. No rotation or perspective. */
 @Composable
@@ -66,7 +79,8 @@ fun CycleOrbitScene(
     onOpen: (() -> Unit)? = null,
     onScrub: ((Float) -> Unit)? = null,
     focusProgress: Float? = null,
-    centerDay: Long = cycleDay
+    centerDay: Long = cycleDay,
+    cycleLength: Int = 28
 ) {
     val breath = orbitPulse(reducedMotion, 0.9f, 1f, RitelaMotion.ORBIT_HALF_BREATH_MILLIS)
     val pulse = orbitPulse(reducedMotion, 0.98f, 1.04f, RitelaMotion.MARKER_HALF_BREATH_MILLIS)
@@ -122,9 +136,15 @@ fun CycleOrbitScene(
     ) {
         Canvas(
             Modifier.fillMaxSize().testTag("orbit-canvas").clearAndSetSemantics {}
-                .pointerInput(geometry, onMarker, onOpen) {
+                .pointerInput(geometry, onMarker, onOpen, cycleLength) {
                     detectTapGestures { point ->
-                        if (onMarker != null && geometry.follicularDustContains(point, hitRadius)) {
+                        if (onMarker != null &&
+                            geometry.follicularDustContains(
+                                point,
+                                hitRadius,
+                                orbitOvulationProgress(cycleLength)
+                            )
+                        ) {
                             onMarker(OrbitMarker.FOLLICULAR)
                         } else {
                             onOpen?.invoke()
@@ -152,35 +172,37 @@ fun CycleOrbitScene(
                             it
                         )
                     }
+                    val ovulation = orbitOvulationProgress(cycleLength)
                     val markers = OrbitMarker.entries.associateWith {
-                        geometry.position(it.progress)
+                        geometry.position(orbitLandmarkProgress(it, cycleLength))
                     }
                     val activeOverLandmark = markers.filterKeys {
                         it != OrbitMarker.FOLLICULAR
                     }.values.any {
                         (it - active).getDistance() < 14f * unit
                     }
-                    val dust = (1..160).flatMap { index ->
-                        val fraction = index / 161f
-                        val progress = OrbitMarker.OVULATION.progress * fraction
-                        val center = geometry.position(progress)
-                        val tangent =
-                            geometry.position(progress + .001f) -
-                                geometry.position(progress - .001f)
-                        val normal =
-                            Offset(-tangent.y, tangent.x) / tangent.getDistance().coerceAtLeast(1f)
-                        val color = lerp(Color(0xFFF4BCD2), Color(0xFFD0EDBF), fraction)
-                        (0..2).mapNotNull { lane ->
-                            val scatter = sin(index * 2.399f + lane * 1.73f)
-                            val point = center + normal * scatter * 5.5f * unit
-                            val radius = (.7f + (sin(index * 1.37f + lane) + 1f) * .5f) * unit
-                            if (geometry.dustClearOfEndpoints(point, 26f * unit + radius)) {
-                                OrbitDustParticle(point, color, radius)
-                            } else {
-                                null
-                            }
+                    fun band(from: Float, to: Float, start: Color, end: Color) =
+                        (1 until 42).map { index ->
+                            val along = index / 42f
+                            val place = from + (to - from) * along
+                            OrbitDustParticle(
+                                geometry.position(place),
+                                lerp(start, end, along),
+                                1.15f * unit,
+                                dustFade(along)
+                            )
                         }
-                    }
+                    val dust = band(
+                        OrbitMarker.START.progress,
+                        ovulation,
+                        Color(0xFFF4BCD2),
+                        Color(0xFFD0EDBF)
+                    ) + band(
+                        ovulation,
+                        OrbitMarker.END.progress,
+                        Color(0xFFD0EDBF),
+                        Color(0xFFD64558)
+                    )
                     val moonRadius = 8f * unit
                     val moonDisc = Path().apply {
                         addOval(
@@ -245,12 +267,12 @@ fun CycleOrbitScene(
                         )
                         for (particle in dust) {
                             drawCircle(
-                                particle.color.copy(alpha = .1f),
-                                particle.radius * 2.4f,
+                                particle.color.copy(alpha = particle.alpha * .16f),
+                                particle.radius * 2.2f,
                                 particle.point
                             )
                             drawCircle(
-                                particle.color.copy(alpha = .72f),
+                                particle.color.copy(alpha = particle.alpha * .82f),
                                 particle.radius,
                                 particle.point
                             )
@@ -335,7 +357,7 @@ fun CycleOrbitScene(
             for (marker in OrbitMarker.entries) {
                 val label = stringResource(orbitMarkerTitle(marker))
                 OrbitTouchTarget(
-                    geometry.position(marker.progress),
+                    geometry.position(orbitLandmarkProgress(marker, cycleLength)),
                     hitRadius,
                     "orbit-marker-${marker.name}",
                     label
@@ -345,8 +367,10 @@ fun CycleOrbitScene(
             }
         }
         if (viewport != IntSize.Zero && onOpen != null && OrbitMarker.entries.none {
-                (geometry.position(it.progress) - geometry.position(progress)).getDistance() <
-                    hitRadius
+                (
+                    geometry.position(orbitLandmarkProgress(it, cycleLength)) -
+                        geometry.position(progress)
+                    ).getDistance() < hitRadius
             }
         ) {
             OrbitTouchTarget(
