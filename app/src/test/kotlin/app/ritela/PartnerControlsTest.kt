@@ -9,7 +9,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -41,6 +43,53 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class PartnerControlsTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Test fun applicationModeAndSecurityActionsShareOneCardAndRemainButtonsAtLargeText() {
+        val session = (compose.activity.application as RitelaApplication).profiles.session.value
+        compose.waitUntil(10000) {
+            session.partnerPreferences.mode.value.ready &&
+                !session.partnerModel.busy.value
+        }
+        compose.activity.setContent {
+            CompositionLocalProvider(
+                app.ritela.ui.LocalProfileSession provides session,
+                LocalDensity provides Density(LocalDensity.current.density, 2f)
+            ) {
+                HomeTheme {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        app.ritela.ui.PartnerSettings()
+                    }
+                }
+            }
+        }
+        for (tag in listOf(
+            "partner-own-mode",
+            "partner-settings-bluetooth",
+            "partner-settings-identity",
+            "partner-settings-technical"
+        )) {
+            compose.onNode(hasTestTag(tag) and hasAnyAncestor(hasTestTag("partner-settings-card")))
+                .performScrollTo().assertIsDisplayed().assertHasClickAction()
+        }
+        compose.onNodeWithTag("partner-settings-bluetooth").performScrollTo().performClick()
+        assertEquals(
+            android.provider.Settings.ACTION_BLUETOOTH_SETTINGS,
+            org.robolectric.Shadows.shadowOf(compose.activity).nextStartedActivity.action
+        )
+        compose.onNodeWithTag("partner-settings-identity").performScrollTo().performClick()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_password)
+        ).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_export_identity)
+        ).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_restore_identity)
+        ).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.partner_close)).performClick()
+        compose.onNodeWithTag("partner-settings-technical").performScrollTo().performClick()
+        compose.onNodeWithTag("partner-settings-technical").performClick()
+    }
 
     @Test fun shortCodeIsPrimaryAndRejectNeverConfirmsOnSmallScreen() {
         compose.waitUntil(10000) {

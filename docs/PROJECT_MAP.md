@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-13: PartnerSettings включает PartnerSecuritySettings в общую SettingsGroup режима приложения. SettingsGroup поддерживает modifier; служебные действия — OutlinedButton. PartnerControlsTest проверяет общий контейнер и действия при 200%. OrbitGeometry делит проекцию/защиту концов дуг для обеих кликабельных полос пыли; CycleOrbitScene рисует только солнце, овуляцию и луну как landmarks, оставляя доступные кнопки фаз.
+
 2026-10-13: ui/PartnerMessageActions.kt — меню долгого нажатия, необязательный флажок и подтверждение удаления. PartnerRepository.deleteMessage/PartnerDao сохраняют tombstones; conversationMessages скрывает их, partnerDataMessage сохраняет скрытый непустой снимок. Room v6/MIGRATION_5_6 зарегистрирована в ProfileSession и миграционных тестах, схема 6.json сохранена. PartnerMessageDeletionTest проверяет миграцию, рестарт, fallback, replay, поздние квитанции и сохранность собственных данных; PartnerMessageDeleteUiTest — выбор и подтверждения. CalendarMonthFeed расширяет диапазон получателя для всей переданной истории, включая даты старше обычных 100 лет.
 
 2026-10-13: ui/PartnerSendDialog.kt — окно отправки, общая строка действий одинаковой высоты и состояние явного запроса PartnerSendRequests. PartnerScreen привязывает запрос к профилю/переписке; сохранённый packet не открывает окно. PartnerModal поддерживает закреплённый footer редактора дудла.
