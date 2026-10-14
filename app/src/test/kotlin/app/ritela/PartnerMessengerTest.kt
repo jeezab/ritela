@@ -99,6 +99,10 @@ class PartnerMessengerTest {
             }
         }
         compose.onNodeWithTag("partner-dialog-list").assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.app_name)).assertIsDisplayed()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_title)
+        ).assertDoesNotExist()
         compose.onNodeWithTag("partner-composer").assertDoesNotExist()
         compose.onNodeWithText("Alex").assertIsDisplayed()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_no_messages))
@@ -155,6 +159,10 @@ class PartnerMessengerTest {
         compose.onNodeWithTag("partner-add-action").performClick()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_import)).performClick()
         assertEquals(ConversationAction.FILE, event)
+        compose.onNodeWithTag("partner-menu").performClick()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_check_connection)
+        ).assertIsDisplayed()
     }
 
     @Test
