@@ -1350,6 +1350,17 @@ class HomeScreenTest {
             }
         }
         compose.onNodeWithTag("settings-heading").assertIsDisplayed()
+        val versionName = if (android.os.Build.VERSION.SDK_INT >= 33) {
+            compose.activity.packageManager.getPackageInfo(
+                compose.activity.packageName,
+                android.content.pm.PackageManager.PackageInfoFlags.of(0)
+            ).versionName
+        } else {
+            @Suppress("DEPRECATION")
+            compose.activity.packageManager.getPackageInfo(compose.activity.packageName, 0)
+                .versionName
+        }
+        compose.onNodeWithTag("app-version").assertTextEquals("v$versionName")
         saveRendering(prefix)
         compose.onNodeWithTag("backup-export").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("backup-import").performScrollTo().assertIsDisplayed()

@@ -581,7 +581,8 @@ fun MonthGrid(
                                 CalendarColors.ink
                             } else if (estimatedBleeding ||
                                 detail.kind == CalendarDayKind.OVULATION_ESTIMATE ||
-                                detail.kind == CalendarDayKind.FERTILE_LIKELY
+                                detail.kind == CalendarDayKind.FERTILE_LIKELY ||
+                                detail.kind == CalendarDayKind.FERTILE_ESTIMATE
                             ) {
                                 CalendarColors.ink
                             } else {
@@ -666,7 +667,9 @@ fun MonthGrid(
                                                         detail.kind ==
                                                         CalendarDayKind.OVULATION_ESTIMATE ||
                                                         detail.kind ==
-                                                        CalendarDayKind.FERTILE_LIKELY
+                                                        CalendarDayKind.FERTILE_LIKELY ||
+                                                        detail.kind ==
+                                                        CalendarDayKind.FERTILE_ESTIMATE
                                                 )
                                             } else {
                                                 LocalContentColor.current
@@ -722,7 +725,9 @@ fun MonthGrid(
                                                         detail.kind ==
                                                         CalendarDayKind.OVULATION_ESTIMATE ||
                                                         detail.kind ==
-                                                        CalendarDayKind.FERTILE_LIKELY
+                                                        CalendarDayKind.FERTILE_LIKELY ||
+                                                        detail.kind ==
+                                                        CalendarDayKind.FERTILE_ESTIMATE
                                                 )
                                             }
                                         )

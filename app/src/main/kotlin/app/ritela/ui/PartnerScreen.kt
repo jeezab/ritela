@@ -299,29 +299,26 @@ fun PartnerScreen(padding: PaddingValues) {
         }
             ?: identity?.devices?.firstOrNull { it.enabled && it.mutualConfirmed }
     HomeTheme {
-        val status = if (contact == null) {
-            ""
+        val statusId = if (contact == null) {
+            null
         } else {
-            stringResource(
-                when {
-                    identity?.exchangeEnabled != true -> R.string.partner_disabled
-                    device == null -> R.string.partner_pending_connection
-                    activePeer in contact?.identities.orEmpty() -> R.string.partner_connected
-                    else -> R.string.partner_unconnected
-                }
-            )
+            when {
+                identity?.exchangeEnabled != true -> R.string.partner_disabled
+                device == null -> R.string.partner_pending_connection
+                activePeer in contact.identities -> R.string.partner_connected
+                else -> null
+            }
         }
+        val status = statusId?.let { stringResource(it) }.orEmpty()
         val last = messages.firstOrNull {
             it.identity in contact?.identities.orEmpty() && !it.outgoing &&
                 it.kind in setOf("DATA", "DOODLE", "ACK", "OPENED")
         }
-        val headerStatus = stringResource(
-            if (activePeer in openedContact?.identities.orEmpty()) {
-                R.string.partner_nearby
-            } else {
-                R.string.partner_unconnected
-            }
-        )
+        val headerStatus = if (activePeer in openedContact?.identities.orEmpty()) {
+            stringResource(R.string.partner_nearby)
+        } else {
+            ""
+        }
         androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(padding)) {
             PartnerChats(
                 directory.contacts, opened, messages, headerStatus, busy,
@@ -534,7 +531,7 @@ fun PartnerScreen(padding: PaddingValues) {
             }
             if (profileViewing) {
                 PartnerModal(contact?.name ?: source.name, { profileViewing = false }) {
-                    Text(status)
+                    if (status.isNotEmpty()) Text(status)
                     if (contact?.group == true) Text(stringResource(R.string.partner_group))
                     last?.let { Text(PartnerFormatter(resources).exchange(it.received)) }
                     if (identities.size > 1) {

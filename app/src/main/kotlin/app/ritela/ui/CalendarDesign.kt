@@ -54,26 +54,12 @@ object CalendarDesign {
 fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> Unit) {
     var showInfo by rememberSaveable { mutableStateOf(false) }
     if (showInfo) PredictionMethodInfo(state.analysis) { showInfo = false }
-    val expandedLabel = stringResource(R.string.calendar_expand)
-    val collapsedLabel = stringResource(R.string.calendar_collapse)
     val next = state.analysis.forecasts.firstOrNull()
     val phase = cycleSceneState(state.analysis, state.today).phase
-    val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "cycle details")
     Column(
         Modifier.fillMaxWidth().padding(vertical = 4.dp)
     ) {
-        IconButton(
-            onClick = onToggle,
-            modifier = Modifier.fillMaxWidth().testTag("calendar-summaries-toggle").semantics {
-                stateDescription = if (expanded) expandedLabel else collapsedLabel
-            }
-        ) {
-            Icon(
-                painterResource(R.drawable.ic_chevron_down),
-                if (expanded) collapsedLabel else expandedLabel,
-                Modifier.size(18.dp).graphicsLayer { rotationZ = angle }
-            )
-        }
+        SummaryChevron(expanded, onToggle)
         AnimatedVisibility(
             expanded,
             enter = expandVertically() + fadeIn(),
@@ -146,6 +132,66 @@ fun CalendarSummaries(state: PeriodUiState, expanded: Boolean, onToggle: () -> U
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun PartnerCalendarSummaries(cycleDay: Long?, phase: EstimatedCyclePhase) {
+    var expanded by rememberSaveable { mutableStateOf(true) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        SummaryChevron(expanded) { expanded = !expanded }
+        AnimatedVisibility(
+            expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(
+                Modifier.testTag("calendar-summaries"),
+                verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
+            ) {
+                if (cycleDay != null || phase != EstimatedCyclePhase.UNKNOWN) {
+                    CalendarSummaryCard {
+                        cycleDay?.let {
+                            Text(
+                                stringResource(R.string.orbit_focus_day, it.toInt()),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                        if (phase != EstimatedCyclePhase.UNKNOWN) {
+                            Text(
+                                stringResource(R.string.current_cycle_phase),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = HomeColors.muted
+                            )
+                            Text(
+                                stringResource(phaseName(phase)),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                    }
+                }
+                CalendarLegend()
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryChevron(expanded: Boolean, onToggle: () -> Unit) {
+    val expandedLabel = stringResource(R.string.calendar_expand)
+    val collapsedLabel = stringResource(R.string.calendar_collapse)
+    val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "cycle details")
+    IconButton(
+        onClick = onToggle,
+        modifier = Modifier.fillMaxWidth().testTag("calendar-summaries-toggle").semantics {
+            stateDescription = if (expanded) expandedLabel else collapsedLabel
+        }
+    ) {
+        Icon(
+            painterResource(R.drawable.ic_chevron_down),
+            if (expanded) collapsedLabel else expandedLabel,
+            Modifier.size(18.dp).graphicsLayer { rotationZ = angle }
+        )
     }
 }
 

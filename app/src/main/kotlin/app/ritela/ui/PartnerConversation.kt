@@ -312,11 +312,13 @@ internal fun PartnerConversation(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        status,
-                        color = HomeColors.muted,
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                    if (status.isNotEmpty()) {
+                        Text(
+                            status,
+                            color = HomeColors.muted,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
                 Box {
                     IconButton(
@@ -696,7 +698,7 @@ internal fun ConversationPreviewContent(kind: String) {
                 "multiple" -> listOf(data, received)
                 else -> listOf(data)
             },
-            stringResource(R.string.partner_unconnected), false, true, now, {}, {}, {}, {}, {}
+            "", false, true, now, {}, {}, {}, {}, {}
         )
     }
 }

@@ -56,7 +56,7 @@ internal fun PartnerReceivedCalendar(snapshot: PartnerSnapshot, modifier: Modifi
         hasLog = { day -> snapshot.days.any { it.getLong("day") == day.toEpochDay() } },
         dayTag = "partner-calendar-day", listTag = "partner-received-calendar",
         firstMonth = bounds.first, lastMonth = bounds.second
-    ) { CalendarLegend() }
+    ) { PartnerCalendarSummaries(snapshot.cycleDay, snapshot.phase) }
     if (history) {
         PartnerModal(stringResource(R.string.calendar_history), { history = false }) {
             if (snapshot.periods.isEmpty()) Text(stringResource(R.string.history_empty))

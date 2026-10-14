@@ -1,6 +1,5 @@
 <resources>
     <string name="partner_choose_home">Выбрать партнёра для главной и календаря</string>
-    <string name="partner_unconnected">Нет подключения</string>
     <string name="partner_connected">Есть подключение</string>
     <string name="partner_application_mode">Режим приложения</string>
     <string name="partner_my_calendar">Мой календарь</string>
