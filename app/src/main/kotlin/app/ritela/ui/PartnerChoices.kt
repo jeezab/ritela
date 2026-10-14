@@ -1,12 +1,15 @@
 package app.ritela.ui
 
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -20,9 +23,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ritela.R
 import app.ritela.domain.JournalLayout
@@ -57,15 +62,19 @@ internal fun PartnerManagement(
         }
     }
     val formatter = PartnerFormatter(LocalResources.current)
+    var helpTitle by remember { mutableStateOf<Int?>(null) }
+    var helpBody by remember { mutableStateOf<Int?>(null) }
     PartnerModal(stringResource(R.string.partner_manage), dismiss) {
         Text(contact.name, style = MaterialTheme.typography.titleLarge)
         OutlinedTextField(
             name,
             { if (it.length <= 80) name = it },
+            Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.partner_profile_name)) }
         )
-        TextButton(
+        Button(
             { model.run { model.repository.rename(contact.id, name) } },
+            Modifier.fillMaxWidth(),
             enabled = !busy && name.isNotBlank() && name.trim() != contact.name
         ) {
             Text(stringResource(R.string.save))
@@ -80,7 +89,6 @@ internal fun PartnerManagement(
             stringResource(R.string.partner_contact_devices),
             style = MaterialTheme.typography.titleMedium
         )
-        Text(formatter.access(source.grants))
         source.devices.forEachIndexed { index, device ->
             Text(stringResource(R.string.partner_device_number, index + 1))
             device.verificationContext?.let { context ->
@@ -110,17 +118,31 @@ internal fun PartnerManagement(
             stringResource(R.string.partner_new_device_hint),
             style = MaterialTheme.typography.bodySmall
         )
-        FlowRow {
-            TextButton({
-                confirmAction = "REVOKE"
-            }, enabled = !busy) { Text(stringResource(R.string.partner_revoke)) }
-            TextButton({
-                confirmAction = "CLEAR"
-            }, enabled = !busy) { Text(stringResource(R.string.partner_clear)) }
-            TextButton({
-                confirmAction = "DELETE"
-            }, enabled = !busy) { Text(stringResource(R.string.partner_delete)) }
-        }
+        PartnerWideAction(
+            stringResource(R.string.partner_revoke),
+            !busy,
+            { confirmAction = "REVOKE" },
+            {
+                helpTitle = R.string.partner_revoke
+                helpBody = R.string.partner_revoke_hint
+            }
+        )
+        PartnerWideAction(
+            stringResource(R.string.partner_clear),
+            !busy,
+            { confirmAction = "CLEAR" },
+            {
+                helpTitle = R.string.partner_clear
+                helpBody = R.string.partner_clear_hint
+            }
+        )
+        PartnerWideAction(
+            stringResource(R.string.partner_delete),
+            !busy,
+            { confirmAction = "DELETE" },
+            container = Color(0xFFC94F67),
+            content = HomeColors.text
+        )
         if (contact.identities.size >
             1
         ) {
@@ -153,7 +175,6 @@ internal fun PartnerManagement(
             listOf(contact, second).forEach { item ->
                 Text(item.name, style = MaterialTheme.typography.titleMedium)
                 directory.identities.filter { it.id in item.identities }.forEach { person ->
-                    Text(formatter.access(person.grants))
                     Text(
                         formatter.comparison(
                             person.devices.size,
@@ -173,26 +194,22 @@ internal fun PartnerManagement(
                     name = it
                 }
             }, label = { Text(stringResource(R.string.partner_profile_name)) })
-            FlowRow {
-                TextButton(
-                    {
-                        group = false
-                        confirmAction = "MERGE"
-                    },
-                    enabled =
-                        name.isNotBlank() && !busy
-                ) { Text(stringResource(R.string.partner_merge)) }
-                TextButton(
-                    {
-                        group = true
-                        confirmAction = "MERGE"
-                    },
-                    enabled =
-                        name.isNotBlank() && !busy
-                ) {
-                    Text(stringResource(R.string.partner_create_group))
+            PartnerWideAction(
+                stringResource(R.string.partner_merge),
+                name.isNotBlank() && !busy,
+                {
+                    group = false
+                    confirmAction = "MERGE"
                 }
-            }
+            )
+            PartnerWideAction(
+                stringResource(R.string.partner_create_group),
+                name.isNotBlank() && !busy,
+                {
+                    group = true
+                    confirmAction = "MERGE"
+                }
+            )
         }
     }
     confirmAction?.let { action ->
@@ -231,7 +248,80 @@ internal fun PartnerManagement(
                 }
                 confirmAction = null
                 if (action in listOf("DELETE", "MERGE", "SPLIT")) dismiss()
-            }, enabled = !busy) { Text(stringResource(R.string.partner_continue)) }
+            }, Modifier.fillMaxWidth(), enabled = !busy) {
+                Text(stringResource(R.string.partner_continue))
+            }
         }
+    }
+    val shownTitle = helpTitle
+    val shownBody = helpBody
+    if (shownTitle != null && shownBody != null) {
+        PartnerModal(stringResource(shownTitle), {
+            helpTitle = null
+            helpBody = null
+        }, closeButton = true) {
+            Text(stringResource(shownBody))
+        }
+    }
+}
+
+@Composable
+private fun PartnerWideAction(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onHelp: (() -> Unit)? = null,
+    container: Color? = null,
+    content: Color? = null
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Button(
+            onClick,
+            Modifier.weight(1f),
+            enabled = enabled,
+            colors = if (container != null && content != null) {
+                ButtonDefaults.buttonColors(containerColor = container, contentColor = content)
+            } else {
+                ButtonDefaults.buttonColors()
+            }
+        ) { Text(label) }
+        if (onHelp != null) {
+            IconButton(onHelp) { Text("?") }
+        } else {
+            Spacer(Modifier.size(48.dp))
+        }
+    }
+}
+
+@Composable
+internal fun PartnerDeleteChoices(
+    contacts: List<PartnerContact>,
+    busy: Boolean,
+    dismiss: () -> Unit,
+    confirm: (Set<String>) -> Unit
+) {
+    var selected by remember { mutableStateOf(setOf<String>()) }
+    PartnerModal(stringResource(R.string.partner_delete), dismiss, closeButton = true) {
+        contacts.forEach { item ->
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    item.id in selected,
+                    { checked ->
+                        selected = if (checked) selected + item.id else selected - item.id
+                    },
+                    Modifier.testTag("partner-delete-choice-${item.id}"),
+                    enabled = !busy
+                )
+                Text(item.name)
+            }
+        }
+        Button(
+            { confirm(selected) },
+            Modifier.fillMaxWidth().testTag("partner-delete-confirm"),
+            enabled = !busy && selected.isNotEmpty()
+        ) { Text(stringResource(R.string.partner_continue)) }
     }
 }

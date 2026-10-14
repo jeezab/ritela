@@ -18,6 +18,6 @@
     <string name="partner_doodle_hint">Нарисуйте дудл, оставьте послание или подготовьте маленький сюрприз.</string>
     <string name="partner_your_devices">Экспорт и восстановление личности</string>
     <string name="partner_no_received_data">Сведения появятся здесь, когда вы получите обмен от партнёра.</string>
-    <string name="partner_contact_devices">Телефоны партнёра</string>
+    <string name="partner_contact_devices">Телефоны партнёра…</string>
     <string name="partner_device_number">Телефон %1$d</string>
 </resources>

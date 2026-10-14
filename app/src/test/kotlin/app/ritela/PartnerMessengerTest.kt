@@ -8,6 +8,8 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -29,6 +31,7 @@ import app.ritela.ui.HomeTheme
 import app.ritela.ui.LocalProfileSession
 import app.ritela.ui.PartnerChats
 import app.ritela.ui.PartnerConversation
+import app.ritela.ui.PartnerDeleteChoices
 import app.ritela.ui.PartnerFormatter
 import app.ritela.ui.PartnerMessageBubble
 import app.ritela.ui.PartnerScopeDialog
@@ -125,6 +128,27 @@ class PartnerMessengerTest {
         compose.onNodeWithTag("partner-list-menu").performClick()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_delete))
             .assertIsDisplayed()
+    }
+
+    @Test fun deleteChoicesRequireASelectionAndReturnTheCheckedPartners() {
+        val chosen = mutableStateOf(setOf<String>())
+        compose.activity.setContent {
+            HomeTheme {
+                PartnerDeleteChoices(
+                    listOf(
+                        PartnerContact("first", "Margo", setOf("a")),
+                        PartnerContact("second", "Alex", setOf("b"))
+                    ),
+                    false,
+                    {},
+                    { chosen.value = it }
+                )
+            }
+        }
+        compose.onNodeWithTag("partner-delete-confirm").assertIsNotEnabled()
+        compose.onNodeWithTag("partner-delete-choice-second").performClick()
+        compose.onNodeWithTag("partner-delete-confirm").assertIsEnabled().performClick()
+        assertEquals(setOf("second"), chosen.value)
     }
 
     @Test fun composerAndHeaderStayFixedWhileMessagesScrollAndActionsReferToSelectedPartner() {
