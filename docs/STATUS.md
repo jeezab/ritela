@@ -1,5 +1,9 @@
 # Точка продолжения
 
+2026-10-14: на главной в режиме партнёра имя единственного контакта больше не стоит на выключенной кнопке и не выглядит блеклым. Это обычный текст цвета HomeColors.text слева сверху. Если партнёров несколько, имя остаётся кнопкой выбора.
+
+Проверки: formatKotlin PASS; testDebugUnitTest --tests app.ritela.PartnerExperienceTest.singlePartnerNameUsesOrdinaryText --tests app.ritela.PartnerExperienceTest.homeChoiceIsIndependentOfChatAndUsesSharedOrbitWithArticles -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 2 tests. Проверены яркость имени одного партнёра и прежний выбор из двух. APK, lint и устройство не запускались. Следующий шаг — новый запрос. Завершённые шаги сохраняются локальным коммитом.
+
 2026-10-14: подписи hero-орбиты сдвинуты ближе к дуге без пересечения: «Лютеиновая фаза» слева сверху, «Фолликулярная фаза» справа снизу. Проверки: formatKotlin PASS; testDebugUnitTest --tests app.ritela.OrbitGeometryTest --tests app.ritela.OrbitDustInteractionTest --tests app.ritela.HomeScreenTest.flatOrbitLandmarksExplainPhasesAndDraggingOnlyChangesFocus --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS. Снимок `home-flat-orbit.png` обновлён. Устройство не проверялось. Шаг сохраняется локальным коммитом. Следующий шаг — новый запрос.
 
 2026-10-14: со скетчевых подписей hero-орбиты убраны стрелки. «Фолликулярная фаза» и «Лютеиновая фаза» остаются вне эллипса. Проверки: formatKotlin PASS; testDebugUnitTest --tests app.ritela.OrbitGeometryTest --tests app.ritela.OrbitDustInteractionTest --tests app.ritela.HomeScreenTest.flatOrbitLandmarksExplainPhasesAndDraggingOnlyChangesFocus --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS. Снимок `home-flat-orbit.png` обновлён и открыт. Устройство не проверялось. Входит в то же локальное сохранение подписей.
