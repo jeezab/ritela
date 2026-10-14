@@ -104,4 +104,18 @@ class OrbitGeometryTest {
         }
         assertTrue(OrbitMarker.END.progress > .9f)
     }
+
+    @Test fun phaseLabelsStayOutsideTheEllipse() {
+        val geometry = OrbitGeometry.inViewport(Size(350f, 228f), 32f)
+        for (width in listOf(90f, 160f)) {
+            val follicular = geometry.phaseCallout(350f, 228f, width, 18f, 8f, true)
+            val luteal = geometry.phaseCallout(350f, 228f, width, 18f, 8f, false)
+            assertTrue(follicular.x + width > geometry.center.x + geometry.horizontalRadius * .5f)
+            assertTrue(follicular.y > geometry.center.y)
+            assertTrue(luteal.x < geometry.center.x)
+            assertTrue(luteal.y + 18f < geometry.center.y)
+            assertTrue(geometry.labelClearsEllipse(follicular, width, 18f))
+            assertTrue(geometry.labelClearsEllipse(luteal, width, 18f))
+        }
+    }
 }

@@ -4,6 +4,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 
 /** One closed clockwise path starting at the top; drawing and hit testing share it. */
 internal class OrbitGeometry(
@@ -77,6 +80,65 @@ internal class OrbitGeometry(
             (point - position(progress)).getDistance() <= radius &&
             (point - position(from)).getDistance() >= radius * 1.25f &&
             (point - position(to)).getDistance() >= radius * 1.25f
+    }
+
+    /**
+     * Luteal sits at the upper left and follicular at the lower right.
+     * Each line is as close as its own width allows without crossing the ellipse.
+     */
+    fun phaseCallout(
+        canvasWidth: Float,
+        canvasHeight: Float,
+        textWidth: Float,
+        textHeight: Float,
+        gap: Float,
+        bottomRight: Boolean
+    ): Offset {
+        val margin = 2f
+        val width = textWidth.coerceAtMost((canvasWidth - margin * 2f).coerceAtLeast(1f))
+        val left = if (bottomRight) canvasWidth - width - margin else margin
+        val edge = curveEdge(left, left + width, bottomRight)
+        val preferred = if (bottomRight) edge + gap else edge - gap - textHeight
+        val fitted = preferred.coerceIn(0f, (canvasHeight - textHeight).coerceAtLeast(0f))
+        val top = if (labelClearsEllipse(Offset(left, fitted), width, textHeight)) {
+            fitted
+        } else {
+            preferred
+        }
+        return Offset(left, top)
+    }
+
+    /** True when every sample of the label box is outside the ellipse. */
+    fun labelClearsEllipse(topLeft: Offset, width: Float, height: Float): Boolean {
+        val steps = 8
+        for (ix in 0..steps) {
+            for (iy in 0..steps) {
+                val x = topLeft.x + width * ix / steps
+                val y = topLeft.y + height * iy / steps
+                val nx = (x - center.x) / horizontalRadius
+                val ny = (y - center.y) / verticalRadius
+                if (nx * nx + ny * ny <= 1f) return false
+            }
+        }
+        return true
+    }
+
+    private fun curveEdge(fromX: Float, toX: Float, below: Boolean): Float {
+        val orbitLeft = center.x - horizontalRadius
+        val orbitRight = center.x + horizontalRadius
+        val start = max(fromX, orbitLeft)
+        val end = min(toX, orbitRight)
+        if (start > end) return center.y + if (below) verticalRadius else -verticalRadius
+        var edge = if (below) Float.NEGATIVE_INFINITY else Float.POSITIVE_INFINITY
+        val steps = 24
+        for (index in 0..steps) {
+            val x = start + (end - start) * index / steps.toFloat()
+            val nx = (x - center.x) / horizontalRadius
+            val half = verticalRadius * sqrt((1f - nx * nx).coerceAtLeast(0f))
+            val y = center.y + if (below) half else -half
+            edge = if (below) max(edge, y) else min(edge, y)
+        }
+        return edge
     }
 
     companion object {

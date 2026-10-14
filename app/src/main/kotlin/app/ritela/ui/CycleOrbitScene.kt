@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -43,9 +44,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.ritela.R
 import kotlin.math.roundToInt
 
@@ -90,6 +96,42 @@ fun CycleOrbitScene(
     val hitRadius = with(density) { 24.dp.toPx() }
     val geometry = remember(viewport, inset) {
         OrbitGeometry.inViewport(Size(viewport.width.toFloat(), viewport.height.toFloat()), inset)
+    }
+    var follicularLabel by remember { mutableStateOf(IntSize.Zero) }
+    var lutealLabel by remember { mutableStateOf(IntSize.Zero) }
+    val showPhaseLabels = onScrub == null && viewport != IntSize.Zero
+    val labelGap = with(density) { 8.dp.toPx() }
+    val fallbackLabel = with(density) { Size(108.dp.toPx(), 18.dp.toPx()) }
+    fun labelSize(measured: IntSize) = if (measured == IntSize.Zero) {
+        fallbackLabel
+    } else {
+        Size(measured.width.toFloat(), measured.height.toFloat())
+    }
+    val follicularCallout = if (showPhaseLabels) {
+        val label = labelSize(follicularLabel)
+        geometry.phaseCallout(
+            viewport.width.toFloat(),
+            viewport.height.toFloat(),
+            label.width,
+            label.height,
+            labelGap,
+            bottomRight = true
+        )
+    } else {
+        null
+    }
+    val lutealCallout = if (showPhaseLabels) {
+        val label = labelSize(lutealLabel)
+        geometry.phaseCallout(
+            viewport.width.toFloat(),
+            viewport.height.toFloat(),
+            label.width,
+            label.height,
+            labelGap,
+            bottomRight = false
+        )
+    } else {
+        null
     }
     val scrub by rememberUpdatedState(onScrub)
     val openLabel = stringResource(R.string.orbit_open)
@@ -189,15 +231,16 @@ fun CycleOrbitScene(
                     }.values.any {
                         (it - active).getDistance() < 14f * unit
                     }
-                    fun band(from: Float, to: Float, start: Color, end: Color) =
+                    fun band(from: Float, to: Float, start: Color, end: Color, settle: Boolean) =
                         (1 until 42).map { index ->
                             val along = index / 42f
                             val place = from + (to - from) * along
+                            val fade = if (settle) 1f - along * .5f else 1f
                             OrbitDustParticle(
                                 geometry.position(place),
                                 lerp(start, end, along),
-                                1.45f * unit,
-                                dustFade(along)
+                                1.55f * unit,
+                                dustFade(along) * fade
                             )
                         }.filter {
                             (it.point - geometry.position(from)).getDistance() >= 13f * unit &&
@@ -206,13 +249,15 @@ fun CycleOrbitScene(
                     val dust = band(
                         OrbitMarker.START.progress,
                         ovulation,
-                        Color(0xFFF4BCD2),
-                        Color(0xFFD0EDBF)
+                        Color(0xFFE24B5C),
+                        Color(0xFF5FCF72),
+                        false
                     ) + band(
                         ovulation,
                         OrbitMarker.END.progress,
-                        Color(0xFFD0EDBF),
-                        Color(0xFFD64558)
+                        Color(0xFF5FCF72),
+                        Color(0xFFF6D7DE),
+                        true
                     )
                     val moonRadius = 8f * unit
                     val moonDisc = Path().apply {
@@ -278,14 +323,15 @@ fun CycleOrbitScene(
                         )
                         for (particle in dust) {
                             drawCircle(
-                                particle.color.copy(alpha = particle.alpha * .22f),
-                                particle.radius * 2.4f,
+                                particle.color.copy(alpha = particle.alpha * .34f),
+                                particle.radius * 2.5f,
                                 particle.point
                             )
                             drawCircle(
-                                particle.color.copy(alpha = particle.alpha * .92f),
+                                particle.color,
                                 particle.radius,
-                                particle.point
+                                particle.point,
+                                alpha = particle.alpha
                             )
                         }
                         drawLine(
@@ -357,6 +403,18 @@ fun CycleOrbitScene(
                     }
                 }
         ) {}
+        if (follicularCallout != null && lutealCallout != null) {
+            OrbitPhaseCaption(
+                stringResource(R.string.orbit_follicular),
+                "orbit-label-follicular",
+                follicularCallout
+            ) { follicularLabel = it }
+            OrbitPhaseCaption(
+                stringResource(R.string.orbit_luteal),
+                "orbit-label-luteal",
+                lutealCallout
+            ) { lutealLabel = it }
+        }
         androidx.compose.material3.Text(
             centerDay.toString(),
             Modifier.align(androidx.compose.ui.Alignment.Center).testTag("orbit-center-day")
@@ -393,6 +451,28 @@ fun CycleOrbitScene(
             )
         }
     }
+}
+
+@Composable
+private fun OrbitPhaseCaption(
+    text: String,
+    tag: String,
+    topLeft: Offset,
+    onSize: (IntSize) -> Unit
+) {
+    val script = remember { FontFamily(Font(R.font.caveat, FontWeight.Medium)) }
+    androidx.compose.material3.Text(
+        text,
+        Modifier.offset {
+            IntOffset(topLeft.x.roundToInt(), topLeft.y.roundToInt())
+        }.onSizeChanged(onSize).testTag(tag),
+        color = Color(0xFFF6E4D6).copy(alpha = .85f),
+        style = TextStyle(
+            fontFamily = script,
+            fontSize = 12.sp,
+            shadow = Shadow(Color(0x55C9A090), Offset(0f, 1f), 5f)
+        )
+    )
 }
 
 @Composable

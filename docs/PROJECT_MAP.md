@@ -8,7 +8,7 @@
 
 2026-10-13: ui/CalendarMonthFeed.kt — общий каркас календаря владельца и получателя. CalendarScreen передаёт собственную классификацию, PartnerReceivedCalendar — только полученный PartnerSnapshot. CalendarDesign делит общую легенду; история получателя только для чтения.
 
-2026-10-13, пыль орбиты: CycleOrbitScene рисует две простые дуги с dustFade. orbitOvulationProgress ставит жемчужину на день длина−14; orbitLandmarkProgress сдвигает лютеиновую кнопку между жемчужиной и луной. OrbitMarker.END = 0.92.
+2026-10-13, пыль орбиты: CycleOrbitScene рисует две простые дуги с dustFade. Фолликулярная — красный к зелёному, лютеиновая — зелёный к едва розовому. phaseCallout ставит подписи Caveat вне дуги: лютеиновую слева сверху, фолликулярную справа снизу; res/font/caveat.ttf. orbitOvulationProgress ставит жемчужину на день длина−14. OrbitMarker.END = 0.92.
 
 2026-10-13, список чатов: PartnerChats переключает PartnerDialogList и PartnerConversation. orderedDialogs сортирует контакты по последнему DATA/DOODLE. Прокрутка ленты хранится в SaveableStateHolder на время вкладки. BackHandler закрывает переписку. Статус шапки — partner_nearby только при activePeer.
 

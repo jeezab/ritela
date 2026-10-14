@@ -57,6 +57,8 @@ class OrbitDustInteractionTest {
         val bounds = compose.onNodeWithTag("orbit-canvas").fetchSemanticsNode().boundsInRoot
         val density = compose.activity.resources.displayMetrics.density
         val geometry = OrbitGeometry.inViewport(Size(bounds.width, bounds.height), 32f * density)
+        compose.onNodeWithTag("orbit-label-follicular").assertIsDisplayed()
+        compose.onNodeWithTag("orbit-label-luteal").assertIsDisplayed()
         for (progress in listOf(.12f, .3f)) {
             compose.onNodeWithTag("orbit-canvas").performTouchInput {
                 click(geometry.position(progress))
