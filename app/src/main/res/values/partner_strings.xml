@@ -11,7 +11,6 @@
     <string name="partner_receive">Receive via Bluetooth</string>
     <string name="partner_group">Shared view</string>
     <string name="partner_linked">Connection confirmed</string>
-    <string name="partner_disabled">Exchange disabled</string>
     <string name="partner_doodle">Doodle</string>
     <string name="partner_manage">Partner settings</string>
     <string name="partner_gallery">Our little messages</string>
