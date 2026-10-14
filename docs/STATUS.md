@@ -1,5 +1,7 @@
 # Точка продолжения
 
+2026-10-14: удалены неиспользуемые строки partner_connected и partner_disabled. Карточка «Дополнительно» больше их не показывает, поэтому lint UnusedResources останавливал сборку. Проверка: lintDebug --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS. Следующий шаг — новый запрос. Новый тег не создаётся.
+
 2026-10-14: «Дополнительно» открывает карточку с именем, кнопкой «Закрыть», строкой Bluetooth, телефонами через разделители и кодом проверки. «Настройки партнёра» — кнопка. Там сохранение, отзыв, очистка и объединение тоже кнопки одной ширины; у отзыва и очистки есть «?». Удаление контакта на карточке красное. Из меню списка удаление выбирает контакты галочками и подтверждает. Надпись про обход даты дудла убрана.
 
 Проверки: formatKotlin PASS; testDebugUnitTest --tests app.ritela.PartnerMessengerTest.dialogListOpensAChatAndBackRestoresItsScrollPosition --tests app.ritela.PartnerMessengerTest.composerAndHeaderStayFixedWhileMessagesScrollAndActionsReferToSelectedPartner --tests app.ritela.PartnerMessengerTest.deleteChoicesRequireASelectionAndReturnTheCheckedPartners -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 3 tests. Проверены список, «Дополнительно» и удаление только отмеченного контакта. APK, lint и устройство не запускались. Следующий шаг — новый запрос. Новый тег не создаётся.
