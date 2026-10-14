@@ -13,7 +13,7 @@
     <string name="partner_linked">Связь подтверждена</string>
     <string name="partner_disabled">Обмен отключён</string>
     <string name="partner_doodle">Дудл</string>
-    <string name="partner_manage">Управление партнёрами</string>
+    <string name="partner_manage">Настройки партнёра</string>
     <string name="partner_gallery">Наши послания</string>
     <string name="partner_received">Получено</string>
     <string name="partner_open_doodle">Открыть дудл</string>
@@ -24,6 +24,7 @@
     <string name="partner_transport">Отправить</string>
     <string name="partner_waiting_to_send">Послание ожидает отправки</string>
     <string name="partner_bluetooth">Bluetooth</string>
+    <string name="partner_no_bluetooth">Нет Bluetooth-подключения</string>
     <string name="partner_where">Где сейчас твоё сердечко?</string>
     <string name="partner_pair_android">Сначала сопрягите телефоны в настройках Bluetooth Android. На другом телефоне нажмите «Получить по Bluetooth». Сторону выбирает только отправитель.</string>
     <string name="partner_android_settings">Настройки Bluetooth</string>
@@ -38,7 +39,7 @@
     <string name="partner_selection">Выберите данные</string>
     <string name="partner_preview">Выбрано</string>
     <string name="partner_prepare">Отправить</string>
-    <string name="partner_allow_exchange">Разрешить обмен с этой личностью</string>
+    <string name="partner_allow_exchange">Разрешить обмен данными</string>
     <string name="partner_device_enabled">Доверять этому устройству</string>
     <string name="partner_new_device_hint">Чтобы добавить телефон, отдельно откройте его приглашение и проверьте код. При добавлении устройства доступ к данным нужно выдать заново.</string>
     <string name="partner_revoke">Отозвать доступ</string>
@@ -89,7 +90,6 @@
     <string name="partner_days">Дней</string>
     <string name="partner_hours">Часов</string>
     <string name="partner_minutes">Минут</string>
-    <string name="partner_doodle_limits">Открытие по дате — мягкое правило интерфейса. Изменение часов или приложения позволяет его обойти.</string>
     <string name="partner_waiting">Ждём соединения..</string>
     <string name="partner_connecting">Подключаемся</string>
     <string name="partner_transferring">Передаём с любовью</string>

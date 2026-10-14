@@ -290,7 +290,6 @@ internal fun DoodleEditor(
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall
             )
         }
-        Text(stringResource(R.string.partner_doodle_limits))
     }
     if (showDate) {
         PickDate(

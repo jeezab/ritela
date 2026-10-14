@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -43,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -133,7 +133,6 @@ fun PartnerScreen(padding: PaddingValues) {
     val session = LocalProfileSession.current ?: return
     val model = session.partnerModel
     val context = LocalContext.current
-    val resources = LocalResources.current
     val directory by model.directory.collectAsStateWithLifecycle()
     val messages by model.messages.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
@@ -163,6 +162,7 @@ fun PartnerScreen(padding: PaddingValues) {
     var drawing by remember { mutableStateOf(false) }
     var dataViewing by remember { mutableStateOf<PartnerMessage?>(null) }
     var profileViewing by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
     var managementAction by remember { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<PartnerMessage?>(null) }
     var opened by remember { mutableStateOf<String?>(null) }
@@ -299,21 +299,6 @@ fun PartnerScreen(padding: PaddingValues) {
         }
             ?: identity?.devices?.firstOrNull { it.enabled && it.mutualConfirmed }
     HomeTheme {
-        val statusId = if (contact == null) {
-            null
-        } else {
-            when {
-                identity?.exchangeEnabled != true -> R.string.partner_disabled
-                device == null -> R.string.partner_pending_connection
-                activePeer in contact.identities -> R.string.partner_connected
-                else -> null
-            }
-        }
-        val status = statusId?.let { stringResource(it) }.orEmpty()
-        val last = messages.firstOrNull {
-            it.identity in contact?.identities.orEmpty() && !it.outgoing &&
-                it.kind in setOf("DATA", "DOODLE", "ACK", "OPENED")
-        }
         val headerStatus = if (activePeer in openedContact?.identities.orEmpty()) {
             stringResource(R.string.partner_nearby)
         } else {
@@ -346,9 +331,10 @@ fun PartnerScreen(padding: PaddingValues) {
 
                         ConversationAction.VERIFY -> profileViewing = true
 
+                        ConversationAction.DELETE -> deleting = true
+
                         else -> {
                             managementAction = when (event) {
-                                ConversationAction.DELETE -> "DELETE"
                                 ConversationAction.MERGE -> "COMBINE"
                                 ConversationAction.GROUP -> "GROUP"
                                 else -> null
@@ -530,21 +516,36 @@ fun PartnerScreen(padding: PaddingValues) {
                 }
             }
             if (profileViewing) {
-                PartnerModal(contact?.name ?: source.name, { profileViewing = false }) {
-                    if (status.isNotEmpty()) Text(status)
+                val nearby = activePeer in (contact?.identities ?: setOf(source.id))
+                val codes = source.devices.mapNotNull { phone ->
+                    phone.verificationContext?.let { app.ritela.data.pairingCode(it) }
+                }
+                PartnerModal(
+                    contact?.name ?: source.name,
+                    { profileViewing = false },
+                    closeButton = true
+                ) {
+                    Text(
+                        stringResource(
+                            if (nearby) {
+                                R.string.partner_nearby
+                            } else {
+                                R.string.partner_no_bluetooth
+                            }
+                        ),
+                        color = HomeColors.muted
+                    )
                     if (contact?.group == true) Text(stringResource(R.string.partner_group))
-                    last?.let { Text(PartnerFormatter(resources).exchange(it.received)) }
                     if (identities.size > 1) {
                         identities.forEach { person ->
                             TextButton({
                                 identitySelection = person.id
                                 deviceSelection = null
-                            }) {
-                                Text(person.name)
-                            }
+                            }) { Text(person.name) }
                         }
                     }
                     source.devices.forEachIndexed { index, phone ->
+                        HorizontalDivider(color = HomeColors.border.copy(alpha = 0.45f))
                         Text(stringResource(R.string.partner_device_number, index + 1))
                         Text(
                             stringResource(
@@ -555,9 +556,6 @@ fun PartnerScreen(padding: PaddingValues) {
                                 }
                             )
                         )
-                        phone.verificationContext?.let { value ->
-                            Text(app.ritela.data.pairingCode(value))
-                        }
                         if (phone.enabled && phone.mutualConfirmed &&
                             source.devices.count { it.enabled && it.mutualConfirmed } > 1
                         ) {
@@ -566,18 +564,25 @@ fun PartnerScreen(padding: PaddingValues) {
                             }) { Text(stringResource(R.string.partner_select_phone)) }
                         }
                     }
+                    if (codes.isNotEmpty()) {
+                        HorizontalDivider(color = HomeColors.border.copy(alpha = 0.45f))
+                        Text(stringResource(R.string.partner_code_label))
+                        codes.forEach { Text(it) }
+                    }
                     if (source.devices.any { it.enabled && !it.mutualConfirmed }) {
                         Button({
                             profileViewing = false
                             model.resumePairing(source.id, profileName)
-                        }) {
+                        }, Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.partner_finish_connection))
                         }
                     }
-                    TextButton({
+                    Button({
                         profileViewing = false
                         manage = true
-                    }) { Text(stringResource(R.string.partner_manage)) }
+                    }, Modifier.fillMaxWidth().testTag("partner-open-settings")) {
+                        Text(stringResource(R.string.partner_manage))
+                    }
                 }
             }
             if (drawing &&
@@ -592,6 +597,12 @@ fun PartnerScreen(padding: PaddingValues) {
                 contact != null
             ) {
                 PartnerManagement(model, contact, source, { manage = false }, managementAction)
+            }
+            if (deleting) {
+                PartnerDeleteChoices(directory.contacts, busy, { deleting = false }) { ids ->
+                    model.run { ids.forEach { model.repository.remove(it) } }
+                    deleting = false
+                }
             }
         }
         dataViewing?.let { message ->

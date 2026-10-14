@@ -18,6 +18,6 @@
     <string name="partner_doodle_hint">Draw a doodle, leave a message or plan a little surprise.</string>
     <string name="partner_your_devices">Export and restore identity</string>
     <string name="partner_no_received_data">Shared information will appear here after you receive an exchange.</string>
-    <string name="partner_contact_devices">Their phones</string>
+    <string name="partner_contact_devices">Their phones…</string>
     <string name="partner_device_number">Phone %1$d</string>
 </resources>

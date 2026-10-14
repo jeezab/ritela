@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-14: PartnerDeleteChoices выбирает контакты галочками перед remove. PartnerManagement называет карточку «Настройки партнёра» и рисует действия кнопками. Карточка «Дополнительно» в PartnerScreen показывает телефоны и код.
+
 2026-10-14: PartnerDialogList показывает app_name тем же titleLarge 32 sp, что Home и Settings. partner_check_connection в меню переписки — «Дополнительно».
 
 2026-10-14: CalendarMonthFeed ставит стрелку у месяца. PartnerCalendarSummaries сворачивает легенду и показывает день цикла и фазу из снимка. MonthGrid красит FERTILE_ESTIMATE так же, как FERTILE_LIKELY. Шапка переписки не показывает пустой статус. SettingsScreen держит `v` + versionName в правом нижнем углу.
