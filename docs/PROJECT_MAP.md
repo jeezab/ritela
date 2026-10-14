@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-14: CalendarMonthFeed ставит стрелку у месяца. PartnerCalendarSummaries сворачивает легенду и показывает день цикла и фазу из снимка. MonthGrid красит FERTILE_ESTIMATE так же, как FERTILE_LIKELY. Шапка переписки не показывает пустой статус. SettingsScreen держит `v` + versionName в правом нижнем углу.
+
 2026-10-14: PartnerHome показывает имя единственного контакта обычным текстом HomeColors.text. Кнопка выбора остаётся только при нескольких контактах.
 
 2026-10-13: PartnerSettings включает PartnerSecuritySettings в общую SettingsGroup режима приложения. SettingsGroup поддерживает modifier; служебные действия — OutlinedButton. PartnerControlsTest проверяет общий контейнер и действия при 200%. OrbitGeometry делит проекцию/защиту концов дуг для обеих кликабельных полос пыли; CycleOrbitScene рисует только солнце, овуляцию и луну как landmarks, оставляя доступные кнопки фаз.

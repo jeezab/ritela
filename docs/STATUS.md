@@ -1,5 +1,9 @@
 # Точка продолжения
 
+2026-10-14: в обоих календарях справа от месяца и года стоит маленькая стрелка. Календарь партнёра сворачивает легенду той же стрелкой и, если снимок это содержит, показывает день цикла и фазу. Оценка фертильности красится так же, как вероятная: бледно-зелёная заливка и тёмный текст. «Нет подключения» убрано из шапки и профиля; «Рядом» остаётся при активном Bluetooth. В настройках справа снизу тихий текст версии, сейчас v0.3.8.
+
+Проверки: formatKotlin PASS; testDebugUnitTest --tests app.ritela.PartnerExperienceTest.calendarFertilityUsesReceivedOvulationAndOrdinaryDayHasNoStatusOrPlaceholder --tests app.ritela.HomeScreenTest.renderSettingsWithHomeDesignSystem -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 2 tests. Проверены стрелка месяца, карточка дня и фазы, сворачивание, бледно-зелёная заливка с тёмным текстом и подпись v + versionName. APK, lint и устройство не запускались. Следующий шаг — новый запрос.
+
 2026-10-14: на главной в режиме партнёра имя единственного контакта больше не стоит на выключенной кнопке и не выглядит блеклым. Это обычный текст цвета HomeColors.text слева сверху. Если партнёров несколько, имя остаётся кнопкой выбора.
 
 Проверки: formatKotlin PASS; testDebugUnitTest --tests app.ritela.PartnerExperienceTest.singlePartnerNameUsesOrdinaryText --tests app.ritela.PartnerExperienceTest.homeChoiceIsIndependentOfChatAndUsesSharedOrbitWithArticles -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 2 tests. Проверены яркость имени одного партнёра и прежний выбор из двух. APK, lint и устройство не запускались. Следующий шаг — новый запрос. Завершённые шаги сохраняются локальным коммитом.

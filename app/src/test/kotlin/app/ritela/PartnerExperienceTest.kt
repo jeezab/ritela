@@ -170,6 +170,16 @@ class PartnerExperienceTest {
         compose.activity.setContent { HomeTheme { PartnerReceivedCalendar(data) } }
         compose.onNodeWithTag("orbit-open").assertDoesNotExist()
         compose.onNodeWithTag("orbit-center-day", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("month-selector-chevron", useUnmergedTree = true)
+            .assertIsDisplayed()
+        val cycleDay = compose.activity.getString(R.string.orbit_focus_day, 8)
+        compose.onNodeWithTag("calendar-summaries-toggle").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(cycleDay).assertIsDisplayed()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.phase_ovulation_name)
+        ).assertIsDisplayed()
+        compose.onNodeWithTag("calendar-summaries-toggle").performClick()
+        compose.onNodeWithText(cycleDay).assertDoesNotExist()
         compose.onNodeWithTag("month-selector").performClick()
         compose.onNodeWithTag("select-month-${today.monthValue}").performClick()
         compose.onNodeWithTag("calendar-today").performClick()
@@ -190,6 +200,21 @@ class PartnerExperienceTest {
         val fertile = today.plusDays(1)
         compose.onNodeWithTag("partner-received-calendar")
             .performScrollToNode(hasTestTag("partner-calendar-day-$fertile"))
+        val cell = compose.onNodeWithTag("partner-calendar-day-$fertile").captureToImage()
+            .asAndroidBitmap()
+        var paleGreen = false
+        var ink = false
+        for (y in 0 until cell.height) {
+            for (x in 0 until cell.width) {
+                val pixel = cell.getPixel(x, y)
+                val red = pixel shr 16 and 255
+                val green = pixel shr 8 and 255
+                val blue = pixel and 255
+                if (red in 210..240 && green in 225..250 && blue in 195..230) paleGreen = true
+                if (red in 35..75 && green in 30..70 && blue in 35..75) ink = true
+            }
+        }
+        assertTrue(paleGreen && ink)
         compose.onNodeWithTag("partner-calendar-day-$fertile").performClick()
         compose.onNodeWithTag("partner-day-status")
             .assertTextEquals(compose.activity.getString(R.string.selected_day_fertile))
