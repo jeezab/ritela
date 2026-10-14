@@ -53,6 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.ritela.R
 import app.ritela.data.PartnerCodec
 import app.ritela.data.PartnerMessage
@@ -154,16 +155,17 @@ internal fun PartnerDialogList(
     val menuLabel = stringResource(R.string.partner_chat_menu)
     val dialogs = remember(contacts, messages) { orderedDialogs(contacts, messages) }
     Column(modifier.fillMaxSize().background(HomeColors.background)) {
-        Surface(color = HomeColors.top) {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    stringResource(R.string.partner_title),
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge
-                )
+        Box(
+            Modifier.fillMaxWidth().padding(horizontal = HomeSpacing.gutter)
+                .padding(top = HomeSpacing.gutter, bottom = HomeSpacing.gap)
+        ) {
+            Text(
+                stringResource(R.string.app_name),
+                Modifier.align(Alignment.TopStart).padding(end = 96.dp),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 32.sp),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Row(Modifier.align(Alignment.TopEnd)) {
                 IconButton(
                     { action(ConversationAction.ADD) },
                     Modifier.testTag("partner-list-add"),

@@ -1,5 +1,9 @@
 # Точка продолжения
 
+2026-10-14: список вкладки «Партнёр» начинается с «Ritela» тем же шрифтом 32 sp и тем же верхним отступом, что главная и настройки. В меню открытого чата пункт называется «Дополнительно» и по-прежнему проверяет связь. Подпись вкладки внизу остаётся «Партнёр».
+
+Проверки: formatKotlin PASS; testDebugUnitTest --tests app.ritela.PartnerMessengerTest.dialogListOpensAChatAndBackRestoresItsScrollPosition --tests app.ritela.PartnerMessengerTest.composerAndHeaderStayFixedWhileMessagesScrollAndActionsReferToSelectedPartner -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 2 tests. Проверены надпись Ritela, отсутствие прежнего заголовка, открытие чата и пункт «Дополнительно». APK, lint и устройство не запускались. Следующий шаг — новый запрос. Новый тег не создаётся.
+
 2026-10-14: в обоих календарях справа от месяца и года стоит маленькая стрелка. Календарь партнёра сворачивает легенду той же стрелкой и, если снимок это содержит, показывает день цикла и фазу. Оценка фертильности красится так же, как вероятная: бледно-зелёная заливка и тёмный текст. «Нет подключения» убрано из шапки и профиля; «Рядом» остаётся при активном Bluetooth. В настройках справа снизу тихий текст версии, сейчас v0.3.8.
 
 Проверки: formatKotlin PASS; testDebugUnitTest --tests app.ritela.PartnerExperienceTest.calendarFertilityUsesReceivedOvulationAndOrdinaryDayHasNoStatusOrPlaceholder --tests app.ritela.HomeScreenTest.renderSettingsWithHomeDesignSystem -Pritela.skipScreenshots=true --max-workers=1 --no-parallel --no-daemon -Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" PASS, 2 tests. Проверены стрелка месяца, карточка дня и фазы, сворачивание, бледно-зелёная заливка с тёмным текстом и подпись v + versionName. APK, lint и устройство не запускались. Следующий шаг — новый запрос.

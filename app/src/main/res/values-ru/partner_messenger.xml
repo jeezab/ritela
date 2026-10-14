@@ -15,7 +15,7 @@
     <string name="partner_data_recorded">Переданные данные (запись от %1$s)</string>
     <string name="partner_choose_channel">Отправить</string>
     <string name="partner_prepare_file">Файл</string>
-    <string name="partner_check_connection">Проверить связь</string>
+    <string name="partner_check_connection">Дополнительно</string>
     <string name="partner_select_phone">Использовать этот телефон</string>
     <string name="partner_dismiss_error">Закрыть</string>
     <string name="partner_chat_periods">Записи месячных: %1$d</string>
