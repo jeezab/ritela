@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -31,6 +33,7 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -83,6 +86,29 @@ class PartnerExperienceTest {
                 )
             )
     )
+
+    @Test fun singlePartnerNameUsesOrdinaryText() {
+        compose.activity.setContent {
+            PartnerHomeContent(
+                PaddingValues(),
+                listOf(PartnerContact("only", "Alex", setOf("a"))),
+                PartnerContact("only", "Alex", setOf("a")),
+                null,
+                {},
+                {},
+                {}
+            )
+        }
+        val image = compose.onNodeWithTag("partner-home-selector").assertTextEquals("Alex")
+            .captureToImage().asAndroidBitmap()
+        var bright = false
+        for (y in 0 until image.height) {
+            for (x in 0 until image.width) {
+                if ((image.getPixel(x, y) shr 16 and 255) > 220) bright = true
+            }
+        }
+        assertTrue(bright)
+    }
 
     @Test fun homeChoiceIsIndependentOfChatAndUsesSharedOrbitWithArticles() {
         val prefs = PartnerPreferences(compose.activity, UUID.randomUUID().toString())

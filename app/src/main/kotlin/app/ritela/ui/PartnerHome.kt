@@ -72,17 +72,18 @@ internal fun PartnerHomeContent(
             verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
         ) {
             androidx.compose.foundation.layout.Box {
-                TextButton(
-                    { choosing = true },
-                    enabled = contacts.size > 1,
-                    modifier = Modifier.testTag("partner-home-selector")
-                ) {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text(
-                            contact?.name ?: stringResource(R.string.partner_title),
-                            style = MaterialTheme.typography.headlineLarge
-                        )
-                        if (contacts.size > 1) {
+                val name = contact?.name ?: stringResource(R.string.partner_title)
+                if (contacts.size > 1) {
+                    TextButton(
+                        { choosing = true },
+                        modifier = Modifier.testTag("partner-home-selector")
+                    ) {
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Text(
+                                name,
+                                color = HomeColors.text,
+                                style = MaterialTheme.typography.headlineLarge
+                            )
                             Icon(
                                 painterResource(R.drawable.ic_chevron_down),
                                 stringResource(R.string.partner_choose_home),
@@ -90,6 +91,13 @@ internal fun PartnerHomeContent(
                             )
                         }
                     }
+                } else {
+                    Text(
+                        name,
+                        Modifier.testTag("partner-home-selector"),
+                        color = HomeColors.text,
+                        style = MaterialTheme.typography.headlineLarge
+                    )
                 }
                 DropdownMenu(choosing, { choosing = false }) {
                     contacts.forEach { candidate ->
