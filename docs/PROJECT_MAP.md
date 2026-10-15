@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-15: [architecture/RITELA_SYNC_PLAN.md](architecture/RITELA_SYNC_PLAN.md) — аудит текущего partner-протокола и предложение необязательного Ritela Sync через Workers/D1: журнал изменений, разрешения, очередь, E2E, API/схема relay, лимиты и восемь этапов. Это план для согласования, а не реализованные модули; Android и облако не менялись.
+
 2026-10-15: CycleOrbitScene разделяет подписи 18 sp и рисованные стрелки между hero и подробной орбитой. SettingsScreen располагает версию в конце прокручиваемой колонки под WithLoveButton. LoveTapSequence ограничивает интервал 500 мс; UserSettings оборачивает каждый профиль в SettingsGroup. HomeScreen больше не показывает privacy_description.
 
 2026-10-14: PartnerDeleteChoices выбирает контакты галочками перед remove. PartnerManagement называет карточку «Настройки партнёра» и рисует действия кнопками. Карточка «Дополнительно» в PartnerScreen показывает телефоны и код.
