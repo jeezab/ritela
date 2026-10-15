@@ -5,7 +5,9 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.ritela.data.sync.SyncAuthorityRow
+import app.ritela.data.sync.SyncCapabilityRow
 import app.ritela.data.sync.SyncChangeRow
+import app.ritela.data.sync.SyncInboxRow
 import app.ritela.data.sync.SyncJournalDao
 import app.ritela.data.sync.SyncJournalStateRow
 import app.ritela.data.sync.SyncLinkProgressRow
@@ -14,6 +16,10 @@ import app.ritela.data.sync.SyncOutboxRow
 import app.ritela.data.sync.SyncProfileStateRow
 import app.ritela.data.sync.SyncProjectionRow
 import app.ritela.data.sync.SyncQueueDao
+import app.ritela.data.sync.SyncReceiveDao
+import app.ritela.data.sync.SyncReceivedAuthorRow
+import app.ritela.data.sync.SyncReceivedRecordRow
+import app.ritela.data.sync.SyncReceivedStateRow
 import app.ritela.data.sync.SyncRecordVersionRow
 import app.ritela.data.sync.SyncStateDao
 
@@ -27,9 +33,13 @@ import app.ritela.data.sync.SyncStateDao
         SyncProfileStateRow::class, SyncAuthorityRow::class,
         SyncRecordVersionRow::class, SyncLinkRow::class,
         SyncChangeRow::class, SyncJournalStateRow::class, SyncLinkProgressRow::class,
-        SyncOutboxRow::class, SyncProjectionRow::class
+        SyncOutboxRow::class, SyncProjectionRow::class,
+        SyncCapabilityRow::class, SyncReceivedAuthorRow::class, SyncReceivedStateRow::class,
+        SyncReceivedRecordRow::class, SyncInboxRow::class,
+        app.ritela.data.sync.SyncDoodleReceiptRow::class,
+        app.ritela.data.sync.SyncHandoverRow::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class RitelaDatabase : RoomDatabase() {
@@ -42,8 +52,81 @@ abstract class RitelaDatabase : RoomDatabase() {
     abstract fun syncState(): SyncStateDao
     abstract fun syncJournal(): SyncJournalDao
     abstract fun syncQueue(): SyncQueueDao
+    abstract fun syncReceive(): SyncReceiveDao
 
     companion object {
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_handover " +
+                        "(id INTEGER NOT NULL, proposal TEXT NOT NULL, grant TEXT NOT NULL, PRIMARY KEY(id))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_doodle_receipts " +
+                        "(id TEXT NOT NULL, PRIMARY KEY(id))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_capabilities (" +
+                        "identity TEXT NOT NULL, " +
+                        "device TEXT NOT NULL, " +
+                        "context TEXT NOT NULL, " +
+                        "offered INTEGER NOT NULL, " +
+                        "accepted INTEGER NOT NULL, " +
+                        "PRIMARY KEY(identity,device))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_received_author (" +
+                        "identity TEXT NOT NULL, " +
+                        "device TEXT NOT NULL, " +
+                        "generation INTEGER NOT NULL, " +
+                        "digest TEXT NOT NULL, " +
+                        "grant TEXT NOT NULL, " +
+                        "PRIMARY KEY(identity))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_received_state (" +
+                        "identity TEXT NOT NULL, " +
+                        "generation INTEGER NOT NULL, " +
+                        "epoch INTEGER NOT NULL, " +
+                        "sequence INTEGER NOT NULL, " +
+                        "scope TEXT NOT NULL, snapshot TEXT NOT NULL, " +
+                        "received INTEGER NOT NULL, " +
+                        "PRIMARY KEY(identity))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_received_records (" +
+                        "identity TEXT NOT NULL, " +
+                        "type TEXT NOT NULL, " +
+                        "`key` TEXT NOT NULL, " +
+                        "revision INTEGER NOT NULL, " +
+                        "value TEXT, " +
+                        "PRIMARY KEY(identity,type,`key`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_inbox (" +
+                        "id TEXT NOT NULL, " +
+                        "identity TEXT NOT NULL, " +
+                        "device TEXT NOT NULL, " +
+                        "digest TEXT NOT NULL, " +
+                        "generation INTEGER NOT NULL, " +
+                        "epoch INTEGER NOT NULL, " +
+                        "sequence INTEGER NOT NULL, " +
+                        "payload TEXT NOT NULL, " +
+                        "received INTEGER NOT NULL, " +
+                        "applied INTEGER NOT NULL, " +
+                        "PRIMARY KEY(id))"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX index_sync_inbox_identity_generation_epoch_sequence " +
+                        "ON sync_inbox(identity,generation,epoch,sequence)"
+                )
+                db.execSQL(
+                    "CREATE INDEX index_sync_inbox_identity_applied_sequence " +
+                        "ON sync_inbox(identity,applied,sequence)"
+                )
+            }
+        }
+
         val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(

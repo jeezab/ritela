@@ -8,6 +8,9 @@ import androidx.room.Transaction
 
 @Dao
 abstract class SyncStateDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun saveAuthority(row: SyncAuthorityRow)
+
     @Query("SELECT * FROM sync_profile_state ORDER BY id")
     abstract suspend fun profileStates(): List<SyncProfileStateRow>
 

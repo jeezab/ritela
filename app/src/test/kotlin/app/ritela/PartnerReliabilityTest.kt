@@ -247,7 +247,8 @@ class PartnerReliabilityTest {
             RitelaDatabase.MIGRATION_4_5,
             RitelaDatabase.MIGRATION_5_6,
             RitelaDatabase.MIGRATION_6_7,
-            RitelaDatabase.MIGRATION_7_8
+            RitelaDatabase.MIGRATION_7_8,
+            RitelaDatabase.MIGRATION_8_9
         ).build()
         try {
             assertEquals("ru", upgraded.profileSettings().snapshot()?.language)
