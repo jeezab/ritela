@@ -59,6 +59,7 @@ class PartnerRepository(
             ?: PartnerDirectory()
     }
     private val syncApply = SyncApplyRepository(database, ::validateData)
+    private val syncMessages = app.ritela.data.sync.SyncMessageQueue(database)
     val messages = combine(dao.messages(), database.syncReceive().states()) { history, states ->
         history + states.map {
             PartnerMessage(
@@ -151,6 +152,7 @@ class PartnerRepository(
                 database.withTransaction {
                     val message = requireNotNull(dao.message(id))
                     require(message.kind in setOf("DATA", "DOODLE"))
+                    syncMessages.cancel(id)
                     rememberDoodle(message)
                     if (eraseSharedData || !message.hasSharedData()) dao.erase(id) else dao.hide(id)
                 }
@@ -171,6 +173,8 @@ class PartnerRepository(
     private suspend fun mutate(change: (PartnerDirectory) -> PartnerDirectory) = mutex.withLock {
         database.withTransaction {
             dao.save(PartnerDirectoryRow(json = PartnerCodec.directory(change(snapshot()))))
+            syncMessages.pending()
+            Unit
         }
     }
     suspend fun invitation(name: String, target: PairInvitation? = null): String {
@@ -525,7 +529,7 @@ class PartnerRepository(
         return prepare(identity, device, "DATA", preview(normalized), normalized)
     }
     suspend fun prepareDoodle(identity: String, device: String, doodle: Doodle): PartnerMessage =
-        prepare(identity, device, "DOODLE", PartnerCodec.doodle(doodle))
+        prepare(identity, device, "DOODLE", PartnerCodec.doodle(doodle), queueIntent = true)
 
     /** Called only after the user confirms the recipient and preview for this exchange. */
     suspend fun confirmData(
@@ -542,7 +546,8 @@ class PartnerRepository(
         selection,
         confirmed = true,
         note = note,
-        doodle = doodle
+        doodle = doodle,
+        queueIntent = true
     )
     private suspend fun prepare(
         identity: String,
@@ -553,7 +558,8 @@ class PartnerRepository(
         confirmed: Boolean = false,
         note: String = "",
         doodle: Doodle? = null,
-        packetId: String? = null
+        packetId: String? = null,
+        queueIntent: Boolean = false
     ): PartnerMessage = withContext(Dispatchers.IO) {
         run {
             database.withTransaction {
@@ -649,6 +655,7 @@ class PartnerRepository(
                             )
                         )
                     }
+                    if (queueIntent) syncMessages.offer(it)
                 }
             }
         }
@@ -771,6 +778,7 @@ class PartnerRepository(
                         }
                     } else if (kind == "ACK") {
                         dao.delivered(original.id)
+                        syncMessages.acknowledged(original.id, sender.id, device.id)
                     } else {
                         require(
                             original.kind == "DOODLE" ||
@@ -785,6 +793,7 @@ class PartnerRepository(
                         )
                         dao.delivered(original.id)
                         dao.opened(original.id)
+                        syncMessages.acknowledged(original.id, sender.id, device.id)
                     }
                 }
                 val message =
@@ -817,7 +826,20 @@ class PartnerRepository(
                 org.json.JSONArray(ids)
             )
         }
-        return prepare(message.identity, message.device, "ACK", content)
+        return database.withTransaction {
+            val pending = syncMessages.pending().map { it.id }.toSet()
+            val previous = dao.history(message.identity).firstOrNull {
+                it.outgoing && it.kind == "ACK" && it.device == message.device &&
+                    it.id in pending && !it.hiddenFromChat && it.envelope.isNotEmpty() &&
+                    it.body == content.toString()
+            }
+            if (previous != null) {
+                syncMessages.offer(previous)
+                previous
+            } else {
+                prepare(message.identity, message.device, "ACK", content, queueIntent = true)
+            }
+        }
     }
     private val openingMutex = Mutex()
     suspend fun openDoodle(id: String, reply: Boolean = true): PartnerMessage? =
@@ -857,7 +879,8 @@ class PartnerRepository(
                         message.identity,
                         message.device,
                         "OPENED",
-                        JSONObject().put("message", id)
+                        JSONObject().put("message", id),
+                        queueIntent = true
                     )
                 } else {
                     null

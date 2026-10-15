@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-15: начат этап 6 — `data/sync/SyncMessageQueue.kt` (Room intent/DAO/consent/context/limits/reconcile), `PartnerRepository.kt` (атомарная постановка подтверждённых DATA/DOODLE и ACK/OPENED, отзыв/удаление/E2E status), `SyncMessageQueueTest.kt`. Room 10/MIGRATION_9_10/schema 10.json добавляет только sync_message_intents; 22 прежние entities сохранены. Все migration builders/tests обновлены, 1…9→10 и rollback из 6/7/8/9. Runtime HTTP и WorkManager из этапа 5 ещё не подключены. [Границы и продолжение этапа 6](architecture/RITELA_SYNC_STAGE_6.md).
+
 2026-10-15: начат этап 5 — `data/sync/HttpRelayTransport.kt`: явный HTTPS origin allowlist, подписанные upload/control/fetch/storage ACK, bounded/cancellable HttpsURLConnection и strict page validation; `HttpRelayTransportTest.kt` — synthetic protocol/consent/cancellation/error tests без внешней сети. Пока не подключён к приложению/WorkManager, INTERNET permission отсутствует, Room 9 прежняя. Точная точка продолжения — [этап 5](architecture/RITELA_SYNC_STAGE_5.md).
 
 2026-10-15: локальный этап 4 — `relay/` (Worker/WebCrypto/D1, миграция, роли/квоты/author fencing/cleanup и 16 tests); `data/sync/PartnerEnvelopeCrypto.kt`, `RelayKeyVault.kt`, `RelayRequestAuth.kt`, `RelayTransportCertificate.kt` — отдельные Tink HPKE/API keys и подписанный transport binding; `RelayCryptoTest.kt` — 4 Android crypto/vault/vector tests. Room 9 не менялась, runtime Internet ещё не подключён. [Результат и ограничения](architecture/RITELA_SYNC_STAGE_4.md), [локальные команды relay](../relay/README.md).

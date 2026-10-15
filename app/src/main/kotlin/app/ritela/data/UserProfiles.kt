@@ -170,7 +170,8 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
         RitelaDatabase.MIGRATION_5_6,
         RitelaDatabase.MIGRATION_6_7,
         RitelaDatabase.MIGRATION_7_8,
-        RitelaDatabase.MIGRATION_8_9
+        RitelaDatabase.MIGRATION_8_9,
+        RitelaDatabase.MIGRATION_9_10
     ).build()
     val periods = PeriodRepository(database.periods())
     val days = DayLogRepository(database.dayLogs())
