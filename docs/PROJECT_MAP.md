@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-15: [architecture/RITELA_SYNC_STAGE_1.md](architecture/RITELA_SYNC_STAGE_1.md) — рабочий план только моделей/инвариантов, четырёх служебных Room-таблиц, миграции 6→7 и тестов сохранности; код не создан. Основной Sync-план уточняет delivery, author fencing/recovery, Tink HPKE, pilot registration, отзыв/удаление и лимиты; архитектура принята за основу, реализация ожидает согласования.
+
 2026-10-15: [architecture/RITELA_SYNC_PLAN.md](architecture/RITELA_SYNC_PLAN.md) — аудит текущего partner-протокола и предложение необязательного Ritela Sync через Workers/D1: журнал изменений, разрешения, очередь, E2E, API/схема relay, лимиты и восемь этапов. Это план для согласования, а не реализованные модули; Android и облако не менялись.
 
 2026-10-15: CycleOrbitScene разделяет подписи 18 sp и рисованные стрелки между hero и подробной орбитой. SettingsScreen располагает версию в конце прокручиваемой колонки под WithLoveButton. LoveTapSequence ограничивает интервал 500 мс; UserSettings оборачивает каждый профиль в SettingsGroup. HomeScreen больше не показывает privacy_description.
