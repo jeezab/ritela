@@ -47,7 +47,7 @@ class PartnerMessageDeletionTest {
         1
     )
     private fun db(name: String) = Room.databaseBuilder(context, RitelaDatabase::class.java, name)
-        .addMigrations(RitelaDatabase.MIGRATION_5_6).build()
+        .addMigrations(RitelaDatabase.MIGRATION_5_6, RitelaDatabase.MIGRATION_6_7).build()
 
     @Test fun hidingAndErasingSurviveRestartAndReplayWithoutChangingOwnRecords() = runBlocking {
         val nameA = "delete-a-${UUID.randomUUID()}.db"
@@ -168,7 +168,7 @@ class PartnerMessageDeletionTest {
         }
     }
 
-    @Test fun migrationFiveToSixPreservesMessagesAndDefaultsToVisible() = runBlocking {
+    @Test fun migrationFiveToCurrentPreservesMessagesAndDefaultsToVisible() = runBlocking {
         val name = "migration-six-${UUID.randomUUID()}.db"
         val path = context.getDatabasePath(name).apply { parentFile?.mkdirs() }
         val schema = JSONObject(

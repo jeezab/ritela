@@ -50,7 +50,9 @@ data class AuthorAuthority(
             require(state != AuthorityState.UNINITIALIZED) { INVALID_SYNC_METADATA }
             require(syncIdentity(ownerIdentity) && syncUuid(authorDevice)) { INVALID_SYNC_METADATA }
             require(syncDigest(grantDigest) && !grantJson.isNullOrBlank()) { INVALID_SYNC_METADATA }
-            require(grantJson.length <= SyncLimits.GRANT_BYTES) { INVALID_SYNC_METADATA }
+            require(grantJson.toByteArray(Charsets.UTF_8).size <= SyncLimits.GRANT_BYTES) {
+                INVALID_SYNC_METADATA
+            }
             require(transitionId == null || syncUuid(transitionId)) { INVALID_SYNC_METADATA }
             require(previousGrantDigest == null || syncDigest(previousGrantDigest)) {
                 INVALID_SYNC_METADATA
@@ -74,7 +76,11 @@ data class SyncRecordKey(val ownerIdentity: String, val type: SyncEntityType, va
                     it.toString() == key && it in -25567L..376199L
                 } == true
 
-                SyncEntityType.JOURNAL_SECTION, SyncEntityType.JOURNAL_TAG -> validJournalId(key)
+                SyncEntityType.JOURNAL_SECTION -> validJournalId(key)
+
+                SyncEntityType.JOURNAL_TAG -> key.split('/').let {
+                    it.size == 2 && it.all(::validJournalId)
+                }
 
                 SyncEntityType.FORECAST -> key == "current"
             }

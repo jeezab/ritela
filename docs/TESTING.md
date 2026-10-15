@@ -1,5 +1,9 @@
 # Проверки
 
+Этап 1 Sync (Room 7): `SyncModelsTest`, `SyncStateStoreTest`, `SyncMigrationTest`, `SyncCompatibilityTest`. Проверяют overflow/consent/author invariants и отдельный internet Doodle budget; fail-closed metadata, атомарные defaults, все пути Room 1…6→7, fresh/migrated schema, rollback/retry, профильную изоляцию, старые encrypted packets/ACK/OPENED/tombstones и сохранность файлов vault/DataStore/15-item doodle library. `SyncTestDatabases.kt` создаёт file-backed legacy fixtures из сохранённых schema JSON. Библиотека рисунков для compatibility test предварительно записана в существующем v1 формате и перечитана до upgrade; тест не полагается на особенности повторного AtomicFile replace на Windows-хосте.
+
+Целевой прогон: `& ./scripts/gradle.ps1 testDebugUnitTest '--tests' 'app.ritela.Sync*Test' '--tests' 'app.ritela.UserProfilesTest' '--tests' 'app.ritela.DayLogBackupTest' '--tests' 'app.ritela.PartnerTest' '--tests' 'app.ritela.PartnerVaultTest' '--tests' 'app.ritela.PartnerPairingTest' '--tests' 'app.ritela.PartnerInvitationsTest' '--tests' 'app.ritela.PartnerReliabilityTest' '--tests' 'app.ritela.PartnerShareSelectionTest' '--tests' 'app.ritela.PartnerMessageDeletionTest' '-Pritela.skipScreenshots=true'`. Вместе с checkKotlin/assembleDebug/lintDebug и verify-apk это storage milestone; UI/PNG/эмулятор не требуются. JVM-тесты не подтверждают физическое Bluetooth-соединение и будущий distributed author fencing. Сеть/Cloudflare на этом этапе отсутствуют.
+
 Если пользователь просит проверить взаимодействия без генерации PNG, передай Gradle `'-Pritela.skipScreenshots=true'` в PowerShell (в кавычках). HomeScreenTest пропускает только сохранение изображений, все assertions остаются; по умолчанию false, поэтому CI продолжает генерировать прежние артефакты. Новые DaySelectionUiTest/PeriodEntryUiTest не сохраняют PNG. Не использовать флаг для заявленной визуальной проверки.
 
 Windows, из корня проекта:

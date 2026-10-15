@@ -4,6 +4,11 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import app.ritela.data.sync.SyncAuthorityRow
+import app.ritela.data.sync.SyncLinkRow
+import app.ritela.data.sync.SyncProfileStateRow
+import app.ritela.data.sync.SyncRecordVersionRow
+import app.ritela.data.sync.SyncStateDao
 
 @Database(
     entities = [
@@ -11,9 +16,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DayLogEntity::class,
         JournalLayoutEntity::class,
         ProfileSettings::class,
-        PartnerDirectoryRow::class, PartnerMessage::class
+        PartnerDirectoryRow::class, PartnerMessage::class,
+        SyncProfileStateRow::class, SyncAuthorityRow::class,
+        SyncRecordVersionRow::class, SyncLinkRow::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class RitelaDatabase : RoomDatabase() {
@@ -23,8 +30,51 @@ abstract class RitelaDatabase : RoomDatabase() {
     abstract fun profileSettings(): ProfileSettingsDao
 
     abstract fun partner(): PartnerDao
+    abstract fun syncState(): SyncStateDao
 
     companion object {
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_profile_state (id INTEGER NOT NULL, " +
+                        "internetEnabled INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(id))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_authority (id INTEGER NOT NULL, " +
+                        "ownerIdentity TEXT, authorDevice TEXT, " +
+                        "generation INTEGER NOT NULL DEFAULT 0, " +
+                        "lastSequence INTEGER NOT NULL DEFAULT 0, " +
+                        "state TEXT NOT NULL DEFAULT 'UNINITIALIZED', transitionId TEXT, " +
+                        "previousGrantDigest TEXT, grantJson TEXT, " +
+                        "grantDigest TEXT, PRIMARY KEY(id))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_record_versions (" +
+                        "ownerIdentity TEXT NOT NULL, entityType TEXT NOT NULL, " +
+                        "entityKey TEXT NOT NULL, generation INTEGER NOT NULL, " +
+                        "revision INTEGER NOT NULL, isDeleted INTEGER NOT NULL DEFAULT 0, " +
+                        "recordDigest TEXT, " +
+                        "PRIMARY KEY(ownerIdentity, entityType, entityKey))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_links (peerIdentity TEXT NOT NULL, " +
+                        "peerDevice TEXT NOT NULL, automaticEnabled INTEGER NOT NULL DEFAULT 0, " +
+                        "scopeEpoch INTEGER NOT NULL DEFAULT 0, scopeJson TEXT, " +
+                        "protocolVersion INTEGER NOT NULL DEFAULT 0, " +
+                        "acceptedOwnerGeneration INTEGER NOT NULL DEFAULT 0, " +
+                        "acceptedAuthorDevice TEXT, acceptedGrantDigest TEXT, " +
+                        "PRIMARY KEY(peerIdentity, peerDevice))"
+                )
+                db.execSQL(
+                    "INSERT OR IGNORE INTO sync_profile_state (id, internetEnabled) VALUES (1, 0)"
+                )
+                db.execSQL(
+                    "INSERT OR IGNORE INTO sync_authority (id, generation, lastSequence, state) " +
+                        "VALUES (1, 0, 0, 'UNINITIALIZED')"
+                )
+            }
+        }
+
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
