@@ -17,7 +17,8 @@ internal val syncMigrations get() = arrayOf(
     RitelaDatabase.MIGRATION_3_4,
     RitelaDatabase.MIGRATION_4_5,
     RitelaDatabase.MIGRATION_5_6,
-    RitelaDatabase.MIGRATION_6_7
+    RitelaDatabase.MIGRATION_6_7,
+    RitelaDatabase.MIGRATION_7_8
 )
 
 internal fun syncTestDatabase(context: Context, name: String): RitelaDatabase =

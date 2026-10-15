@@ -133,7 +133,7 @@ class SyncCompatibilityTest {
             copyLegacySyncRows(context, name, sourceB.openHelper.writableDatabase)
             upgraded = syncTestDatabase(context, name)
             val target = upgraded
-            assertEquals(7, target.openHelper.writableDatabase.version)
+            assertEquals(8, target.openHelper.writableDatabase.version)
             beforeFiles.forEach { (file, bytes) -> assertArrayEquals(bytes, file.readBytes()) }
             assertEquals(b, vault.loadOrCreate())
             assertEquals(directory, target.partner().snapshot()!!.json)

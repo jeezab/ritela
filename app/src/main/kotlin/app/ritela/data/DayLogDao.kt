@@ -2,20 +2,38 @@ package app.ritela.data
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
+import app.ritela.data.sync.ChangePayload
+import app.ritela.data.sync.ChangeRecorder
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface DayLogDao {
+abstract class DayLogDao : ChangeRecorder() {
     @Query("SELECT * FROM day_logs ORDER BY day DESC")
-    fun observeAll(): Flow<List<DayLogEntity>>
+    abstract fun observeAll(): Flow<List<DayLogEntity>>
 
     @Query("SELECT * FROM day_logs ORDER BY day DESC")
-    suspend fun snapshot(): List<DayLogEntity>
+    abstract suspend fun snapshot(): List<DayLogEntity>
+
+    @Query("SELECT * FROM day_logs WHERE day=:day")
+    abstract suspend fun find(day: Long): DayLogEntity?
 
     @Upsert
-    suspend fun save(log: DayLogEntity)
+    protected abstract suspend fun saveRow(log: DayLogEntity)
+
+    @Transaction
+    open suspend fun save(log: DayLogEntity) {
+        if (find(log.day) == log) return
+        saveRow(log)
+        recordChange("DAY", log.day.toString(), ChangePayload.day(log))
+    }
 
     @Query("DELETE FROM day_logs WHERE day = :day")
-    suspend fun delete(day: Long)
+    protected abstract suspend fun deleteRow(day: Long): Int
+
+    @Transaction
+    open suspend fun delete(day: Long) {
+        if (deleteRow(day) == 1) recordChange("DAY", day.toString(), "", deleted = true)
+    }
 }

@@ -4,11 +4,13 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import app.ritela.data.sync.ChangePayload
+import app.ritela.data.sync.ChangeRecorder
 import app.ritela.domain.PeriodProblem
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-abstract class PeriodDao {
+abstract class PeriodDao : ChangeRecorder() {
     @Query("SELECT * FROM periods ORDER BY startDay DESC")
     abstract suspend fun snapshot(): List<PeriodEntity>
 
@@ -21,10 +23,24 @@ abstract class PeriodDao {
     @Query(
         "UPDATE periods SET endDay = :endDay, updatedAt = :updatedAt WHERE id = :id AND endDay IS NULL AND startDay <= :endDay"
     )
-    abstract suspend fun finish(id: String, endDay: Long, updatedAt: Long): Int
+    protected abstract suspend fun finishRow(id: String, endDay: Long, updatedAt: Long): Int
+
+    @Transaction
+    open suspend fun finish(id: String, endDay: Long, updatedAt: Long): Int {
+        val changed = finishRow(id, endDay, updatedAt)
+        if (changed == 1) recordChange("PERIOD", id, ChangePayload.period(requireNotNull(find(id))))
+        return changed
+    }
 
     @Query("DELETE FROM periods WHERE id = :id")
-    abstract suspend fun delete(id: String): Int
+    protected abstract suspend fun deleteRow(id: String): Int
+
+    @Transaction
+    open suspend fun delete(id: String): Int {
+        val changed = deleteRow(id)
+        if (changed == 1) recordChange("PERIOD", id, "", deleted = true)
+        return changed
+    }
 
     @Query(
         "UPDATE periods SET startDay = :startDay, endDay = :endDay, updatedAt = :updatedAt WHERE id = :id"
@@ -55,6 +71,7 @@ abstract class PeriodDao {
             return PeriodProblem.OVERLAP
         }
         updateDates(id, startDay, endDay, updatedAt)
+        recordChange("PERIOD", id, ChangePayload.period(requireNotNull(find(id))))
         return null
     }
 
@@ -70,6 +87,7 @@ abstract class PeriodDao {
     open suspend fun addIfSeparate(entity: PeriodEntity): Boolean {
         if (overlaps(entity.startDay, entity.endDay ?: Long.MAX_VALUE) != 0) return false
         insert(entity)
+        recordChange("PERIOD", entity.id, ChangePayload.period(entity))
         return true
     }
 
@@ -83,7 +101,10 @@ abstract class PeriodDao {
             return false
         }
         if (ordered.any { overlaps(it.startDay, it.endDay ?: Long.MAX_VALUE) != 0 }) return false
-        ordered.forEach { insert(it) }
+        ordered.forEach {
+            insert(it)
+            recordChange("PERIOD", it.id, ChangePayload.period(it))
+        }
         return true
     }
 }
