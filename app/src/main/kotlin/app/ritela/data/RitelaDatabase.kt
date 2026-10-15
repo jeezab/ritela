@@ -55,6 +55,7 @@ abstract class RitelaDatabase : RoomDatabase() {
     abstract fun syncQueue(): SyncQueueDao
     abstract fun syncReceive(): SyncReceiveDao
     abstract fun syncMessageIntents(): app.ritela.data.sync.SyncMessageIntentDao
+    abstract fun syncSettings(): app.ritela.data.sync.SyncSettingsDao
 
     companion object {
         val MIGRATION_9_10 = object : Migration(9, 10) {

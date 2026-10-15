@@ -195,6 +195,7 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
     )
     val partnerPreferences = PartnerPreferences(context.applicationContext, profileId)
     val savedDoodles = SavedDoodleLibrary(context.applicationContext, profileId)
+    val syncSettings = app.ritela.data.sync.SyncSettingsRepository(database)
     private val partnerVault by lazy { PartnerKeyVault(context.applicationContext, profileId) }
     val partner by lazy {
         PartnerRepository(database, partnerVault::loadOrCreate, partnerVault::save)

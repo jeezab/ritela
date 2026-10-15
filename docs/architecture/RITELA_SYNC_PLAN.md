@@ -349,6 +349,8 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ### Этап 7. Настройки и прозрачность
 
+Начата доступная локальная часть: [RITELA_SYNC_STAGE_7.md](RITELA_SYNC_STAGE_7.md). Ручной режим/metadata queue/composition/local cancel/pause/disable и privacy explanations; включение Internet/auto setup и server deletion недоступны до runtime этапов 5–6. Этап целиком не завершён, реальная baseline/consent настройка ещё впереди.
+
 Файлы: `ui/SettingsScreen.kt`, `PartnerScreen.kt`, `PartnerSharing.kt`, `PartnerSecuritySettings.kt`, `PartnerConversation.kt`, `PartnerFormatter.kt`, будущие `SyncSettings.kt`/`SyncQueueScreen.kt`, `res/values/` и `values-ru/`. Реализовать независимые consent/scope/auto toggles, baseline preview, состав/очередь/последний успех, ошибки и удаление relay-данных. Применить `ui-quality-audit`; новых UI библиотек не требуется.
 
 Тесты взаимодействий: opt-in/cancel, смена личности в группе, расширение ручного scope без расширения auto scope, revoke offline, выключение с pending deletion, narrow/large text EN/RU по semantics/layout проверкам. Готовность: пользователь различает создание файла, хранение сервером и E2E доставку; отсутствуют обещания удалённого стирания уже прочитанного. Визуальная проверка только после отдельного разрешения пользователя; до неё limitation отмечается явно.

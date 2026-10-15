@@ -1,0 +1,36 @@
+<resources>
+    <string name="sync_title">Synchronization</string>
+    <string name="sync_manual">Manual only</string>
+    <string name="sync_manual_description">Choose what to share and with whom for each exchange. File sharing and manual Bluetooth exchange remain available.</string>
+    <string name="sync_internet_unavailable">Internet sync is not available yet</string>
+    <string name="sync_nearby_unavailable">Automatic nearby exchange is not available. Bluetooth exchange starts only when you request it.</string>
+    <string name="sync_permission_saved">Internet sync was allowed for this profile, but internet delivery is not available in this version. You can withdraw that permission.</string>
+    <string name="sync_disable">Turn off internet sync</string>
+    <string name="sync_queue_title">Queue and history</string>
+    <string name="sync_queue_description">Up to 100 recent entries, with pending items first. An item in the queue has not necessarily been delivered.</string>
+    <string name="sync_queue_empty">No queued sends or receipts yet.</string>
+    <string name="sync_privacy_title">Access and deletion</string>
+    <string name="sync_privacy_future">Revoking access stops future sharing. Turning off internet sync does not send a hidden request to the server.</string>
+    <string name="sync_privacy_relay">Deleting queued packages from the relay server requires a separate confirmed request. Cancelling a send here does not confirm server deletion; server backups may also retain earlier copies.</string>
+    <string name="sync_privacy_local">A recipient may already have saved or exported a copy. Revoking access or deleting a relay package cannot guarantee erasure of information already received.</string>
+    <string name="sync_disable_confirmation">Stop future internet sharing and cancel local sends that have not been handed off? Your records, contacts and manual sharing will remain. This does not confirm deletion of any server or recipient copies.</string>
+    <string name="sync_cancel_send">Cancel this send</string>
+    <string name="sync_cancel_confirmation">Cancel this local send? The original message and manual sharing remain available. Copies already handed off cannot be recalled here.</string>
+    <string name="sync_pause_records">Pause automatic record sharing</string>
+    <string name="sync_pause_confirmation">Pause automatic record sharing with this recipient and cancel their local record queue? Your own records and manual sharing remain. Already handed-off copies are not recalled.</string>
+    <string name="sync_confirm">Confirm</string>
+    <string name="sync_contents">What is included</string>
+    <string name="sync_contents_unavailable">The contents are no longer available.</string>
+    <string name="sync_note">Message text</string>
+    <string name="sync_receipt">Receipt</string>
+    <string name="sync_recipient_unavailable">Recipient unavailable</string>
+    <string name="sync_records">Selected record changes</string>
+    <string name="sync_message">Message and selected data</string>
+    <string name="sync_waiting">Waiting for internet delivery to become available</string>
+    <string name="sync_too_large">Too large for internet sync. Manual exchange is still available.</string>
+    <string name="sync_blocked">Not sent. Check sharing settings.</string>
+    <string name="sync_awaiting_receipt">Handed off; awaiting recipient confirmation</string>
+    <string name="sync_delivered">Delivered</string>
+    <string name="sync_cancelled">Cancelled</string>
+    <string name="sync_status_unavailable">Status unavailable</string>
+</resources>

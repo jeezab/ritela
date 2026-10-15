@@ -1,0 +1,36 @@
+<resources>
+    <string name="sync_title">Синхронизация</string>
+    <string name="sync_manual">Только вручную</string>
+    <string name="sync_manual_description">При каждом обмене выбирайте, чем и с кем поделиться. Передача файлов и ручной обмен по Bluetooth остаются доступны.</string>
+    <string name="sync_internet_unavailable">Через интернет — пока недоступно</string>
+    <string name="sync_nearby_unavailable">Автоматический обмен рядом пока недоступен. Обмен по Bluetooth начинается только по вашему действию.</string>
+    <string name="sync_permission_saved">Для этого профиля сохранено согласие на интернет-синхронизацию, но доставка через интернет в этой версии ещё недоступна. Согласие можно отозвать.</string>
+    <string name="sync_disable">Выключить интернет-синхронизацию</string>
+    <string name="sync_queue_title">Очередь и история</string>
+    <string name="sync_queue_description">До 100 последних записей, сначала ожидающие. Наличие в очереди ещё не означает доставку.</string>
+    <string name="sync_queue_empty">Ожидающих отправок и квитанций пока нет.</string>
+    <string name="sync_privacy_title">Доступ и удаление</string>
+    <string name="sync_privacy_future">Отзыв доступа прекращает будущую передачу. Выключение интернет-синхронизации не отправляет скрытый запрос на сервер.</string>
+    <string name="sync_privacy_relay">Удаление ожидающих отправок с сервера требует отдельного подтверждённого запроса. Отмена отправки здесь не подтверждает удаление с сервера; в его резервных копиях также могут оставаться прежние данные.</string>
+    <string name="sync_privacy_local">Получатель мог уже сохранить или экспортировать копию. Отзыв доступа и удаление пакета с сервера не гарантируют стирание уже полученной информации.</string>
+    <string name="sync_disable_confirmation">Прекратить будущую передачу через интернет и отменить ещё не переданные локальные отправки? Ваши записи, контакты и ручной обмен сохранятся. Это не подтверждает удаление копий с сервера или у получателя.</string>
+    <string name="sync_cancel_send">Отменить эту отправку</string>
+    <string name="sync_cancel_confirmation">Отменить эту локальную отправку? Исходное послание и ручной обмен останутся доступны. Уже переданные копии здесь отозвать нельзя.</string>
+    <string name="sync_pause_records">Приостановить автоотправку записей</string>
+    <string name="sync_pause_confirmation">Приостановить автоотправку записей этому получателю и отменить его локальную очередь записей? Ваши записи и ручной обмен сохранятся. Уже переданные копии не отзываются.</string>
+    <string name="sync_confirm">Подтвердить</string>
+    <string name="sync_contents">Состав отправки</string>
+    <string name="sync_contents_unavailable">Содержимое больше недоступно.</string>
+    <string name="sync_note">Текст послания</string>
+    <string name="sync_receipt">Квитанция</string>
+    <string name="sync_recipient_unavailable">Получатель недоступен</string>
+    <string name="sync_records">Изменения выбранных записей</string>
+    <string name="sync_message">Послание и выбранные данные</string>
+    <string name="sync_waiting">Ожидает доступности доставки через интернет</string>
+    <string name="sync_too_large">Слишком большой объём для интернета. Ручной обмен остаётся доступен.</string>
+    <string name="sync_blocked">Не отправлено. Проверьте настройки обмена.</string>
+    <string name="sync_awaiting_receipt">Передано; ожидает подтверждения получателя</string>
+    <string name="sync_delivered">Доставлено</string>
+    <string name="sync_cancelled">Отменено</string>
+    <string name="sync_status_unavailable">Статус недоступен</string>
+</resources>
