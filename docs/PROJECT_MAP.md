@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-15: CycleOrbitScene разделяет подписи 18 sp и рисованные стрелки между hero и подробной орбитой. SettingsScreen располагает версию в конце прокручиваемой колонки под WithLoveButton. LoveTapSequence ограничивает интервал 500 мс; UserSettings оборачивает каждый профиль в SettingsGroup. HomeScreen больше не показывает privacy_description.
+
 2026-10-14: PartnerDeleteChoices выбирает контакты галочками перед remove. PartnerManagement называет карточку «Настройки партнёра» и рисует действия кнопками. Карточка «Дополнительно» в PartnerScreen показывает телефоны и код.
 
 2026-10-14: PartnerDialogList показывает app_name тем же titleLarge 32 sp, что Home и Settings. partner_check_connection в меню переписки — «Дополнительно».

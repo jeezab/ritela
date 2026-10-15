@@ -137,7 +137,7 @@ fun UserSettings(state: PeriodUiState) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     users.forEach { profile ->
-                        Column(Modifier.fillMaxWidth()) {
+                        SettingsGroup(Modifier.testTag("profile-card-${profile.id}")) {
                             TextButton(
                                 {
                                     scope.launch {

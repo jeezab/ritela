@@ -21,12 +21,12 @@ class LoveAnimationTest {
     @Test
     fun timeoutDependsOnAdjacentTapsAndExactBoundaryIsIncluded() {
         val sequence = LoveTapSequence()
-        repeat(8) { assertFalse(sequence.tap(it * 1000L)) }
-        assertTrue(sequence.tap(8_000))
+        repeat(8) { assertFalse(sequence.tap(it * 500L)) }
+        assertTrue(sequence.tap(4_000))
         repeat(8) { assertFalse(sequence.tap(10_000 + it * 100L)) }
-        assertFalse(sequence.tap(11_701))
-        repeat(7) { assertFalse(sequence.tap(11_800 + it * 100L)) }
-        assertTrue(sequence.tap(12_500))
+        assertFalse(sequence.tap(11_201))
+        repeat(7) { assertFalse(sequence.tap(11_300 + it * 100L)) }
+        assertTrue(sequence.tap(12_000))
     }
 
     @Test

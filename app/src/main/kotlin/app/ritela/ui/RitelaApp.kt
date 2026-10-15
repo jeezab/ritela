@@ -432,11 +432,6 @@ fun HomeScreen(
                 today,
                 state.dayLogs
             )
-            Text(
-                stringResource(R.string.privacy_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

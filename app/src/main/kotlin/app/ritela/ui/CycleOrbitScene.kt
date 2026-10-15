@@ -33,6 +33,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -99,9 +101,9 @@ fun CycleOrbitScene(
     }
     var follicularLabel by remember { mutableStateOf(IntSize.Zero) }
     var lutealLabel by remember { mutableStateOf(IntSize.Zero) }
-    val showPhaseLabels = onScrub == null && viewport != IntSize.Zero
+    val showPhaseLabels = viewport != IntSize.Zero
     val labelGap = with(density) { 8.dp.toPx() }
-    val fallbackLabel = with(density) { Size(108.dp.toPx(), 18.dp.toPx()) }
+    val fallbackLabel = with(density) { Size(162.dp.toPx(), 26.dp.toPx()) }
     fun labelSize(measured: IntSize) = if (measured == IntSize.Zero) {
         fallbackLabel
     } else {
@@ -404,6 +406,20 @@ fun CycleOrbitScene(
                 }
         ) {}
         if (follicularCallout != null && lutealCallout != null) {
+            Canvas(Modifier.fillMaxSize().clearAndSetSemantics {}) {
+                val follicularSize = labelSize(follicularLabel)
+                val lutealSize = labelSize(lutealLabel)
+                drawPhaseArrow(
+                    follicularCallout + Offset(follicularSize.width * .5f, 0f),
+                    geometry.position(orbitOvulationProgress(cycleLength) * .7f)
+                )
+                drawPhaseArrow(
+                    lutealCallout + Offset(lutealSize.width * .5f, lutealSize.height),
+                    geometry.position(
+                        (orbitOvulationProgress(cycleLength) + OrbitMarker.END.progress) / 2f
+                    )
+                )
+            }
             OrbitPhaseCaption(
                 stringResource(R.string.orbit_follicular),
                 "orbit-label-follicular",
@@ -466,13 +482,36 @@ private fun OrbitPhaseCaption(
         Modifier.offset {
             IntOffset(topLeft.x.roundToInt(), topLeft.y.roundToInt())
         }.onSizeChanged(onSize).testTag(tag),
-        color = Color(0xFFF6E4D6).copy(alpha = .85f),
+        color = Color(0xFFF6E4D6),
         style = TextStyle(
             fontFamily = script,
-            fontSize = 12.sp,
+            fontSize = 18.sp,
             shadow = Shadow(Color(0x55C9A090), Offset(0f, 1f), 5f)
         )
     )
+}
+
+private fun DrawScope.drawPhaseArrow(start: Offset, target: Offset) {
+    val delta = target - start
+    val distance = delta.getDistance()
+    if (distance < 8.dp.toPx()) return
+    val direction = delta / distance
+    val normal = Offset(-direction.y, direction.x)
+    val end = target - direction * 5.dp.toPx()
+    val control = (start + end) * .5f + normal * 6.dp.toPx()
+    val tangent = (end - control).let { it / it.getDistance().coerceAtLeast(1f) }
+    val side = Offset(-tangent.y, tangent.x)
+    val head = 5.dp.toPx()
+    val path = Path().apply {
+        moveTo(start.x, start.y)
+        quadraticTo(control.x, control.y, end.x, end.y)
+        val left = end - tangent * head + side * head * .55f
+        val right = end - tangent * head - side * head * .55f
+        moveTo(left.x, left.y)
+        lineTo(end.x, end.y)
+        lineTo(right.x, right.y)
+    }
+    drawPath(path, Color(0xFFF6E4D6), style = Stroke(1.3.dp.toPx(), cap = StrokeCap.Round))
 }
 
 @Composable
