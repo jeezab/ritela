@@ -1,6 +1,6 @@
 # Ritela Sync: технический план
 
-Дата аудита: 2026-10-15. Основание: текущее дерево после `9679650` и приложенное пользователем задание. Статус: **предложение для согласования**. Код приложения, Room-схемы и облачные ресурсы этим документом не изменяются. Ни один следующий этап не считается разрешённым только фактом появления плана.
+Дата аудита и уточнения: 2026-10-15. Основание: код после `9679650`, первоначальный план `c7bac34` и последующие уточнения пользователя. **Архитектура принята за основу; эта редакция уточняет решения до реализации.** Код приложения, Room-схемы и облачные ресурсы этим документом не изменяются. Подготовлен отдельный [рабочий план этапа 1](RITELA_SYNC_STAGE_1.md); его реализация пока не разрешена.
 
 Пользователь уже создал Cloudflare D1: `133088c5-c0e6-40b7-b264-af6ef7d1cdd8`. Это идентификатор ресурса, не пароль и не адрес API. Доступность, имя базы, account ID, тариф, регион и её содержимое не проверялись: доступа к аккаунту Cloudflare в этом аудите не было. Повторно создавать базу не требуется; применение миграций и развёртывание Worker — отдельные будущие действия.
 
@@ -45,7 +45,7 @@ Ritela уже умеет безопасно обмениваться отдел�
 
 Согласие на ручную передачу не включает интернет и не включает автоматическую отправку будущих записей. Для каждого профиля отдельно сохраняются global Internet Sync enabled, а для каждого адресата — auto-send enabled и точный утверждённый scope. Отправка в группу разворачивается в независимые получатели с независимым шифрованием и правами.
 
-Один профиль-владелец редактирует свои медицинские записи на одном авторском устройстве. Другие сертифицированные устройства могут быть получателями, но не получают автоматически право записи. Переход авторства на новый телефон — отдельная подтверждённая процедура. Если требуется одновременное редактирование на нескольких телефонах, план нужно расширить до причинных версий/конфликтов авторов до реализации этапа 1.
+Один профиль-владелец редактирует свои медицинские записи на одном авторском устройстве. Другие сертифицированные устройства могут быть получателями, но не получают автоматически право записи. Модель единственного автора подтверждена пользователем; передача авторства описана в §4.5. Одновременное редактирование оригинала на нескольких телефонах не входит в Sync v1.
 
 Local-first сохраняется: ошибка сети, истечение TTL и исчерпание облачного лимита не мешают сохранять собственные записи. Bluetooth и файлы работают без включения Internet Sync. Для автоматического обмена рядом предусматривается только интерфейс транспорта; обнаружение BLE/Nearby и фоновая работа рядом сейчас не проектируются.
 
@@ -77,7 +77,7 @@ flowchart LR
 
 ### 4.1. Локальные таблицы (проект)
 
-Новые таблицы вводятся явной миграцией от фактической версии Room на момент реализации (сейчас 6). Старые миграции и сообщения сохраняются.
+Таблицы ниже описывают целевой движок целиком. На этапе 1 вводятся только четыре служебные таблицы, точно перечисленные в [рабочем плане](RITELA_SYNC_STAGE_1.md), явной миграцией 6→7; остальные — последующими миграциями на соответствующих этапах. Старые миграции и сообщения сохраняются. Миграция не читает vault, не генерирует identity и не создаёт автоматические grants.
 
 | Таблица | Ключ и назначение |
 |---|---|
@@ -122,6 +122,24 @@ V2 body включает protocol/capability version, logical operation ID, pack
 
 Повторы: exponential backoff с jitter, например от 30 секунд до 6 часов, сохранённые attempts/nextAttempt; учитывать Retry-After и сетевое состояние. 401/403 останавливают link до восстановления допуска, 413 требует переразбиения на уровне протокола, 429/5xx повторяются. Lease освобождается по timeout после смерти процесса. Истечение relay TTL не удаляет локальный оригинал: по восстановлении связи отправляется актуальный baseline/дельта с корректной версией. Очередь ограничена по bytes; coalesce допускается для ещё не отправленных superseded record updates, но не для пользовательских посланий и дудлов.
 
+### 4.5. Смена телефона и запрет двух авторов
+
+Device certificate подтверждает принадлежность личности, но не право быть автором. Авторство задаётся отдельным grant: `(ownerIdentity, generation, authorDeviceId, authorPublicKey, transitionId, previousGrantDigest, checkpoint)`. Generation — монотонный целый fencing token, а не timestamp/UUID. Каждый v2 пакет, изменяющий проекцию исходных записей владельца, подписан именно author device key, содержит generation и ссылку на grant; общего identity RSA private key недостаточно для продолжения прежнего авторского поколения. ACK/OPENED и самостоятельные послания/дудлы подписывает фактическое доверенное устройство отправителя: они не получают права менять медицинские записи и не требуют author key адресата.
+
+Планируемая передача при доступном старом телефоне:
+
+1. Старый автор переходит в TRANSFER_PENDING, прекращает создание авторских операций и отправку старой очереди; несохранённое/неподтверждённое фиксируется в checkpoint/черновиках. Передача должна явно охватить последние локальные изменения, а не только доставленные relay.
+2. Старое и новое устройства подтверждают общий transition ID, checkpoint и новый device key. Grant поколения g+1 подписывают старый author key и новый device key; identity подпись связывает с прежней личностью. Новое устройство остаётся неактивным до commit перехода.
+3. Для internet link Worker атомарно выполняет compare-and-set `(g, oldAuthorHandle) → (g+1, newAuthorHandle)` в записи authority со случайным owner handle. Два параллельных transfer из одного g не могут завершиться одновременно. Worker проверяет подписи прежнего и нового pseudonymous authority control/API keys, чей binding к author device keys проверяют партнёры внутри E2E grant; глобальные device keys, identity и medical checkpoint серверу не нужны. Все связанные маршруты используют один authority fence, а не независимые счётчики по партнёрам. Первоначальная привязка authority handle также входит в подтверждённый E2E bootstrap, не принимается по заявлению неизвестного устройства.
+4. Проверка fence и резервирование upload происходят одной транзакцией. Уже накопленные пакеты g закрываются/удаляются; g+1 отправляет checkpoint baseline. Старое устройство становится RETIRED и не может вернуть себе ACTIVE из backup/identity export. После commit потеря ответа разрешается запросом результата transition ID, без второго увеличения поколения.
+5. Получатели сохраняют максимальный подтверждённый generation/author key и digest цепочки, после перехода отвергают g и конкурирующие grants даже через файл/Bluetooth. Relay fence не заменяет E2E проверку полномочий. Получатель может принять новый baseline до его данных только после проверки/подтверждения grant.
+
+Старый телефон может физически редактировать отключённую от сети копию; запретить это удалённо невозможно. Такие записи не становятся изменениями действующего автора: при возвращении старой установки они помещаются в локальное восстановление/черновик, без автослияния и отправки. Выбранная политика сохраняет данные для ручного разбора вместо silent loss. После transfer старые обычные v1 пакеты по-прежнему читаются как ручная история, но не изменяют активную v2 проекцию; v2-authority не приписывается старому формату.
+
+Полностью офлайн-получатель, ещё не узнавший о смене автора, не может знать, что старый grant отозван. До получения перехода он может видеть устаревшую копию; строгая глобальная гарантия мгновенного отзыва потребовала бы онлайн-проверки или отказа от офлайн-приёма. Для ручного-only переноса нужна координация со старым устройством и передача grant каждому получателю. Нельзя заявлять, что локальная Room-миграция решает distributed fencing.
+
+Если старый телефон потерян, восстановление RSA identity не активирует нового автора. RECOVERY_REQUIRED: закрыть старый relay-допуск через отдельно сохранённую recovery capability/операторскую процедуру пилота; новый grant с g+1 и новым device key явно подтверждают существующие партнёры. Не принимать восстановленный identity key как автоматическое доказательство, что старое устройство уничтожено. До подтверждения новым телефоном можно пользоваться локально, но он не публикует изменения прежнего автора. Подробный transfer/recovery протокол и его тесты относятся к этапам 3–5; этап 1 сохраняет только необходимые состояния/ссылки.
+
 ## 5. Криптография и модель угроз
 
 Существующие RSA-OAEP/AES-GCM/EC-подпись обеспечивают основу конфиденциальности и аутентичности при сохранности ключей. Подпись header связывает IV, wrapped key, ciphertext и внешние адреса; body/header дополнительно сверяются. Но протокол v1 не имеет forward secrecy, sequence, expiry, permission epoch и полноценной защиты от rollback. Компрометация RSA identity private key позволяет расшифровать ранее сохранённые пакеты, даже если устройства различаются: `targetDevice` ограничивается проверкой приложения, а AES key обёрнут общим identity RSA.
@@ -129,12 +147,25 @@ V2 body включает protocol/capability version, logical operation ID, pack
 Предлагаемый переход без перепривязки существующих контактов:
 
 - Оставить identity ID/RSA и подтверждённые EC device keys корнями доверия. Новые возможности и transport keys передавать в подписанном E2E capability exchange через существующий файл/Bluetooth. Несовместимый клиент остаётся в ручном v1; не делать скрытый downgrade v2→v1.
-- Для интернет-канала создать отдельные сертифицированные данным устройством transport keys: P-256 ECDH для внешнего шифрования и P-256 signing для API. Не использовать signing key для ECDH и не придумывать криптографический примитив: согласовать стандартный HKDF-SHA256 + AES-GCM envelope и vectors с отдельным security review. В сертификате связать purpose, public key, device, link context, key version и expiry.
-- Чтобы Worker не видел v1 `from/to/device`, оборачивать весь внутренний подписанный пакет в дополнительный device-specific encrypted wrapper с ephemeral ECDH, HKDF с domain separation и случайным GCM IV. Адреса и изменения находятся внутри; внешне остаются случайный route ID, delivery ID, key version, ephemeral key и ciphertext. Receiver transport private key хранится локально под Keystore. Это добавляет сложность, поэтому проверка interop обязательна до HTTP-интеграции.
+- Для внешнего шифрования выбрать **HPKE через Tink Android**, а не собственную композицию ECDH/HKDF/GCM. Предпочтительная suite — `DHKEM_X25519_HKDF_SHA256_HKDF_SHA256_AES_256_GCM`; подтвердить её работу выбранной версии на minSdk 26 до внедрения. Отдельные HPKE recipient keys сертифицируются прежним подтверждённым device key; API signing key остаётся отдельным P-256 ключом. В сертификате связать purpose, public key, device, link context, key version и expiry. Не переиспользовать signing key как DH key.
+- Чтобы Worker не видел v1 `from/to/device`, Tink `HybridEncrypt` шифрует весь внутренний подписанный пакет для recipient device key. Формат ciphertext/prefix и context_info фиксируются по документации Tink и vectors; ключ/nonce/KDF библиотека формирует сама. Адреса и изменения остаются внутри; внешне — random route ID, delivery ID, transport key version и opaque ciphertext. Private keyset шифруется локальным Keystore wrapping key, без KMS/облачных аккаунтов. Сервер HPKE не расшифровывает и библиотека ему не нужна.
 - Внутренний v2 header/body связывают полный контекст, protocol version, generation, scope epoch, sequence, target device, размеры/части manifest. Кодировать подписываемые bytes однозначно; не подписывать один JSON, а проверять его пересобранную версию. Strict UTF-8, ограничения длины/вложенности/числа операций до выделения больших буферов, allowlist алгоритмов/версий; без произвольных algorithm из входа.
 - Проверять API-допуск до дорогостоящего приёма, E2E подпись до применения. Неизвестные ключи, несовпадение device/context, конфликт digest и устаревший generation не обновляют данные. Inbox ID/tombstones и watermark сохраняются после локальной очистки истории.
 
-Так можно сохранить доверенные идентичности без обязательной новой привязки **существующих устройств**: они подписывают новые capabilities прежними ключами. Новому/восстановленному телефону всё равно необходимо отдельное одобрение. Внешний ECDH wrapper сам по себе не даёт forward secrecy при компрометации статического receiver key; удаление старых transport private keys после подтверждения/TTL ограничивает окно, но не равно Double Ratchet. Для сильной FS нужен отдельный этап с проверенным ratchet-протоколом/библиотекой. Не внедрять самодельный ratchet в первую версию.
+Так можно сохранить доверенные идентичности без обязательной новой привязки **существующих устройств**: они подписывают новые capabilities прежними ключами. Новому/восстановленному телефону всё равно необходимо отдельное одобрение. HPKE с постоянным recipient key не даёт forward secrecy против компрометации этого ключа: сохранённый ciphertext можно расшифровать позже. Ротация и удаление старых private keys ограничивают окно лишь при отсутствии их backup/копий; это не Double Ratchet. Защиту от отката, replay и подмены автора обеспечивает протокол поверх HPKE, не сама библиотека.
+
+### 5.1. Сравнение вариантов и проверка безопасности
+
+| Вариант | Применимость и решение |
+|---|---|
+| Собственный P-256 ECDH + HKDF + AES-GCM | Примитивы доступны, но собственными становятся KEM/KDF binding, формат, ошибки и nonce discipline. У первоначального предложения нет преимущества, оправдывающего этот риск; не выбирать |
+| Tink Android / HPKE | Выбранная основа wrapper: стандартный механизм, Android API и меньше собственного crypto-кода. Поддержка Android начинается с API 24; minSdk проекта 26. Не предоставляет sender authentication/ratchet сам по себе; сохранить device signature и всю проверку trust/версий. Зависимость добавляется только на этапе 4, версия/size/R8 и suite проверяются заранее |
+| libsodium sealed boxes | Компактная готовая схема anonymous public-key encryption; sender authenticity всё равно требует подписи. Для Android понадобятся оценка конкретного binding/JNI/ABI и сопровождения; переход не даёт полной FS против компрометации recipient key. Дополнительный native stack сейчас не обоснован |
+| libsignal / Double Ratchet | Решает более широкую задачу защищённых сессий с ratchet. Потребует prekeys/session storage, адаптации trust/recovery и лицензии AGPLv3; upstream прямо не поддерживает использование вне Signal. Сейчас не выбирать ради одной обёртки. Рассматривать отдельно, если FS станет обязательным условием запуска |
+
+Свойства Tink и рекомендация HPKE подтверждены [документацией hybrid encryption](https://developers.google.com/tink/hybrid), Android support — [setup](https://developers.google.com/tink/setup/java), особенности prefix/encapsulation — [wire format](https://developers.google.com/tink/wire-format). Альтернативы проверены по [libsodium sealed boxes](https://libsodium.gitbook.io/doc/public-key_cryptography/sealed_boxes) и [upstream libsignal](https://github.com/signalapp/libsignal). Это сравнение пригодности к Ritela, а не утверждение об аудите всей библиотеки.
+
+До выпуска: pin артефакта и зависимостей, проверить security advisories/лицензию и размер APK, minSdk/R8; reference vectors библиотеки/HPKE и round-trip двух Android endpoints; изменённые ciphertext/context/key, неизвестная версия, key rotation и утрата Keystore; fuzz bounded parsers и неправильные подписи; сверка отсутствия identity/medical plaintext во внешнем envelope и логах. Kotlin↔Worker vectors нужны для API ECDSA signing/canonical request, **не для HPKE**, которое Worker не выполняет. Независимый review проверяет интеграцию, certificates, replay/fence/recovery; использование Tink не заменяет review протокола. При провале suite/compatibility gate вернуться к выбору готовой библиотеки, без автоматического fallback на самодельную криптографию.
 
 Identity key rotation — отдельное подписанное старым и новым ключом событие с подтверждением пользователем и контактом; при потере/компрометации старого ключа — повторная проверка личности. Device/transport-key revocation закрывает очереди, отключает отправку, отменяет старые outbox и требует новой версии ключей. Запрещено молча восстанавливать отозванное устройство из старого backup.
 
@@ -146,13 +177,14 @@ Cloudflare всё равно видит IP и сетевые/TLS-метадан�
 
 Worker принимает HTTPS и хранит opaque bytes через D1 binding; Android не обращается к D1 REST API и не получает Cloudflare API token. Сервер не рассчитывает прогноз, не строит дневник и не ищет пользователей по имени.
 
-Для начала — закрытая регистрация по одноразовому activation token, создаваемому оператором; не встраивать общий регистрационный секрет в APK. После регистрации device handle принадлежит отдельному API signing public key. Identity/device certificate проверяется **партнёром внутри E2E**, серверу достаточно proof of possession API key. Открытая регистрация требует отдельной защиты от Sybil/спама; её нельзя считать решённой случайными UUID.
+Для закрытого пилота утверждены одноразовые activation tokens, создаваемые оператором; не встраивать общий регистрационный секрет в APK. После регистрации device handle принадлежит отдельному API signing public key. Identity/device certificate проверяется **партнёром внутри E2E**, серверу достаточно proof of possession API key; право авторства проверяется отдельно по §4.5. **Публичная самостоятельная регистрация не реализуется.** Отдельная будущая задача `SYNC-PUBLIC-REGISTRATION`: Sybil/abuse model, rate/byte quotas, доступный UX без аккаунта, расходы/операторское восстановление, тесты массовых регистраций и отдельное разрешение на запуск. Случайные UUID не решают эту задачу.
 
 Очереди направленные, изолированы по паре устройств. Получатель создаёт route, выдаёт конкретному доверенному отправителю write capability и принимает его API public key через E2E bootstrap; отправитель подтверждает привязку. До этого отправка запрещена. Read/control доступны только API key владельца; write — назначенному sender key плюс capability, cancel собственного upload — тому же sender. Повторный bootstrap для новой route — допустимый небольшой ручной обмен, без повторного подтверждения уже доверенной личности.
 
 | API (проект `/v1`) | Проверка и эффект |
 |---|---|
 | `POST /devices` | Одноразовая активация + proof of possession нового API key; выдаёт случайный handle. Погашение token атомарно |
+| `POST /authorities/{handle}/transfer` | Проверка expected generation/grant digest и подписей старого/нового authority control keys, CAS поколения и сохранение результата transition ID. E2E author-device signatures проверяет получатель. Recovery без старого ключа — отдельная операторская процедура пилота, не обход этой проверки |
 | `POST /routes` | Подпись получателя; owner API key, разрешённый sender API key, hash write capability, expiry, quotas. Ответ не раскрывает чужие маршруты |
 | `PUT /routes/{route}/packets/{deliveryId}` | Sender signature + capability; immutable bounded bytes, digest, expiresAt. Повтор того же ID/digest возвращает прежний результат; другой digest → 409 |
 | `GET /devices/{handle}/packets?cursor=…&limit=…` | Подпись owner; только его активные очереди, `expiresAt > now`, keyset pagination, общий byte limit. Cursor не даёт доступа к другому handle и не доказывает E2E порядок |
@@ -175,16 +207,40 @@ Write capabilities — 256-bit random, передаются внутри E2E, с
 | `packets` | monotonic relay_seq INTEGER PK, route_id FK, delivery_id, ciphertext BLOB, digest, bytes, created_at, expires_at; UNIQUE(route_id, delivery_id), индекс `(route_id, relay_seq)` и `(expires_at)` |
 | `packet_tombstones` | `(route_id, delivery_id)` PK, digest/result, expires_at; отмены/удаления не хранят payload; срок не меньше срока допустимого upload/retry данного ID |
 | `request_nonces` | `(device_handle, request_id)` PK, body_digest, result_code, expires_at; только мутации, индекс expiry |
+| `author_fences` | random owner_handle PK, generation, active_author_api_key, grant_digest, transition_id; CAS-переход по §4.5 и проверка каждой авторской загрузки; без medical checkpoint/identity plaintext |
 
 Использовать bound parameters, FK, CHECK для bytes/count/TTL и атомарное резервирование quota. `D1Database.batch()` выполняет statements транзакционно, но это не API интерактивных Room-транзакций: все conditional updates/insert и проверки числа изменённых строк следует спроектировать и проверить на гонках. Нельзя сначала отдельно проверить лимит, потом отдельно вставить пакет. [D1 batch API](https://developers.cloudflare.com/d1/worker-api/d1-database/).
 
-Предварительные product limits: envelope до 256 КиБ после всех обёрток, HTTP batch response до 512 КиБ, до 32 пакетов/страницу, до 128 ACK IDs, TTL до 7 суток, до 256 pending packets/8 МиБ на route и 16 МиБ на receiving device. Эти числа требуют нагрузочных/UX проверок, не являются лимитами Cloudflare. Большие baseline разбиваются по операциям/частям; слишком большой дудл требует ограниченного multipart E2E manifest, а не обрезания штрихов. Старый `.ritela` до 3 МиБ можно продолжать передавать вручную; его HTTP chunking проектируется явно и ограничивает размер собранного пакета до decrypt.
+Принять следующие product limits для пилота; это пределы приложения, а не Cloudflare:
+
+| Объект | Ограничение и поведение |
+|---|---|
+| HTTP envelope | До 256 КиБ на фактические bytes тела после encoding/padding/wrapper; ciphertext BLOB тоже не более 256 КиБ. Content-Length недостаточно: проверять stream, decoded size и собранный payload |
+| Обычная дельта | До 128 операций и до 96 КиБ projected plaintext, что наступит раньше; не более 64 КиБ на одну операцию, иначе ограниченный multipart |
+| Новый internet Doodle | До 128 штрихов, 4000 точек всего, 4096 точек/штрих как legacy ceiling, caption до 240 символов, canonical doodle JSON UTF-8 до 96 КиБ. Послание сохраняет лимит 500 символов. Проверка одновременно по структуре и bytes, без молчаливого обрезания |
+| Legacy рисунки | Существующие до 256 штрихов/20 000 точек, файлы/библиотека и задержки сохраняются без перекодирования миграцией. Для internet разрешить legacy рисунок до 1 МиБ logical plaintext через multipart; больший остаётся доступным локально/вручную, UI объясняет лимит |
+| Multipart | Один logical объект до 1 МиБ, не более 32 частей; до 96 КиБ plaintext в части с повторной проверкой конечных 256 КиБ. Один незавершённый объект/route, до 2 МиБ временного буфера/peer, до 10 минут reassembly после получения первой части; затем очистка и повтор с тем же manifest. Parts не применяются до manifest/digest проверки. Размер до decrypt/после decrypt проверять отдельно |
+| Baseline истории | Не более 3 МиБ projected plaintext на один атомарный baseline, до 64 частей; резервировать до 6 МиБ reassembly на receiver, один активный baseline/profile, timeout 24 часа. Если больше — явная ошибка/выбор меньшего диапазона после согласия, без скрытого усечения истории; local/manual данные не теряются |
+| Fetch/ACK | До 512 КиБ на response, до 32 envelopes/страницу, до 128 ACK IDs; total bytes важнее количества |
+| Relay retention/queue | TTL до 7 суток; route до 256 envelopes/8 МиБ, receiving device до 16 МиБ, весь pilot D1 до 300 МБ как soft admission cap с запасом к 500 МБ. Baseline заранее резервирует quota; недостаток → retry/pause |
+
+Текущий `.ritela` до 3 МиБ продолжает работать вручную. Новые internet limits не меняют `Doodle`/`PartnerCodec` legacy validation и не инвалидируют сохранённые рисунки. Новые ограничения проверяет отдельный Sync serializer до enqueue; превышение предлагает упрощение копии/ручную передачу, не перезаписывает оригинал. Stage 1 фиксирует только константы/инварианты, без нового UI/кодека. Числа проходят нагрузочный gate перед пилотом; форматы не допускают decompression bombs (компрессия в MVP не нужна).
 
 Просроченные пакеты исключаются из GET сразу по времени. Cron удаляет их небольшими indexed batches, обновляет quotas и чистит expired nonce/tombstone; после сбоя повторяет. D1 не имеет автоматического TTL для этих строк. Контролировать возраст backlog, bytes, rows_read/written, p95 CPU и 429/5xx без route IDs и содержимого в логах. Защита API: глобальный cap registrations, per-device/route/IP rate limits, byte quotas, reject oversized stream, bounded parsing, Retry-After. Память одного Worker isolate не годится для глобального надёжного rate limit: persistent quota решается в D1, а edge rate limiter/WAF — дополнительный слой с отдельно проверенными возможностями тарифа. Подделка IP не должна обходить device/route quota.
 
 Отдельные dev/staging resources или локальный Wrangler D1; существующую пользовательскую базу не использовать как тестовую без проверки её назначения. Не переносить реальные медицинские пакеты в тестовые фикстуры. Не добавлять R2/KV/Durable Objects/FCM в MVP без измеренной необходимости.
 
 ### 6.3. Отзыв, удаление и резервные копии сервера
+
+Три независимые операции должны иметь независимые результаты в UI и протоколе:
+
+| Действие | Что гарантирует корректный клиент | Чего не гарантирует |
+|---|---|---|
+| Отозвать будущий доступ | Новые операции по отозванным категориям не создаются/не загружаются, auto scope уменьшается, epoch повышается, несогласованные queued bytes отменяются | Не удаляет уже переданные сообщения и не возвращает bytes уже отправленного запроса |
+| Удалить из relay | После подтверждённого cancel/route revoke API больше не выдаёт соответствующие pending bytes; локально хранится результат или pending deletion при offline. Охватывает также части незавершённого объекта | Не удаляет уже скачанные копии и немедленно не стирает Time Travel history |
+| Удалить локальную копию получателя | Сам получатель может удалить содержимое/актуальную проекцию, сохранив минимальные replay tombstones. По запросу владельца cooperating client может убрать категорию из текущего представления | Нельзя доказать удаление из модифицированного клиента, скриншота, экспорта, стороннего backup или ранее расшифрованных bytes |
+
+У первых двух действий также нет гарантии отзыва уже скачанной информации. Для relay отдельно остаётся ограничение резервных копий ниже. Сужение scope очищает актуальную Sync-проекцию cooperating client после получения control event, но не переписывает историю старых DATA незаметно; очистка истории — отдельная явная операция получателя. Локальное удаление у получателя создаёт suppression marker до выбранного watermark/объекта: replay/resync не восстанавливает явно удалённое без его согласия. Новые разрешённые записи после watermark обрабатываются по отдельно показанному режиму, а не считаются восстановлением старого содержимого. Отзыв не удаляет оригинальные записи владельца.
 
 При сужении scope или отзыве в локальной транзакции повышается epoch, запрещаются новые пакеты и отменяются неотправленные; dispatcher перепроверяет согласие непосредственно перед каждым upload. Для уже загруженных запрашивается cancel/закрытие route. При сохранении связи новый разрешённый baseline и REPLACE_SCOPE очищают текущую проекцию получателя. Если upload уже в сети, полностью предотвратить его доставку невозможно: закрытие route, отмена ID и новый epoch уменьшают окно, но не отзывают скачанные bytes.
 
@@ -196,7 +252,23 @@ Write capabilities — 256-bit random, передаются внутри E2E, с
 
 WorkManager добавляется для persistent one-time upload и периодического fetch с network constraint; Room — источник истины о заданиях. При создании записи/doodle сохраняется outbox и ставится unique work по profile ID; приложение при старте восстанавливает scheduler из БД. Название work не содержит medical values/имён. Для профиля off задания не создаются. Для первой версии синхронизируется выбранный профиль; при switch прежняя работа отменяется/дожидается завершения, старый database handle не используется новой сессией. Поддержку фоновой работы всех профилей можно добавить отдельно через registry, без использования active UI repository.
 
-Периодический WorkManager имеет минимум 15 минут и не гарантирует точное время выполнения; Doze, ограничения OEM и force-stop могут задерживать доставку. Стартовое предложение — редкая фоновая проверка раз в час плюс запрос при открытии приложения и отправка после локального действия; foreground poll ограничен по длительности/частоте. Не обещать мгновенный чат. [Android: work requests и constraints](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work).
+Периодический WorkManager имеет минимум 15 минут и не гарантирует точное время выполнения; Doze, ограничения OEM и force-stop могут задерживать доставку. В фоне — проверка раз в час с jitter и one-time upload после локального действия, без foreground service, wake lock и постоянного polling. [Android: work requests и constraints](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work).
+
+### 7.1. Быстрая доставка при открытых приложениях
+
+Для пилота выбирается **адаптивный foreground fetch**, без дополнительного облачного сервиса. После согласия — немедленный fetch при RESUMED/возврате сети и немедленная постановка upload после подтверждённой отправки; одна receive loop на выбранный профиль, объединяющая запросы всех партнёров. Открытая активная переписка: интервал 5 секунд первые 2 минуты, затем 15 секунд при действиях пользователя; после 2 минут без действий — 60 секунд. Остальные видимые экраны — 60 секунд. Burst сбрасывается не чаще одного раза за 5 минут; возврат на вкладку не обходит общий бюджет.
+
+Token bucket на профиль: capacity 24 foreground fetch, refill 1 token/15 секунд; hard ceiling 264 запросов за скользящий час, включая initial/reconnect fetch. Для ручного «Проверить» при исчерпании показать ближайшее время вместо обхода бюджета. Максимум один запрос in flight; пропускать тики при медленном ответе. Empty fetch не создаёт D1 writes/nonces. Все действия проверяют global opt-in/peer state; STOPPED, switch/delete profile и выключение sync отменяют loop/HTTP, а не оставляют таймер. При 429/5xx применяется backoff и Retry-After без foreground override.
+
+Ориентир при нормальной сети и обоих активных окнах — обнаружение послания/дудла за 5–15 секунд плюс upload/fetch/apply; на неактивной вкладке до минуты. Это целевое поведение для проверки пилота, не гарантия при перегрузке/экономии энергии. Таймер получателя необходим: факт отправки у одного телефона сам по себе не будит второй. Разрешённые фоновые задержки сохраняются.
+
+WebSocket/SSE с серверным D1 polling лишь перемещает лишние чтения на сервер, поэтому не выбирать. Альтернатива при подтверждённой потребности в меньшей задержке/большем foreground usage — authenticated WebSocket **только пока приложение видно**, небольшой Durable Object с Hibernation для wake-up signal после commit, затем обычный fetch из D1. Это требует дополнительного сервиса, reconnect/backpressure и отдельного расчёта, потому сейчас не добавляется. [Cloudflare: WebSocket Hibernation](https://developers.cloudflare.com/durable-objects/best-practices/websockets/). FCM также остаётся отдельной будущей задачей.
+
+### 7.2. Согласие и журналирование
+
+Global internet flag отсутствует/false → никаких relay DNS/HTTP, регистрации, проверки endpoint, token redemption, foreground loop или periodic network work. Наличие activation token, старых grants, контакта или подготовленной Room-схемы согласие не заменяет. Worker/scheduler и каждый send/fetch повторно проверяют профильный flag; disable отменяет in-flight best effort, без обещания вернуть уже отправленный запрос. После восстановления backup или миграции интернет не включается автоматически.
+
+В production логах только allowlisted технические коды/счётчики: без plaintext, рисунков/дат/тегов, ключей, capabilities, activation tokens, подписанных тел/URL query и полных исключений HTTP-клиента. Route/device/identity IDs не нужны логам; логи тела запроса/ответа, SQL bindings и debug network interceptors отключены. Проверки с synthetic sentinel data должны доказывать отсутствие значений в логах. `WorkManager.Data` содержит только технический profile/job reference; medical payload остаётся в локальной БД.
 
 Будущая FCM интеграция допустима только как необязательный сигнал «есть новые пакеты», без sender name, текста, категории, дат цикла или рисунка. Signal не считается доказательством доставки и не заменяет authenticated fetch. Это дополнительный обработчик/метаданные и отдельная зависимость, поэтому сейчас Firebase не добавляется.
 
@@ -223,6 +295,10 @@ UI использует текущие `Theme.kt` tokens и существующ
 
 100 пользователей — разумный пилот, а не верхняя гарантированная ёмкость: 10 ms CPU могут оказаться первым ограничением при подписи, хешировании и больших envelopes. Cron на Free также ограничен CPU; cleanup должен быть мелким. Перед публичным запуском снять p95 CPU и rows_read/written на пустом poll, insert, import ACK, retry, cancel и expiry sweep. Держать запас минимум 30% и останавливать приём до hard quota с понятной ошибкой и сохранённой локальной очередью.
 
+Foreground добавляется к этой модели отдельно. При 30 минутах активной переписки/user/day: 24 polls за первые 2 минуты и 112 за оставшиеся 28 минут с интервалом 15 секунд, всего 136 дополнительных запросов. При N=2/100/1000/10000 суммарно около 432 / 20 424 / 204 024 / 2 040 024 Worker requests/day. В верхнем бюджете 264 дополнительных fetch/user/hour — ещё выше. Это консервативно добавляет foreground к фоновым polls, даже если часть hourly ticks будет объединена. При indexed auth/route lookup примерно 2–6 row reads на пустой foreground fetch: ещё 272–816N reads/day в сценарии 30 минут. Точное число зависит от количества routes и измеряется; никаких writes на пустой fetch. Сценарий 1000 пользователей уже превышает Free requests и без роста message traffic; редкие фоновые проверки не отменяют цену активного чата.
+
+По storage при 100 пользователях один ежедневный doodle по 96 КиБ вместо среднего 8 КиБ добавляет за семь суток около 63,1 МБ; один legacy doodle 1 МиБ/user/day добавил бы около 728,3 МБ и превысил бы Free-базу. Структурный max не является ежедневной квотой: пилот ограничивает новые uploads, например 10 doodles и 1 МиБ суммарных envelope bytes/device/day, плюс отдельная операторская квота первого baseline. ACK/control имеют отдельную малую квоту, чтобы заполненная исходящая очередь не блокировала очистку. Общие route/device/database caps обязательны независимо от per-day quota. Число частей, индексы, nonce/tombstone cleanup и author fence входят в измеряемые расходы; 256-КиБ лимит пакета не означает разрешение заполнить все очереди до максимума бесплатно.
+
 Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пользователей с семидневным backlog уже превышает и этот предел до overhead. Это повод уменьшать retention/объём или проектировать несколько tenant shards, а не обещать бесконечный рост одной базы. Переход на Paid и стоимость согласовать по фактическим метрикам и действующим тарифам на дату внедрения; сейчас платные ресурсы не включаются. [D1 limits](https://developers.cloudflare.com/d1/platform/limits/).
 
 ## 9. Этапы реализации после согласования
@@ -231,9 +307,7 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ### Этап 1. Модели, инварианты и миграция
 
-Файлы: `domain/sync/SyncModels.kt`, `data/sync/SyncStorage.kt`, `data/RitelaDatabase.kt`, `data/UserProfiles.kt`, `app/schemas/app.ritela.data.RitelaDatabase/`, `docs/DATA_FORMAT.md`. Уточнить single-author/generation, scope epochs и совместимость; добавить sidecar revisions, links и новые sync-таблицы без переименования существующих UUID/day keys. Миграция и backfill не включают sync и не отправляют данных. Зависимости: существующие Room/KSP/Coroutines.
-
-Тесты: v6→новая схема, полный migration path, сохранение periods/day_logs/messages/grants/hidden IDs; новый пустой профиль, два профиля, повторное открытие, откат транзакции backfill. Готовность: схема экспортирована, старые данные совпадают, flags выключены. Риск: изменение исходных DAO в обход журналирования; предусмотреть последующий единый путь мутаций. Старые миграции остаются.
+Конкретный объём определяет [RITELA_SYNC_STAGE_1.md](RITELA_SYNC_STAGE_1.md): чистые модели/инварианты, четыре неактивные служебные таблицы, Room 6→7, регистрация миграции и тесты сохранности. Без journal/outbox/inbox, key generation/backfill, transport и нового wire format. Зависимости остаются прежними. Миграция сохраняет старые таблицы/JSON/файлы/ключи и создаёт только disabled/uninitialized state. Журналирование существующих DAO и backfill revisions откладываются до этапа 2 с transactional baseline.
 
 ### Этап 2. Change Tracking и устойчивый Sync Engine
 
@@ -249,9 +323,9 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ### Этап 4. Защищённый relay и протокол доступа
 
-Файлы: будущий `relay/src/index.ts`, `auth.ts`, `routes.ts`, `packets.ts`, `cleanup.ts`, `relay/migrations/0001_relay.sql`, `relay/wrangler.jsonc`, `relay/test/`; Android `data/sync/PartnerEnvelopeCrypto.kt`, `RelayKeyVault.kt`. Уточнить canonical request bytes, ECDSA DER↔WebCrypto representation, ECDH/HKDF vectors, transport certificates и внешний wrapper. Реализовать local Worker, auth/quotas, идемпотентность, TTL/revoke/delete; привязать существующий D1 ID только после проверки назначения базы. Зависимости: dev-only TypeScript/Wrangler и Workers test runner с локальной D1; pin lockfile. Серверный runtime — WebCrypto/D1, без framework по умолчанию.
+Файлы: будущий `relay/src/index.ts`, `auth.ts`, `routes.ts`, `packets.ts`, `cleanup.ts`, `relay/migrations/0001_relay.sql`, `relay/wrangler.jsonc`, `relay/test/`; Android `data/sync/PartnerEnvelopeCrypto.kt`, `RelayKeyVault.kt`. Уточнить canonical request bytes, ECDSA DER↔WebCrypto representation, Tink HPKE vectors, transport certificates и внешний wrapper. Реализовать local Worker, author fence, activation tokens, auth/quotas, идемпотентность, TTL/revoke/delete; привязать существующий D1 ID только после проверки назначения базы. Зависимости: Tink Android на клиенте; dev-only TypeScript/Wrangler и Workers test runner с локальной D1; pin lockfile. Серверный runtime — WebCrypto/D1, без framework по умолчанию.
 
-Тесты: Kotlin↔Worker vectors, forged sender/read/control, guess route, replay mutations, concurrent quota uploads/revoke/cancel-before-upload, expiry, 413/429, SQL parameterization, rollback batch, восстановление D1 с revoke ledger, отсутствие payload/capability в логах. Готовность: security review threat model и crypto encoding, измеренные CPU/rows/bytes; отдельный staging smoke test разрешается перед облачным выполнением. Риски: 10 ms CPU, Sybil, race cleanup, transport key loss. Production deploy не входит в одобрение локальной реализации автоматически.
+Тесты: Kotlin↔Worker API-signature vectors и Android↔Android HPKE vectors, forged sender/read/control, guess route, replay mutations, concurrent quota uploads/revoke/cancel-before-upload, simultaneous author transfers и old-generation upload, expiry, 413/429, SQL parameterization, rollback batch, восстановление D1 с revoke ledger, отсутствие payload/capability в логах. Готовность: security review threat model и crypto encoding, измеренные CPU/rows/bytes; отдельный staging smoke test разрешается перед облачным выполнением. Риски: 10 ms CPU, Sybil, race cleanup, transport key loss. Production deploy не входит в одобрение локальной реализации автоматически.
 
 ### Этап 5. Android HTTP и фоновое выполнение
 
@@ -279,7 +353,7 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ## 10. Что требуется от владельца проекта
 
-Сейчас — согласовать план и ограничения первой версии: один автор, редкая фоновая проверка, TTL 7 суток, закрытый пилот, отсутствие полной forward secrecy. Выбрать, обязателен ли для первого выпуска внешний wrapper для сокрытия identity ID; рекомендация — обязателен, поскольку прямой v1 envelope раскрывает устойчивые идентификаторы Cloudflare. Утвердить поведение очистки прежних данных при сужении scope и правила восстановления авторского поколения.
+Архитектура принята за основу. Для этой редакции зафиксированы single-author с fencing/явным recovery, быстрая foreground доставка, редкая фоновая проверка, TTL 7 суток, закрытый пилот с activation tokens, HPKE wrapper через Tink и отсутствие полной forward secrecy. Следующий предмет согласования — конкретный объём этапа 1 из отдельного документа. Его начало пока не разрешено; уточнения архитектуры не являются командой менять Android/облако.
 
 Перед будущим staging: сообщить имя и назначение уже созданной D1, account ID и тариф, выбрать workers.dev/свой домен и разрешённое размещение данных, выделить тестовую среду, утвердить retention и предел затрат. Доступ настраивается локально через Wrangler/OAuth либо scoped deployment token с минимальными правами Workers/D1; секреты не присылать в чат и не коммитить. ID базы уже известен. Android не получает операторские Cloudflare credentials.
 
@@ -294,9 +368,9 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 | Дельты с одним автором | Рекомендуется для первой версии: однозначные revisions и управляемое восстановление |
 | Multi-writer/CRDT сейчас | Значительно усложняет медицинские конфликты и импорт. Отложить до явной потребности; версии первой схемы должны уметь обнаруживать конкуренцию |
 | Один RSA envelope без внешнего wrapper | Меньше кода, сохранение существующего trust; сервер видит stable IDs и нет device-key cryptographic isolation. Только после явного принятия ограничений |
-| Ratchet/готовая E2E библиотека | Может дать FS, но требует оценки поддержки minSdk, восстановления, лицензии, trust migration и зависимости. Отдельный дизайн вместо заявления, что текущий v1 уже обладает FS |
-| FCM/WebSocket/частый polling | FCM — будущий wake-up; постоянный WebSocket и частый background polling не выбирать для начального Android MVP |
+| Готовая E2E библиотека | Выбран Tink HPKE для wrapper; ratchet — отдельная задача, если FS станет обязательной. Подробное сравнение в §5.1 |
+| FCM/WebSocket/частый polling | В пилоте adaptive foreground polling с бюджетом; фон раз в час. FCM/foreground-only WebSocket+DO — последующие варианты по метрикам |
 
-Открыто до реализации: требования к одновременному редактированию на нескольких телефонах; допустимая задержка доставки; независимая экспертиза криптографии и угроз rollback; максимальные реальные размеры baseline/дудлов; политика локального удаления полученной проекции, чтобы resync не восстановил её против желания пользователя; доступность Cloudflare в целевых сетях; требования к региону и срокам резервных копий. Для последнего нужен отдельный review политики обработки данных, этот технический аудит его не заменяет.
+Открыто перед соответствующими этапами: независимая экспертиза HPKE-интеграции и transfer/recovery/rollback; фактический CPU/rows/bytes профиля пилота; validation размеров на legacy рисунках; доступность Cloudflare в целевых сетях; требования к региону и резервным копиям. Политика обработки данных требует отдельного review. Публичная регистрация и автоматический Bluetooth/BLE не входят в текущую реализацию; существующий ручной RFCOMM остаётся.
 
-Проверки этого документа: аудит перечисленных файлов и manifest/dependencies, чтение актуальных первичных источников, workspace validation и diff checks. Аккаунт Cloudflare, рабочая D1, сетевой протокол, UI и Android-сборка этим шагом не проверены. Следующее действие — согласование плана пользователем; реализация и сервер не запускались.
+Проверки этой редакции: повторная сверка Room v6, ProfileSession, migration tests, Doodle/library constraints; первичные источники Tink/libsodium/libsignal/Cloudflare; workspace validation и diff checks. Аккаунт Cloudflare, рабочая D1, сетевой протокол, UI и Android-сборка этим шагом не проверены. Следующее действие — согласование рабочего плана этапа 1; реализация и сервер не запускались.
