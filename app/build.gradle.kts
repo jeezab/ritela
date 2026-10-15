@@ -101,6 +101,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.tink.android)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)

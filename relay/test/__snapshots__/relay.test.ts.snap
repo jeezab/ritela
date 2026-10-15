@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`closed pilot relay on local workerd/D1 > measures local D1 costs without sensitive diagnostic fields 1`] = `
+{
+  "cancelBeforeUpload": {
+    "responseBytes": 16,
+    "rowsReadUpperBound": 16,
+    "rowsWritten": 15,
+    "statements": 11,
+  },
+  "duplicateUpload": {
+    "responseBytes": 17,
+    "rowsReadUpperBound": 32,
+    "rowsWritten": 12,
+    "statements": 14,
+  },
+  "emptyFetch": {
+    "responseBytes": 27,
+    "rowsReadUpperBound": 4,
+    "rowsWritten": 0,
+    "statements": 3,
+  },
+  "fetch8KiB": {
+    "responseBytes": 11100,
+    "rowsReadUpperBound": 8,
+    "rowsWritten": 0,
+    "statements": 3,
+  },
+  "importAck": {
+    "responseBytes": 16,
+    "rowsReadUpperBound": 32,
+    "rowsWritten": 19,
+    "statements": 11,
+  },
+  "revoke": {
+    "responseBytes": 16,
+    "rowsReadUpperBound": 16,
+    "rowsWritten": 15,
+    "statements": 12,
+  },
+  "upload8KiB": {
+    "responseBytes": 17,
+    "rowsReadUpperBound": 32,
+    "rowsWritten": 21,
+    "statements": 14,
+  },
+}
+`;

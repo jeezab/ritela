@@ -327,6 +327,7 @@ class ProfileManager(private val context: Context) {
                 }
             }
             PartnerKeyVault.delete(context, id)
+            app.ritela.data.sync.RelayKeyVault.delete(context, id)
             val savedDoodles = SavedDoodleLibrary.location(context, id)
             check(savedDoodles.parentFile == context.filesDir)
             check(!savedDoodles.exists() || savedDoodles.delete())
