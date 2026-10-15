@@ -341,6 +341,8 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ### Этап 6. Автоматическая доставка записей, посланий и дудлов
 
+Начата локальная часть подтверждённых send intents и квитанций: [RITELA_SYNC_STAGE_6.md](RITELA_SYNC_STAGE_6.md). Room 10, атомарная запись с PartnerMessage, idempotence/revoke/delete/limits; реальная отправка ждёт незавершённых runtime зависимостей этапа 5. Этап 6 в целом не завершён, auto records/forecast refresh ещё не подключены.
+
 Файлы: `PartnerViewModel.kt`, `PartnerRepository.kt`, `domain/SavedDoodles.kt`, `data/sync/SyncQueueRepository.kt`, `SyncApplyRepository.kt`. Подключить подтверждённое send action к очереди, автопроекцию разрешённых изменений, forecast refresh, E2E receipts и delayed-open. Draft и saved doodle library не отправляются автоматически. Зависимости: уже добавленные, без FCM.
 
 Тесты: серия правок офлайн/удаление до отправки, действие «Отправить» ровно один раз после restart, повторы по двум транспортам, delayed-open с часами/минутами, дудл в DATA, потерянный ACK, expiry и resync. Готовность: нет ручного создания файлов при включённом internet link, получатель не видит запрещённого, статус не опережает подтверждение. Риск: дублирование старого ручного send flow; один общий pipeline и явное направление каждого сообщения.

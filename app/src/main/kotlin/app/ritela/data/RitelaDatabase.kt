@@ -37,9 +37,10 @@ import app.ritela.data.sync.SyncStateDao
         SyncCapabilityRow::class, SyncReceivedAuthorRow::class, SyncReceivedStateRow::class,
         SyncReceivedRecordRow::class, SyncInboxRow::class,
         app.ritela.data.sync.SyncDoodleReceiptRow::class,
-        app.ritela.data.sync.SyncHandoverRow::class
+        app.ritela.data.sync.SyncHandoverRow::class,
+        app.ritela.data.sync.SyncMessageIntentRow::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class RitelaDatabase : RoomDatabase() {
@@ -53,8 +54,24 @@ abstract class RitelaDatabase : RoomDatabase() {
     abstract fun syncJournal(): SyncJournalDao
     abstract fun syncQueue(): SyncQueueDao
     abstract fun syncReceive(): SyncReceiveDao
+    abstract fun syncMessageIntents(): app.ritela.data.sync.SyncMessageIntentDao
 
     companion object {
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_message_intents (" +
+                        "messageId TEXT NOT NULL, identity TEXT NOT NULL, device TEXT NOT NULL, " +
+                        "kind TEXT NOT NULL, epoch INTEGER NOT NULL, context TEXT NOT NULL, " +
+                        "grantsDigest TEXT NOT NULL, messageDigest TEXT NOT NULL, " +
+                        "state TEXT NOT NULL, errorCode TEXT, PRIMARY KEY(messageId))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_sync_message_intents_state " +
+                        "ON sync_message_intents (state)"
+                )
+            }
+        }
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(

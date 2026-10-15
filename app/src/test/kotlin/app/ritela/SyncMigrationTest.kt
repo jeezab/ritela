@@ -23,8 +23,8 @@ import org.robolectric.annotation.Config
 class SyncMigrationTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
-    @Test fun allEightMigrationPathsPreserveEveryExistingValueAndDefaultToOff() = runBlocking {
-        for (version in 1..8) {
+    @Test fun allNineMigrationPathsPreserveEveryExistingValueAndDefaultToOff() = runBlocking {
+        for (version in 1..9) {
             val name = "sync-from-$version-${UUID.randomUUID()}.db"
             val expected = mutableMapOf<String, Pair<List<String>, List<List<String?>>>>()
             legacySyncDatabase(context, name, version) { old, tables ->
@@ -77,6 +77,23 @@ class SyncMigrationTest {
                             "'digest','DELTA',12,17,4,X'010203','RETRY_WAIT',2,100,0,NULL,'IO')"
                     )
                 }
+                if (version >= 9) {
+                    old.execSQL("INSERT INTO sync_capabilities VALUES ('peer','device','ctx',1,1)")
+                    old.execSQL(
+                        "INSERT INTO sync_received_author VALUES ('peer','device',1,'hash','grant')"
+                    )
+                    old.execSQL(
+                        "INSERT INTO sync_received_state VALUES ('peer',1,2,3,'scope','snapshot',4)"
+                    )
+                    old.execSQL(
+                        "INSERT INTO sync_received_records VALUES ('peer','DAY','1',3,'record')"
+                    )
+                    old.execSQL(
+                        "INSERT INTO sync_inbox VALUES ('inbox','peer','device','hash',1,2,3,'payload',4,1)"
+                    )
+                    old.execSQL("INSERT INTO sync_doodle_receipts VALUES ('doodle')")
+                    old.execSQL("INSERT INTO sync_handover VALUES (1,'proposal','grant')")
+                }
                 tables.forEach { table ->
                     old.rawQuery("SELECT * FROM `$table` ORDER BY rowid", null).use {
                         expected[table] = it.columnNames.toList() to syncCursorRows(it)
@@ -86,7 +103,7 @@ class SyncMigrationTest {
             val db = syncTestDatabase(context, name)
             try {
                 val sqlite = db.openHelper.writableDatabase
-                assertEquals(9, sqlite.version)
+                assertEquals(10, sqlite.version)
                 expected.forEach { (table, columnsAndRows) ->
                     val columns = columnsAndRows.first.joinToString(",") { "`$it`" }
                     assertEquals(
@@ -118,7 +135,7 @@ class SyncMigrationTest {
             }
             val reopened = syncTestDatabase(context, name)
             try {
-                assertEquals(9, reopened.openHelper.writableDatabase.version)
+                assertEquals(10, reopened.openHelper.writableDatabase.version)
                 assertTrue(SyncStateStore(reopened).read() is SyncStateResult.Ready)
             } finally {
                 reopened.close()
@@ -142,7 +159,7 @@ class SyncMigrationTest {
                 "sync_projection_state", "sync_outbox", "sync_capabilities", "sync_received_author",
                 "sync_received_state", "sync_received_records", "sync_inbox",
                 "sync_doodle_receipts",
-                "sync_handover"
+                "sync_handover", "sync_message_intents"
             )) {
                 assertEquals(
                     syncCursorRows(
@@ -171,7 +188,7 @@ class SyncMigrationTest {
     }
 
     @Test fun failedMigrationRollsBackDdlDefaultsAndVersionAndCanBeRetried() {
-        for (version in 6..8) checkRollback(version)
+        for (version in 6..9) checkRollback(version)
     }
 
     private fun checkRollback(version: Int) {
@@ -180,11 +197,12 @@ class SyncMigrationTest {
             old.execSQL("INSERT INTO profile_settings VALUES (1,'en','LIGHT')")
         }
         var invoked = false
-        val failure = object : Migration(version, 9) {
+        val failure = object : Migration(version, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 if (version == 6) RitelaDatabase.MIGRATION_6_7.migrate(db)
                 if (version <= 7) RitelaDatabase.MIGRATION_7_8.migrate(db)
-                RitelaDatabase.MIGRATION_8_9.migrate(db)
+                if (version <= 8) RitelaDatabase.MIGRATION_8_9.migrate(db)
+                RitelaDatabase.MIGRATION_9_10.migrate(db)
                 invoked = true
                 error("Synthetic migration failure")
             }
@@ -214,8 +232,10 @@ class SyncMigrationTest {
                             "0"
                         } else if (version == 7) {
                             "4"
-                        } else {
+                        } else if (version == 8) {
                             "9"
+                        } else {
+                            "16"
                         }
                     )
                 ),
@@ -226,7 +246,7 @@ class SyncMigrationTest {
         }
         val retried = syncTestDatabase(context, name)
         try {
-            assertEquals(9, retried.openHelper.writableDatabase.version)
+            assertEquals(10, retried.openHelper.writableDatabase.version)
         } finally {
             retried.close()
             context.deleteDatabase(name)
