@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.ritela.R
 
@@ -41,8 +40,9 @@ private fun SettingsContent(
     val version = remember(context) { appVersionLabel(context) }
     Box(Modifier.fillMaxSize().background(HomeColors.background).padding(padding)) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(HomeSpacing.gutter)
-                .padding(bottom = 28.dp),
+            Modifier.fillMaxSize().verticalScroll(
+                rememberScrollState()
+            ).padding(HomeSpacing.gutter),
             verticalArrangement = Arrangement.spacedBy(HomeSpacing.gap)
         ) {
             Text(
@@ -64,15 +64,14 @@ private fun SettingsContent(
                 color = HomeColors.muted
             )
             WithLoveButton(onLoveClick, modifier)
-        }
-        if (version.isNotEmpty()) {
-            Text(
-                version,
-                Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 4.dp)
-                    .testTag("app-version"),
-                style = MaterialTheme.typography.labelSmall,
-                color = HomeColors.muted.copy(alpha = 0.72f)
-            )
+            if (version.isNotEmpty()) {
+                Text(
+                    version,
+                    Modifier.align(Alignment.End).testTag("app-version"),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = HomeColors.muted.copy(alpha = 0.72f)
+                )
+            }
         }
     }
 }
