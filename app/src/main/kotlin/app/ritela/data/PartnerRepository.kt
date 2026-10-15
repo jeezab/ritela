@@ -1,6 +1,11 @@
 package app.ritela.data
 
 import androidx.room.withTransaction
+import app.ritela.data.sync.SyncApplyRepository
+import app.ritela.data.sync.SyncAuthorGrants
+import app.ritela.data.sync.SyncCapabilityRow
+import app.ritela.data.sync.SyncDraft
+import app.ritela.data.sync.SyncEnvelopeCodec
 import app.ritela.domain.Doodle
 import app.ritela.domain.EstimatedCyclePhase
 import app.ritela.domain.JournalLayout
@@ -13,6 +18,7 @@ import app.ritela.domain.analyzeCycles
 import app.ritela.domain.cycleSceneState
 import app.ritela.domain.historySections
 import app.ritela.domain.journalSelections
+import app.ritela.domain.sync.SyncLimits
 import app.ritela.domain.validJournalId
 import java.security.KeyPair
 import java.time.LocalDate
@@ -20,6 +26,7 @@ import java.util.UUID
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -51,7 +58,91 @@ class PartnerRepository(
         it?.let { PartnerCodec.directory(it.json) }
             ?: PartnerDirectory()
     }
-    val messages = dao.messages()
+    private val syncApply = SyncApplyRepository(database, ::validateData)
+    val messages = combine(dao.messages(), database.syncReceive().states()) { history, states ->
+        history + states.map {
+            PartnerMessage(
+                "sync-projection:${it.identity}", it.identity, "", false, "SYNC_PROJECTION",
+                it.received, it.received, it.snapshot, "", delivered = true, hiddenFromChat = true
+            )
+        }
+    }
+
+    /** Explicit manual exchange only; no network or automatic opt-in. */
+    suspend fun prepareSyncCapabilities(identity: String, device: String): PartnerMessage =
+        database.withTransaction {
+            val remote = snapshot().identities.single { it.id == identity }.devices.single {
+                it.id == device && it.enabled && it.mutualConfirmed
+            }
+            val context = "${remote.localNonce}:${remote.remoteNonce}"
+            val previous = database.syncReceive().capability(identity, device)
+            val capabilities = SyncEnvelopeCodec.capabilities()
+                .put("senderNonce", remote.localNonce).put("recipientNonce", remote.remoteNonce)
+            val result = prepare(identity, device, "SYNC_CAPS", capabilities)
+            database.syncReceive().capability(
+                SyncCapabilityRow(
+                    identity,
+                    device,
+                    context,
+                    true,
+                    previous?.context == context && previous.accepted
+                )
+            )
+            result
+        }
+
+    suspend fun initializeSyncAuthor(): String = SyncAuthorGrants(database).initialize(identity())
+
+    suspend fun approveSyncAuthor(identity: String, grant: String) {
+        database.withTransaction {
+            syncApply.approveAuthor(
+                snapshot().identities.single { it.id == identity && it.exchangeEnabled },
+                grant
+            )
+        }
+    }
+
+    /** Encoder for the queue and explicit manual adapters; never invoked on profile open. */
+    suspend fun encodeSyncDraft(draft: SyncDraft): ByteArray {
+        val keys = identity()
+        return database.withTransaction {
+            requireSyncCapabilities(draft.peerIdentity, draft.peerDevice)
+            val state = database.syncState().authorities().single()
+            check(
+                state.state == "ACTIVE" && state.ownerIdentity == keys.identityId &&
+                    state.authorDevice == keys.deviceId
+            )
+            val content = SyncEnvelopeCodec.encode(
+                draft,
+                state.generation,
+                requireNotNull(state.grantDigest)
+            )
+            val scope = PartnerCodec.scope(content.getJSONObject("scope"))
+            require(
+                scope.categories.isNotEmpty() && snapshot().identities.single {
+                    it.id == draft.peerIdentity
+                }.grants.permits(scope)
+            )
+            SyncEnvelopeCodec.decode(content)
+            prepare(
+                draft.peerIdentity,
+                draft.peerDevice,
+                "SYNC",
+                content,
+                packetId = draft.packetId
+            ).envelope.toByteArray().also { require(it.size <= SyncLimits.ENVELOPE_BYTES) }
+        }
+    }
+
+    private suspend fun requireSyncCapabilities(identity: String, device: String) {
+        val remote = snapshot().identities.single { it.id == identity && it.exchangeEnabled }
+            .devices.single { it.id == device && it.enabled && it.mutualConfirmed }
+        val capability = database.syncReceive().capability(identity, device)
+        check(
+            capability != null && capability.offered && capability.accepted &&
+                capability.context == "${remote.localNonce}:${remote.remoteNonce}"
+        )
+    }
 
     /** Keep the row ID to make re-import idempotent, even after contents were erased. */
     suspend fun deleteMessage(id: String, eraseSharedData: Boolean = false) =
@@ -60,10 +151,20 @@ class PartnerRepository(
                 database.withTransaction {
                     val message = requireNotNull(dao.message(id))
                     require(message.kind in setOf("DATA", "DOODLE"))
+                    rememberDoodle(message)
                     if (eraseSharedData || !message.hasSharedData()) dao.erase(id) else dao.hide(id)
                 }
             }
         }
+    private suspend fun rememberDoodle(message: PartnerMessage) {
+        if (message.kind == "DOODLE" || (
+                message.kind == "DATA" &&
+                    message.body.isNotEmpty() && JSONObject(message.body).has("doodle")
+                )
+        ) {
+            database.syncReceive().doodle(app.ritela.data.sync.SyncDoodleReceiptRow(message.id))
+        }
+    }
     suspend fun identity(): LocalPartnerKeys = withContext(Dispatchers.IO) { loadKeys() }
     suspend fun snapshot(): PartnerDirectory =
         dao.snapshot()?.let { PartnerCodec.directory(it.json) } ?: PartnerDirectory()
@@ -266,7 +367,10 @@ class PartnerRepository(
         mutate { it.remove(contact) }
     }
     suspend fun clearReceived(identity: String) {
-        database.withTransaction { dao.clearReceived(identity) }
+        database.withTransaction {
+            dao.clearReceived(identity)
+            syncApply.clear(identity)
+        }
     }
 
     suspend fun preview(scope: ShareScope): JSONObject = database.withTransaction {
@@ -448,9 +552,10 @@ class PartnerRepository(
         selection: ShareScope? = null,
         confirmed: Boolean = false,
         note: String = "",
-        doodle: Doodle? = null
+        doodle: Doodle? = null,
+        packetId: String? = null
     ): PartnerMessage = withContext(Dispatchers.IO) {
-        mutex.withLock {
+        run {
             database.withTransaction {
                 val directory = snapshot()
                 val contact = directory.identities.single { it.id == identity }
@@ -478,7 +583,7 @@ class PartnerRepository(
                         it.mutualConfirmed
                 }
                 val keys = loadKeys()
-                val id = UUID.randomUUID().toString()
+                val id = packetId ?: UUID.randomUUID().toString()
                 val created = now()
                 val body = JSONObject().put("format", "ritela.partner").put("v", 1).put("id", id)
                     .put(
@@ -523,6 +628,7 @@ class PartnerRepository(
                     id, identity, device, true, kind, created, created, payload.toString(), envelope
                 ).also {
                     dao.insert(it)
+                    rememberDoodle(it)
                     if (confirmed) {
                         dao.save(
                             PartnerDirectoryRow(
@@ -605,8 +711,13 @@ class PartnerRepository(
                 require(body.getString("link") == device.localNonce)
                 val id = body.getString("id").also { require(UUID.fromString(it).toString() == it) }
                 val kind = body.getString("kind")
-                require(kind in listOf("DATA", "DOODLE", "ACK", "OPENED"))
+                require(kind in listOf("DATA", "DOODLE", "ACK", "OPENED", "SYNC_CAPS", "SYNC"))
                 val content = body.getJSONObject("content")
+                if (kind == "SYNC") {
+                    require(bytes.size <= SyncLimits.ENVELOPE_BYTES)
+                    requireSyncCapabilities(sender.id, device.id)
+                    syncApply.receive(id, sender.id, device.id, bytes, content, now())
+                }
                 if (kind == "DOODLE") PartnerCodec.doodle(content)
                 if (kind == "DATA") validateData(content)
                 val previous = dao.message(id)
@@ -622,16 +733,56 @@ class PartnerRepository(
                     )
                     return@withTransaction ReceivedPartnerPacket(previous, true)
                 }
+                if (kind == "SYNC_CAPS") {
+                    SyncEnvelopeCodec.validateCapabilities(content)
+                    require(
+                        content.getString("senderNonce") == device.remoteNonce &&
+                            content.getString("recipientNonce") == device.localNonce
+                    )
+                    val context = "${device.localNonce}:${device.remoteNonce}"
+                    val old = database.syncReceive().capability(sender.id, device.id)
+                    database.syncReceive().capability(
+                        SyncCapabilityRow(
+                            sender.id,
+                            device.id,
+                            context,
+                            old?.context == context && old.offered,
+                            true
+                        )
+                    )
+                }
                 if (kind == "ACK" || kind == "OPENED") {
                     val original = dao.message(content.getString("message"))
                     require(
                         original != null && original.outgoing && original.identity == sender.id &&
                             original.device == device.id
                     )
-                    if (kind == "ACK") {
+                    if (kind == "ACK" && original.kind == "SYNC") {
+                        val ids = content.getJSONArray("applied")
+                        require(ids.length() <= SyncLimits.ACK_IDS)
+                        for (i in 0 until ids.length()) {
+                            val applied = requireNotNull(dao.message(ids.getString(i)))
+                            require(
+                                applied.outgoing && applied.kind == "SYNC" &&
+                                    applied.identity == sender.id && applied.device == device.id
+                            )
+                            dao.delivered(applied.id)
+                            database.syncQueue().cancel(applied.id)
+                        }
+                    } else if (kind == "ACK") {
                         dao.delivered(original.id)
                     } else {
-                        require(original.kind == "DOODLE")
+                        require(
+                            original.kind == "DOODLE" ||
+                                (
+                                    original.kind == "DATA" && original.body.isNotEmpty() &&
+                                        JSONObject(original.body).has("doodle")
+                                    ) ||
+                                (
+                                    original.kind == "DATA" && original.body.isEmpty() &&
+                                        database.syncReceive().hasDoodle(original.id) == 1
+                                    )
+                        )
                         dao.delivered(original.id)
                         dao.opened(original.id)
                     }
@@ -650,17 +801,44 @@ class PartnerRepository(
             }
         }
     }
-    suspend fun acknowledgement(message: PartnerMessage): PartnerMessage =
-        prepare(message.identity, message.device, "ACK", JSONObject().put("message", message.id))
+    suspend fun acknowledgement(message: PartnerMessage): PartnerMessage {
+        require(!message.outgoing)
+        val content = JSONObject().put("message", message.id)
+        if (message.kind == "SYNC") {
+            val own = database.syncReceive().packet(message.id)
+            val applied = database.syncReceive().appliedIds(message.identity, message.device)
+            val ids = if (own?.applied == 1) {
+                (listOf(message.id) + applied).distinct().take(SyncLimits.ACK_IDS)
+            } else {
+                applied
+            }
+            content.put(
+                "applied",
+                org.json.JSONArray(ids)
+            )
+        }
+        return prepare(message.identity, message.device, "ACK", content)
+    }
     private val openingMutex = Mutex()
     suspend fun openDoodle(id: String, reply: Boolean = true): PartnerMessage? =
         openingMutex.withLock {
             // A file reply is optional. Bluetooth still returns ACK on the same connection.
             run {
                 val message = dao.message(id) ?: error("Unknown doodle")
-                require(message.kind == "DOODLE" && !message.outgoing && message.body.isNotEmpty())
                 require(
-                    PartnerCodec.doodle(JSONObject(message.body)).canOpen(
+                    message.kind in setOf("DATA", "DOODLE") &&
+                        !message.outgoing && message.body.isNotEmpty()
+                )
+                val content = JSONObject(message.body)
+                val doodle = if (message.kind ==
+                    "DATA"
+                ) {
+                    content.getJSONObject("doodle")
+                } else {
+                    content
+                }
+                require(
+                    PartnerCodec.doodle(doodle).canOpen(
                         message.received,
                         now()
                     )
@@ -712,6 +890,21 @@ class PartnerRepository(
                     PartnerCodec.scope(JSONObject(message.body).getJSONObject("scope"))
                 )
             )
+        }
+        if (message.kind == "SYNC") {
+            requireSyncCapabilities(message.identity, message.device)
+            val author = database.syncState().authorities().single()
+            val content = JSONObject(message.body)
+            check(
+                author.state == "ACTIVE" && author.authorDevice == keys.deviceId &&
+                    author.ownerIdentity == keys.identityId &&
+                    author.generation == content.getLong("generation") &&
+                    author.grantDigest == content.getString("grant")
+            )
+            require(identity.grants.permits(PartnerCodec.scope(content.getJSONObject("scope"))))
+            database.syncState().links().singleOrNull {
+                it.peerIdentity == message.identity && it.peerDevice == message.device
+            }?.let { require(it.scopeEpoch == content.getLong("epoch")) }
         }
         return message
     }
@@ -780,7 +973,18 @@ class PartnerRepository(
                             PartnerCrypto.sign(private, "restore")
                         )
                     )
-                    saveKeys(LocalPartnerKeys.create(KeyPair(public, private)))
+                    val replacement = LocalPartnerKeys.create(KeyPair(public, private))
+                    // Persist the fence before changing the vault: a crash cannot bootstrap g=1
+                    // from a restored identity. Manual v1 pairing/exchange remains available.
+                    database.withTransaction {
+                        database.syncState().ensureDefaults()
+                        val authority = database.syncState().authorities().single()
+                        require(authority.generation == 0L)
+                        database.syncState().saveAuthority(
+                            app.ritela.data.sync.SyncAuthorityRow(state = "RECOVERY_REQUIRED")
+                        )
+                    }
+                    saveKeys(replacement)
                 } finally {
                     password.fill('\u0000')
                 }
