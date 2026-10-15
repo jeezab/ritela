@@ -116,7 +116,7 @@ private fun CalendarContent(
         info = {
             calendarDisplayDay(state.periods, state.analysis, it, state.today, compactWindows)
         },
-        modifier = Modifier.padding(padding),
+        modifier = Modifier.fillMaxSize().background(HomeColors.background).padding(padding),
         hasLog = { markers[it]?.record != null }, hasSex = { markers[it]?.intimacy == true },
         filledSex = { markers[it]?.filledHeart == true },
         logIcon = { journalIcon(markers[it]?.record ?: app.ritela.domain.JournalIcon.NOTE) }
