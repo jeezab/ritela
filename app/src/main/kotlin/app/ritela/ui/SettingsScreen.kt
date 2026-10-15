@@ -56,6 +56,7 @@ private fun SettingsContent(
             )
             UserSettings(state)
             PartnerSettings()
+            SyncSettings()
             state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
             SettingsGroup { BackupActions() }
             Text(
