@@ -17,7 +17,7 @@ interface SyncQueuePort {
     suspend fun failed(lease: SyncLease, retryAfterMillis: Long = 0): Boolean
 }
 
-/** Stage two supplies only fake adapters in tests; there is no production transport or scheduler. */
+/** Explicit dispatch port; internet transport and scheduling are separate opt-in integrations. */
 fun interface SyncTransport {
     suspend fun store(lease: SyncLease)
 }

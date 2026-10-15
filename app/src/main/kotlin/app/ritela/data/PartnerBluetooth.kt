@@ -181,7 +181,8 @@ class PartnerBluetooth(context: Context, private val repository: PartnerReposito
             require(
                 received.message.kind == "DATA" || received.message.kind == "DOODLE" ||
                     received.message.kind == "OPENED" ||
-                    received.message.kind == "ACK"
+                    received.message.kind == "ACK" || received.message.kind == "SYNC" ||
+                    received.message.kind == "SYNC_CAPS"
             )
             val ack = repository.acknowledgement(received.message)
             write(connected, ack.envelope.toByteArray())

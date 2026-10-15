@@ -78,12 +78,18 @@ class PartnerSnapshot(val data: JSONObject) {
     }
 }
 
-fun partnerDataMessage(messages: List<PartnerMessage>, identities: Set<String>): PartnerMessage? =
-    messages.filter {
-        !it.outgoing && it.identity in identities && it.kind == "DATA" &&
-            it.body.isNotEmpty()
+fun partnerDataMessage(messages: List<PartnerMessage>, identities: Set<String>): PartnerMessage? {
+    val projections = messages.filter {
+        !it.outgoing && it.identity in identities && it.kind == "SYNC_PROJECTION"
     }
-        .maxByOrNull { it.received }
+    val synchronized = projections.map { it.identity }.toSet()
+    return (
+        projections + messages.filter {
+            !it.outgoing && it.identity in identities && it.kind == "DATA" &&
+                it.identity !in synchronized && it.body.isNotEmpty()
+        }
+        ).maxByOrNull { it.received }
+}
 
 fun partnerDoodles(messages: List<PartnerMessage>, identities: Set<String>): List<PartnerMessage> =
     messages.filter {

@@ -105,35 +105,75 @@ class SyncQueueRepository(
                 )
                 return@withTransaction SyncPreparation.UNCHANGED
             }
-            if (records.length() >
-                SyncLimits.DELTA_OPERATIONS
+            val chunks = mutableListOf<JSONArray>()
+            var chunk = JSONArray()
+            for (i in 0 until records.length()) {
+                val record = records.getJSONObject(i)
+                if (record.toString().toByteArray().size > SyncLimits.OPERATION_BYTES) {
+                    throw SyncPreparationException("OPERATION_TOO_LARGE")
+                }
+                if (chunk.length() > 0 && (
+                        chunk.length() >= SyncLimits.DELTA_OPERATIONS ||
+                            chunk.toString().toByteArray().size +
+                            record.toString().toByteArray().size >
+                            SyncLimits.PROJECTED_BYTES - 2048
+                        )
+                ) {
+                    chunks += chunk
+                    chunk = JSONArray()
+                }
+                chunk.put(record)
+            }
+            if (chunk.length() > 0 || chunks.isEmpty()) chunks += chunk
+            if (chunks.size > SyncLimits.BASELINE_PARTS ||
+                (
+                    baseline && chunks.sumOf { it.toString().toByteArray().size.toLong() } >
+                        SyncLimits.BASELINE_BYTES
+                    )
             ) {
-                throw SyncPreparationException("NEEDS_CHUNKS")
+                throw SyncPreparationException("BASELINE_TOO_LARGE")
             }
-            val payload =
-                canonicalJson(JSONObject().put("records", records))
-            if (payload.toByteArray().size > SyncLimits.PROJECTED_BYTES) {
-                throw SyncPreparationException("NEEDS_CHUNKS")
-            }
-            val id = UUID.randomUUID().toString()
+            val batch = UUID.randomUUID().toString()
             val kind = if (baseline) "BASELINE" else "DELTA"
-            val bytes = encoder.encode(
-                SyncDraft(id, peer, device, policy.scopeEpoch, next, kind, payload)
-            )
-                .copyOf()
-            require(bytes.isNotEmpty() && bytes.size <= SyncLimits.ENVELOPE_BYTES)
-            if (dao.queuedBytes() + bytes.size >
-                queueLimit || dao.packetCount() >= 512 ||
-                dao.packetCount(peer, device) >= SyncLimits.ROUTE_PACKETS
-            ) {
-                throw SyncPreparationException("QUEUE_FULL")
-            }
-            dao.insert(
-                SyncOutboxRow(
-                    id, peer, device, policy.scopeEpoch, hash, kind,
-                    after, through, next, bytes
+            var lastSequence = sequence
+            var totalPayloadBytes = 0L
+            for ((part, entries) in chunks.withIndex()) {
+                lastSequence = Math.addExact(next, part.toLong())
+                if (!baseline) {
+                    for (i in 0 until entries.length()) {
+                        entries.getJSONObject(i).put("revision", lastSequence)
+                    }
+                }
+                val body = JSONObject().put("records", entries)
+                    .put("scope", PartnerCodec.scope(requireNotNull(policy.scope)))
+                if (baseline && chunks.size > 1) {
+                    body.put("batch", batch).put("part", part).put("parts", chunks.size)
+                }
+                val payload = canonicalJson(body)
+                val size = payload.toByteArray().size
+                totalPayloadBytes += size
+                if (size > SyncLimits.PROJECTED_BYTES - 1024 ||
+                    (baseline && totalPayloadBytes > SyncLimits.BASELINE_BYTES)
+                ) {
+                    throw SyncPreparationException("BASELINE_TOO_LARGE")
+                }
+                val id = UUID.randomUUID().toString()
+                val bytes = encoder.encode(
+                    SyncDraft(id, peer, device, policy.scopeEpoch, lastSequence, kind, payload)
+                ).copyOf()
+                require(bytes.isNotEmpty() && bytes.size <= SyncLimits.ENVELOPE_BYTES)
+                if (dao.queuedBytes() + bytes.size > queueLimit || dao.packetCount() >= 512 ||
+                    dao.packetCount(peer, device) >= SyncLimits.ROUTE_PACKETS
+                ) {
+                    throw SyncPreparationException("QUEUE_FULL")
+                }
+                dao.insert(
+                    SyncOutboxRow(
+                        id, peer, device, policy.scopeEpoch, hash, kind,
+                        after, through, lastSequence, bytes
+                    )
                 )
-            )
+            }
             for (item in updates) {
                 if (item.body ==
                     null
@@ -152,7 +192,9 @@ class SyncQueueRepository(
                     )
                 }
             }
-            dao.progress(SyncLinkProgressRow(peer, device, policy.scopeEpoch, through, next, hash))
+            dao.progress(
+                SyncLinkProgressRow(peer, device, policy.scopeEpoch, through, lastSequence, hash)
+            )
             SyncPreparation.ENQUEUED
         }
     } catch (_: SyncPreparationException) {
@@ -241,6 +283,15 @@ class SyncQueueRepository(
     }
 
     override suspend fun stored(lease: SyncLease): Boolean = database.withTransaction {
+        // A synchronous manual E2E ACK can release the outbox before transport.store returns.
+        val delivered = database.partner().message(lease.packetId)
+        if (delivered != null && delivered.outgoing && delivered.kind == "SYNC" &&
+            delivered.delivered && delivered.identity == lease.peerIdentity &&
+            delivered.device == lease.peerDevice &&
+            delivered.envelope.toByteArray().contentEquals(lease.bytes)
+        ) {
+            return@withTransaction true
+        }
         if (!authorized(lease)) return@withTransaction false
         dao.finish(lease.packetId, lease.token, "STORED", 0, null) == 1
     }

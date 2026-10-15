@@ -47,6 +47,68 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class SyncQueueTest {
+    @Test fun largeBaselineAndDeltaSplitAtomicallyWithPerLinkRevisions() = runBlocking {
+        val name = "sync-chunks-${UUID.randomUUID()}.db"
+        val db = syncTestDatabase(context, name)
+        try {
+            val notes = ShareScope(setOf(ShareCategory.SECTIONS), sections = setOf("note"))
+            allow(db, notes)
+            repeat(260) { index ->
+                db.dayLogs().save(
+                    DayLogEntity.from(
+                        DayLog(
+                            LocalDate.ofEpochDay(index.toLong()),
+                            note = "shared $index"
+                        )
+                    )
+                )
+            }
+            var encoded = 0
+            val broken = queue(
+                db,
+                SyncPacketEncoder {
+                    if (++encoded == 2) error("Synthetic second-part failure")
+                    it.payload.toByteArray()
+                }
+            )
+            assertTrue(runCatching { broken.prepare(peer, device) }.isFailure)
+            assertTrue(db.syncQueue().packets().isEmpty())
+            assertNull(db.syncQueue().progress(peer, device, 1))
+            assertEquals(SyncPreparation.ENQUEUED, queue(db).prepare(peer, device))
+            val baseline = db.syncQueue().packets()
+            assertEquals(listOf(1L, 2L, 3L), baseline.map { it.linkSequence })
+            val records = baseline.flatMap { packet ->
+                val content = JSONObject(packet.envelope.toString(Charsets.UTF_8))
+                assertEquals(3, content.getInt("parts"))
+                app.ritela.data.PartnerCodec.objects(content.getJSONArray("records"))
+            }
+            assertEquals(260, records.size)
+            assertTrue(records.all { it.getLong("revision") == 1L })
+            repeat(260) { index ->
+                db.dayLogs().save(
+                    DayLogEntity.from(
+                        DayLog(
+                            LocalDate.ofEpochDay(index.toLong()),
+                            note = "edited $index"
+                        )
+                    )
+                )
+            }
+            assertEquals(SyncPreparation.ENQUEUED, queue(db).prepare(peer, device))
+            val deltas = db.syncQueue().packets().drop(3)
+            assertEquals(listOf(4L, 5L, 6L), deltas.map { it.linkSequence })
+            for (packet in deltas) {
+                val content = JSONObject(packet.envelope.toString(Charsets.UTF_8))
+                assertFalse(content.has("parts"))
+                assertTrue(
+                    app.ritela.data.PartnerCodec.objects(content.getJSONArray("records"))
+                        .all { it.getLong("revision") == packet.linkSequence }
+                )
+            }
+        } finally {
+            close(db, name)
+        }
+    }
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val peer = "a".repeat(64)
     private val device = UUID.randomUUID().toString()
