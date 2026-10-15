@@ -333,6 +333,8 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ### Этап 5. Android HTTP и фоновое выполнение
 
+Начата отдельная часть HTTPS adapter: [RITELA_SYNC_STAGE_5.md](RITELA_SYNC_STAGE_5.md). Клиент/подписи/fetch/ACK и отмена IO реализованы изолированно; runtime wiring, durable relay configuration/checkpoint и WorkManager ещё предстоят. INTERNET permission пока отсутствует; этап в целом не завершён.
+
 Файлы: `data/sync/HttpRelayTransport.kt`, `SyncWorker.kt`, `SyncScheduler.kt`, `UserProfiles.kt`, `RitelaApplication.kt`, `AndroidManifest.xml`, `gradle/libs.versions.toml`, `app/build.gradle.kts`; `scripts/verify-apk.ps1` и документы приватности, если они проверяют прежнее отсутствие INTERNET. Добавить INTERNET/ACCESS_NETWORK_STATE по необходимости, WorkManager, HTTPS allowlist endpoint и запрет cleartext; при достаточности использовать платформенный `HttpsURLConnection` в IO с timeout/cancellation, иначе обосновать один HTTP client. Не добавлять общий сетевой слой ради единственного endpoint.
 
 Тесты: process death, Doze/constraints через scheduler test driver, отсутствие сети, timeout/429/5xx, повреждённый ответ, partial fetch, смена/удаление профиля во время работы, выключение global/peer до upload, отсутствие любого запроса до opt-in. Готовность: запись офлайн работает, queue переживает restart, HTTPS пакет подтверждён только после E2E apply. Риск: background delays и отмена blocking IO — обрабатывать закрытием соединения. Старый manual mode без scheduler продолжает работать.
