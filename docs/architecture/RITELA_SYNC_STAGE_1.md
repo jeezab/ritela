@@ -1,8 +1,8 @@
 # Ritela Sync — рабочий план этапа 1
 
-2026-10-15. **Только план; реализация не начата.** Основание — [уточнённая архитектура](RITELA_SYNC_PLAN.md). Пользователь принял архитектуру за основу и поручил подготовить этот документ, отдельно запретив пока реализовывать её. Ни один файл Kotlin/SQL/schema/Gradle ниже этим шагом не создаётся и не изменяется.
+2026-10-15. **Пользователь разрешил этап 1 командой «Приступай к этапу 1»; локальные модели и Room 7 реализованы.** Основание — [уточнённая архитектура](RITELA_SYNC_PLAN.md). Документ сохраняет согласованный объём и критерии; фактические результаты проверок фиксируются в [STATUS](../STATUS.md). Следующие этапы не входят в это разрешение.
 
-Результат будущего этапа: приложение открывает существующие профильные базы после явной миграции Room 6→7, сохраняя все прежние данные и ручной обмен. Новые модели выражают согласие, single-author generation, версии записей и адресные sync-настройки, но не подключены к отправке или изменению медицинских записей.
+Результат этапа: приложение открывает существующие профильные базы после явной миграции Room 6→7, сохраняя прежние данные и ручной обмен. Новые модели выражают согласие, single-author generation, версии записей и адресные sync-настройки, но не подключены к отправке или изменению медицинских записей.
 
 ## 1. Точная граница
 
@@ -10,11 +10,11 @@
 
 Журнал изменений, backfill revisions, outbox/inbox/received projection, scheduler, HTTP, activation flow, Tink/key generation, transfer/recovery execution, новый wire format и UI относятся к последующим этапам. Нет новых зависимостей/permissions, Cloudflare/Wrangler/FCM, автоматического BLE/Nearby. Stage 1 не даёт приложению сетевых возможностей. `Doodle`/`PartnerCodec` legacy limits и ручной RFCOMM остаются прежними.
 
-Версия Room 7 зарезервирована этим планом при текущей версии 6. Если до реализации другой шаг займёт 7, остановиться для сверки схемы и перенумеровать явную миграцию/тесты; не редактировать уже выпущенную миграцию под этот план.
+Версия Room 7 реализована явной MIGRATION_6_7; новые изменения схемы используют следующую миграцию, без редактирования уже сохранённых схем/миграций.
 
 ## 2. Файлы и изменения
 
-Пути исходников ниже относительно корня репозитория. Новые имена — планируемые, их сейчас нет.
+Пути исходников ниже относительно корня репозитория. Перечисленные новые исходники и schema 7 созданы в этом этапе.
 
 | Файл | Конкретная работа |
 |---|---|
@@ -22,8 +22,8 @@
 | `app/src/main/kotlin/app/ritela/domain/sync/SyncInvariants.kt` | Проверки согласованности состояния, монотонности поколения/revision, scope/transport consent; формат generation/sequence и overflow guard. Только функции/значения, без реального переключения автора |
 | `app/src/main/kotlin/app/ritela/domain/sync/SyncLimits.kt` | Константы структурных/byte limits из основного плана. Новый internet Doodle budget проверяет числовые параметры/byte count, не меняет конструктор старого `Doodle` и не сериализует его |
 | `app/src/main/kotlin/app/ritela/data/sync/SyncEntities.kt` | Четыре entity, точно по §4, с SQL default values через `@ColumnInfo`; без секретов/medical payload. Persisted flags представлены Int 0/1 с проверкой mapper, domain использует Boolean; так corrupt raw 2 не превращается незаметно в true |
-| `app/src/main/kotlin/app/ritela/data/sync/SyncStateDao.kt` | Чтение singleton state и адресных настроек, `ensureDefaults()` для новой БД; низкоуровневые транзакционные записи/условные обновления. Nullable/raw → domain validation без небезопасного default ACTIVE |
-| `app/src/main/kotlin/app/ritela/data/sync/SyncStateStore.kt` | Локальная граница validated DAO: read/initialize disabled defaults, store model metadata в транзакции. Нет публичного метода opt-in/activate/transfer и нет вызовов из существующих edit/send paths. Невалидные сохранённые значения дают типизированный отказ, а не включение sync |
+| `app/src/main/kotlin/app/ritela/data/sync/SyncStateDao.kt` | Чтение singleton state/links/versions и транзакционный `ensureDefaults()` с INSERT IGNORE. Условные операции handover и изменение consent намеренно оставлены последующим этапам, чтобы не создавать непроверенный activation API |
+| `app/src/main/kotlin/app/ritela/data/sync/SyncStateStore.kt` | Локальный read/initialize defaults в транзакции; raw → validated domain metadata. Нет методов opt-in/activate/transfer и вызовов из существующих edit/send paths. Ошибки metadata, неизвестный protocol/scope или непроверенный authority дают типизированный отказ; SQL/storage ошибки не подавляются |
 | `app/src/main/kotlin/app/ritela/data/RitelaDatabase.kt` | version 6→7, новые entities, accessor `syncState()`, явная `MIGRATION_6_7`. Миграции 1→6 сохранить текстуально |
 | `app/src/main/kotlin/app/ritela/data/UserProfiles.kt` | В `ProfileSession` добавить `MIGRATION_6_7` к имеющемуся `.addMigrations(...)`. Имена `ritela.db`/`ritela-<UUID>.db`, vault/preferences paths и жизненный цикл не менять; не создавать network/keys при миграции |
 | `app/schemas/app.ritela.data.RitelaDatabase/7.json` | Экспортировать KSP/Room после изменения entities. Не писать вручную и не менять схемы 1…6. Сверить fresh/migrated structures, defaults и индексы |
@@ -53,7 +53,7 @@
 
 ## 4. Room 7: точное изменение схемы
 
-Добавляются **только** следующие таблицы. Имена camelCase совпадают с будущими entity properties. Типы и DEFAULT в entity/миграции/fresh schema должны совпадать. Это спецификация SQL, а не уже применённая миграция.
+Добавлены **только** следующие таблицы. Имена camelCase совпадают с entity properties. Типы и DEFAULT в entity/миграции/fresh schema совпадают; schema 7 экспортирована Room/KSP. SQL ниже соответствует MIGRATION_6_7; на устройстве она применяется при открытии соответствующей профильной базы.
 
 ```sql
 CREATE TABLE IF NOT EXISTS sync_profile_state (
@@ -154,7 +154,7 @@ Fresh Room 7 создаёт те же таблицы через entities. `SyncS
 
 ## 7. Команды проверки и критерии готовности
 
-Команды ниже предназначены **для будущей реализации**, сейчас не запускались. Использовать `ritela-android-check` с действующим запретом на UI/PNG/эмулятор. Нужны format, checkKotlin, APK, lint, APK inspection и storage/regression tests; screenshot suite не запускать. Пример PowerShell с аргументами в строковых кавычках:
+Команды проверки этапа; конкретный выполненный прогон и результаты — в STATUS. Применяется `ritela-android-check` с действующим запретом на UI/PNG/эмулятор. Нужны format, checkKotlin, APK, lint, APK inspection и storage/regression tests; screenshot suite не запускать. Пример PowerShell с аргументами в строковых кавычках:
 
 ```powershell
 & ./scripts/gradle.ps1 formatKotlin
@@ -189,4 +189,4 @@ git diff --check
 - Model/store tests проходят, форматирование/APK/lint/inspection и релевантные storage regressions успешны; точные counts/results записаны в STATUS. Не утверждается проверка физического Bluetooth или новой распределённой авторизации.
 - Код не меняет медицинские расчёты, wire/backup formats, grants/lastSelection, текущие Doodle limits и UI. Документация соответствует реализованному subset; собственные изменения сохранены локальными коммитами, без push/облака.
 
-Следующее действие сейчас: согласовать этот рабочий план. Саму реализацию этапа 1 пользователь пока не запрашивал.
+Граница после этапа 1: очередь/журнал/транспорты и активная синхронизация не подключены. Следующее отдельное действие — решение пользователя о начале этапа 2.

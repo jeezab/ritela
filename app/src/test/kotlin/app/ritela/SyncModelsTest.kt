@@ -126,6 +126,12 @@ class SyncModelsTest {
         rejected { SyncRecordKey(owner, SyncEntityType.PERIOD, "Name") }
         rejected { SyncRecordKey(owner, SyncEntityType.DAY, "01") }
         rejected { SyncRecordKey(owner, SyncEntityType.DAY, Long.MAX_VALUE.toString()) }
+        assertTrue(
+            SyncRecordKey(owner, SyncEntityType.JOURNAL_TAG, "pain/LOW") !=
+                SyncRecordKey(owner, SyncEntityType.JOURNAL_TAG, "energy/LOW")
+        )
+        rejected { SyncRecordKey(owner, SyncEntityType.JOURNAL_TAG, "LOW") }
+        rejected { authority().copy(grantJson = "\u0430".repeat(SyncLimits.GRANT_BYTES)) }
     }
 
     @Test fun internetDoodleBudgetChecksBytesPointsAndCaptionWithoutChangingLegacyLimits() {

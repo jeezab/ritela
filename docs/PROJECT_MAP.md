@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-15: этап 1 Sync реализован. `data/sync/SyncEntities.kt`, `SyncStateDao.kt`, `SyncStateStore.kt` — четыре служебные таблицы, транзакционные defaults и fail-closed reader без activation/network; `RitelaDatabase` v7/MIGRATION_6_7 и ProfileSession зарегистрированы. `app/schemas/app.ritela.data.RitelaDatabase/7.json` экспортирована. `SyncMigrationTest`/`SyncStateStoreTest`/`SyncCompatibilityTest` и общий fixture helper `SyncTestDatabases.kt` проверяют сохранность/reopen/rollback/legacy packets/files. Подробнее — DATA_FORMAT, TESTING и обновлённый рабочий план этапа 1. Новые record tag keys — sectionId/tagId; runtime edit/send paths прежние.
+
 2026-10-15: `domain/sync/SyncModels.kt`, `SyncInvariants.kt`, `SyncLimits.kt` — чистые модели consent/author generation/record revision/link policy, правила переходов и отдельные internet budgets; `SyncModelsTest` проверяет инварианты. Runtime обмена не подключён, storage-часть этапа 1 следует отдельно.
 
 2026-10-15: [architecture/RITELA_SYNC_STAGE_1.md](architecture/RITELA_SYNC_STAGE_1.md) — рабочий план только моделей/инвариантов, четырёх служебных Room-таблиц, миграции 6→7 и тестов сохранности; код не создан. Основной Sync-план уточняет delivery, author fencing/recovery, Tink HPKE, pilot registration, отзыв/удаление и лимиты; архитектура принята за основу, реализация ожидает согласования.
