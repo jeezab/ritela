@@ -18,7 +18,8 @@ internal val syncMigrations get() = arrayOf(
     RitelaDatabase.MIGRATION_4_5,
     RitelaDatabase.MIGRATION_5_6,
     RitelaDatabase.MIGRATION_6_7,
-    RitelaDatabase.MIGRATION_7_8
+    RitelaDatabase.MIGRATION_7_8,
+    RitelaDatabase.MIGRATION_8_9
 )
 
 internal fun syncTestDatabase(context: Context, name: String): RitelaDatabase =
@@ -80,7 +81,15 @@ internal fun syncCursorRows(cursor: Cursor): List<List<String?>> = cursor.use {
         while (it.moveToNext()) {
             add(
                 List(it.columnCount) { column ->
-                    if (it.isNull(column)) null else it.getString(column)
+                    when (it.getType(column)) {
+                        Cursor.FIELD_TYPE_NULL -> null
+
+                        Cursor.FIELD_TYPE_BLOB ->
+                            "blob:" +
+                                java.util.Base64.getEncoder().encodeToString(it.getBlob(column))
+
+                        else -> it.getString(column)
+                    }
                 }
             )
         }

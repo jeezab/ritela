@@ -50,7 +50,8 @@ class PartnerMessageDeletionTest {
         .addMigrations(
             RitelaDatabase.MIGRATION_5_6,
             RitelaDatabase.MIGRATION_6_7,
-            RitelaDatabase.MIGRATION_7_8
+            RitelaDatabase.MIGRATION_7_8,
+            RitelaDatabase.MIGRATION_8_9
         ).build()
 
     @Test fun hidingAndErasingSurviveRestartAndReplayWithoutChangingOwnRecords() = runBlocking {
