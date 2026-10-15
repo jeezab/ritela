@@ -304,7 +304,9 @@ fun PartnerScreen(padding: PaddingValues) {
         } else {
             ""
         }
-        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(padding)) {
+        androidx.compose.foundation.layout.Box(
+            Modifier.fillMaxSize().background(HomeColors.background).padding(padding)
+        ) {
             PartnerChats(
                 directory.contacts, opened, messages, headerStatus, busy,
                 contact?.group == false && identity?.exchangeEnabled == true && device != null, now,
