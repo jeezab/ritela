@@ -1,5 +1,7 @@
 # Карта проекта
 
+2026-10-15: `domain/sync/SyncModels.kt`, `SyncInvariants.kt`, `SyncLimits.kt` — чистые модели consent/author generation/record revision/link policy, правила переходов и отдельные internet budgets; `SyncModelsTest` проверяет инварианты. Runtime обмена не подключён, storage-часть этапа 1 следует отдельно.
+
 2026-10-15: [architecture/RITELA_SYNC_STAGE_1.md](architecture/RITELA_SYNC_STAGE_1.md) — рабочий план только моделей/инвариантов, четырёх служебных Room-таблиц, миграции 6→7 и тестов сохранности; код не создан. Основной Sync-план уточняет delivery, author fencing/recovery, Tink HPKE, pilot registration, отзыв/удаление и лимиты; архитектура принята за основу, реализация ожидает согласования.
 
 2026-10-15: [architecture/RITELA_SYNC_PLAN.md](architecture/RITELA_SYNC_PLAN.md) — аудит текущего partner-протокола и предложение необязательного Ritela Sync через Workers/D1: журнал изменений, разрешения, очередь, E2E, API/схема relay, лимиты и восемь этапов. Это план для согласования, а не реализованные модули; Android и облако не менялись.
