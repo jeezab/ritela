@@ -5,8 +5,15 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.ritela.data.sync.SyncAuthorityRow
+import app.ritela.data.sync.SyncChangeRow
+import app.ritela.data.sync.SyncJournalDao
+import app.ritela.data.sync.SyncJournalStateRow
+import app.ritela.data.sync.SyncLinkProgressRow
 import app.ritela.data.sync.SyncLinkRow
+import app.ritela.data.sync.SyncOutboxRow
 import app.ritela.data.sync.SyncProfileStateRow
+import app.ritela.data.sync.SyncProjectionRow
+import app.ritela.data.sync.SyncQueueDao
 import app.ritela.data.sync.SyncRecordVersionRow
 import app.ritela.data.sync.SyncStateDao
 
@@ -18,9 +25,11 @@ import app.ritela.data.sync.SyncStateDao
         ProfileSettings::class,
         PartnerDirectoryRow::class, PartnerMessage::class,
         SyncProfileStateRow::class, SyncAuthorityRow::class,
-        SyncRecordVersionRow::class, SyncLinkRow::class
+        SyncRecordVersionRow::class, SyncLinkRow::class,
+        SyncChangeRow::class, SyncJournalStateRow::class, SyncLinkProgressRow::class,
+        SyncOutboxRow::class, SyncProjectionRow::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class RitelaDatabase : RoomDatabase() {
@@ -31,8 +40,72 @@ abstract class RitelaDatabase : RoomDatabase() {
 
     abstract fun partner(): PartnerDao
     abstract fun syncState(): SyncStateDao
+    abstract fun syncJournal(): SyncJournalDao
+    abstract fun syncQueue(): SyncQueueDao
 
     companion object {
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_changes (" +
+                        "sequence INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "changeId TEXT NOT NULL, " +
+                        "entityType TEXT NOT NULL, entityKey TEXT NOT NULL, " +
+                        "deleted INTEGER NOT NULL, " +
+                        "payload TEXT NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX index_sync_changes_changeId ON sync_changes(changeId)"
+                )
+                db.execSQL(
+                    "CREATE INDEX index_sync_changes_entityType_entityKey_sequence " +
+                        "ON sync_changes(entityType,entityKey,sequence)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_journal_state (" +
+                        "id INTEGER NOT NULL, floor INTEGER NOT NULL, PRIMARY KEY(id))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_link_progress (peerIdentity TEXT NOT NULL, " +
+                        "peerDevice TEXT NOT NULL, scopeEpoch INTEGER NOT NULL, " +
+                        "cursor INTEGER NOT NULL, " +
+                        "linkSequence INTEGER NOT NULL, policyDigest TEXT NOT NULL, " +
+                        "requiresBaseline INTEGER NOT NULL, " +
+                        "PRIMARY KEY(peerIdentity,peerDevice,scopeEpoch))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_projection_state " +
+                        "(peerIdentity TEXT NOT NULL, " +
+                        "peerDevice TEXT NOT NULL, scopeEpoch INTEGER NOT NULL, " +
+                        "entityType TEXT NOT NULL, " +
+                        "entityKey TEXT NOT NULL, digest TEXT NOT NULL, " +
+                        "PRIMARY KEY(peerIdentity,peerDevice,scopeEpoch,entityType,entityKey))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_outbox (packetId TEXT NOT NULL, " +
+                        "peerIdentity TEXT NOT NULL, peerDevice TEXT NOT NULL, " +
+                        "scopeEpoch INTEGER NOT NULL, " +
+                        "policyDigest TEXT NOT NULL, kind TEXT NOT NULL, " +
+                        "fromCursor INTEGER NOT NULL, " +
+                        "throughCursor INTEGER NOT NULL, linkSequence INTEGER NOT NULL, " +
+                        "envelope BLOB NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL, " +
+                        "nextAttempt INTEGER NOT NULL, leaseUntil INTEGER NOT " +
+                        "NULL, leaseToken TEXT, " +
+                        "errorCode TEXT, PRIMARY KEY(packetId))"
+                )
+                db.execSQL(
+                    "CREATE INDEX index_sync_outbox_state_nextAttempt ON " +
+                        "sync_outbox(state,nextAttempt)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX " +
+                        "index_sync_outbox_peerIdentity_peerDevice_scopeEpoch_linkSequence " +
+                        "ON sync_outbox(peerIdentity,peerDevice,scopeEpoch,linkSequence)"
+                )
+                db.execSQL("INSERT OR IGNORE INTO sync_journal_state (id,floor) VALUES (1,0)")
+            }
+        }
+
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(

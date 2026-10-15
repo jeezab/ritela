@@ -47,7 +47,11 @@ class PartnerMessageDeletionTest {
         1
     )
     private fun db(name: String) = Room.databaseBuilder(context, RitelaDatabase::class.java, name)
-        .addMigrations(RitelaDatabase.MIGRATION_5_6, RitelaDatabase.MIGRATION_6_7).build()
+        .addMigrations(
+            RitelaDatabase.MIGRATION_5_6,
+            RitelaDatabase.MIGRATION_6_7,
+            RitelaDatabase.MIGRATION_7_8
+        ).build()
 
     @Test fun hidingAndErasingSurviveRestartAndReplayWithoutChangingOwnRecords() = runBlocking {
         val nameA = "delete-a-${UUID.randomUUID()}.db"

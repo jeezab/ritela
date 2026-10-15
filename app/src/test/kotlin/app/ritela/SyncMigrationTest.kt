@@ -23,8 +23,8 @@ import org.robolectric.annotation.Config
 class SyncMigrationTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
-    @Test fun allSixMigrationPathsPreserveEveryExistingValueAndDefaultToOff() = runBlocking {
-        for (version in 1..6) {
+    @Test fun allSevenMigrationPathsPreserveEveryExistingValueAndDefaultToOff() = runBlocking {
+        for (version in 1..7) {
             val name = "sync-from-$version-${UUID.randomUUID()}.db"
             val expected = mutableMapOf<String, Pair<List<String>, List<List<String?>>>>()
             legacySyncDatabase(context, name, version) { old, tables ->
@@ -48,8 +48,8 @@ class SyncMigrationTest {
                             "(1,' {\"identities\":[],\"contacts\":[],\"future\":true} ')"
                     )
                     for (kind in listOf("DATA", "DOODLE", "ACK", "OPENED")) {
-                        val fields = if (version == 6) ",hiddenFromChat" else ""
-                        val hidden = if (version == 6) ",1" else ""
+                        val fields = if (version >= 6) ",hiddenFromChat" else ""
+                        val hidden = if (version >= 6) ",1" else ""
                         old.execSQL(
                             "INSERT INTO partner_messages " +
                                 "(id,identity,device,outgoing,kind,created,received," +
@@ -69,7 +69,7 @@ class SyncMigrationTest {
             val db = syncTestDatabase(context, name)
             try {
                 val sqlite = db.openHelper.writableDatabase
-                assertEquals(7, sqlite.version)
+                assertEquals(8, sqlite.version)
                 expected.forEach { (table, columnsAndRows) ->
                     val columns = columnsAndRows.first.joinToString(",") { "`$it`" }
                     assertEquals(
@@ -101,7 +101,7 @@ class SyncMigrationTest {
             }
             val reopened = syncTestDatabase(context, name)
             try {
-                assertEquals(7, reopened.openHelper.writableDatabase.version)
+                assertEquals(8, reopened.openHelper.writableDatabase.version)
                 assertTrue(SyncStateStore(reopened).read() is SyncStateResult.Ready)
             } finally {
                 reopened.close()
@@ -150,13 +150,20 @@ class SyncMigrationTest {
     }
 
     @Test fun failedMigrationRollsBackDdlDefaultsAndVersionAndCanBeRetried() {
+        for (version in 6..7) checkRollback(version)
+    }
+
+    private fun checkRollback(version: Int) {
         val name = "sync-rollback-${UUID.randomUUID()}.db"
-        legacySyncDatabase(context, name, 6) { old, _ ->
+        legacySyncDatabase(context, name, version) { old, _ ->
             old.execSQL("INSERT INTO profile_settings VALUES (1,'en','LIGHT')")
         }
-        val failure = object : Migration(6, 7) {
+        var invoked = false
+        val failure = object : Migration(version, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                RitelaDatabase.MIGRATION_6_7.migrate(db)
+                if (version == 6) RitelaDatabase.MIGRATION_6_7.migrate(db)
+                RitelaDatabase.MIGRATION_7_8.migrate(db)
+                invoked = true
                 error("Synthetic migration failure")
             }
         }
@@ -164,6 +171,7 @@ class SyncMigrationTest {
             .addMigrations(failure).build()
         try {
             assertTrue(runCatching { broken.openHelper.writableDatabase }.isFailure)
+            assertTrue(invoked)
         } finally {
             broken.close()
         }
@@ -172,13 +180,13 @@ class SyncMigrationTest {
             null,
             SQLiteDatabase.OPEN_READWRITE
         ).use {
-            assertEquals(6, it.version)
+            assertEquals(version, it.version)
             assertEquals(
                 listOf(listOf("en")),
                 syncCursorRows(it.rawQuery("SELECT language FROM profile_settings", null))
             )
             assertEquals(
-                listOf(listOf("0")),
+                listOf(listOf(if (version == 6) "0" else "4")),
                 syncCursorRows(
                     it.rawQuery("SELECT COUNT(*) FROM sqlite_master WHERE name LIKE 'sync_%'", null)
                 )
@@ -186,7 +194,7 @@ class SyncMigrationTest {
         }
         val retried = syncTestDatabase(context, name)
         try {
-            assertEquals(7, retried.openHelper.writableDatabase.version)
+            assertEquals(8, retried.openHelper.writableDatabase.version)
         } finally {
             retried.close()
             context.deleteDatabase(name)

@@ -1,6 +1,12 @@
 # Локальное хранение
 
-Текущая схема — Room v7, [7.json](../app/schemas/app.ritela.data.RitelaDatabase/7.json). Явная MIGRATION_6_7 добавляет только `sync_profile_state`, `sync_authority`, `sync_record_versions`, `sync_links`; определения и значения прежних шести таблиц сохраняются. Миграции 1→6 и их schema JSON не менялись. Имена профильных баз, файлы ключей/дудлов/DataStore, backup и wire format прежние.
+Текущая схема — Room v8, [8.json](../app/schemas/app.ritela.data.RitelaDatabase/8.json). MIGRATION_7_8 добавляет `sync_changes`, `sync_journal_state`, `sync_link_progress`, `sync_projection_state`, `sync_outbox`; десять прежних entity и схемы 1…7 сохраняются. Подробные поля/границы — [этап 2 Sync](architecture/RITELA_SYNC_STAGE_2.md).
+
+PeriodDao/DayLogDao/JournalDao атомарно сохраняют исходную запись и локальный journal, включая вызовы из import. Source sequence остаётся локальной: draft использует per-link sequence, не раскрывает количество запрещённых изменений. Для baseline backfill/watermark, разрешённая projection, её digest и outbox bytes фиксируются одной транзакцией. Очередь включает scope epoch, immutable bytes/ID, lease token и retry time; STORED не является E2E доставкой. Fake encoder/transport есть только в тестах, production adapter/scheduler и сетевые разрешения не добавлены.
+
+Прежняя подготовительная схема этапа 1:
+
+На этапе 1 введена Room v7, [7.json](../app/schemas/app.ritela.data.RitelaDatabase/7.json). Явная MIGRATION_6_7 добавляет только `sync_profile_state`, `sync_authority`, `sync_record_versions`, `sync_links`; определения и значения прежних шести таблиц сохраняются. Миграции 1→6 и их schema JSON не менялись. Имена профильных баз, файлы ключей/дудлов/DataStore, backup и wire format прежние.
 
 `sync_profile_state` — singleton id=1, internetEnabled INTEGER 0/1, default 0. `sync_authority` — singleton id=1 с generation/lastSequence=0, state=UNINITIALIZED и NULL ссылками на owner/author/grants. `sync_record_versions` (PK ownerIdentity/entityType/entityKey) и `sync_links` (PK peerIdentity/peerDevice) после миграции пусты. Точное описание столбцов и defaults — [этап 1 Sync](architecture/RITELA_SYNC_STAGE_1.md). У fresh Room 7 singleton defaults вставляются идемпотентно первым вызовом локального SyncStateStore; отсутствие строки до этого равно off/uninitialized. Этот reader не подключён к старым edit/send paths.
 

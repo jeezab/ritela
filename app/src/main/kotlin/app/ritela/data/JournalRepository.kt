@@ -4,7 +4,9 @@ import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
+import app.ritela.data.sync.ChangeRecorder
 import app.ritela.domain.JournalIcon
 import app.ritela.domain.JournalLayout
 import app.ritela.domain.JournalSection
@@ -24,15 +26,22 @@ import org.json.JSONObject
 data class JournalLayoutEntity(@PrimaryKey val id: Int = 1, val config: String)
 
 @Dao
-interface JournalDao {
+abstract class JournalDao : ChangeRecorder() {
     @Query("SELECT * FROM journal_layout WHERE id = 1")
-    fun observe(): Flow<JournalLayoutEntity?>
+    abstract fun observe(): Flow<JournalLayoutEntity?>
 
     @Query("SELECT * FROM journal_layout WHERE id = 1")
-    suspend fun snapshot(): JournalLayoutEntity?
+    abstract suspend fun snapshot(): JournalLayoutEntity?
 
     @Upsert
-    suspend fun save(entity: JournalLayoutEntity)
+    protected abstract suspend fun saveRow(entity: JournalLayoutEntity)
+
+    @Transaction
+    open suspend fun save(entity: JournalLayoutEntity) {
+        if (snapshot() == entity) return
+        saveRow(entity)
+        recordChange("LAYOUT", "current", entity.config)
+    }
 }
 
 class JournalRepository(private val dao: JournalDao) {
