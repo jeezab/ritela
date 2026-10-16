@@ -60,6 +60,8 @@ internal fun PartnerScopeDialog(
     initial: ShareScope,
     dismiss: () -> Unit,
     recipient: String = "",
+    targetIdentity: String? = null,
+    targetDevice: String? = null,
     confirm: (DataShare) -> Unit
 ) {
     val session = LocalProfileSession.current ?: return
@@ -86,6 +88,12 @@ internal fun PartnerScopeDialog(
     var attachedId by remember { mutableStateOf<String?>(null) }
     var choosing by remember { mutableStateOf(false) }
     var drawing by remember { mutableStateOf(false) }
+    var automatic by remember { mutableStateOf(false) }
+    var internetReady by remember { mutableStateOf(false) }
+    LaunchedEffect(targetIdentity, targetDevice) {
+        internetReady = targetIdentity != null && targetDevice != null &&
+            withContext(Dispatchers.IO) { session.relay.linked(targetIdentity, targetDevice) }
+    }
     val library by session.savedDoodles.items.collectAsStateWithLifecycle()
     LaunchedEffect(selected) {
         ready = false
@@ -305,6 +313,18 @@ internal fun PartnerScopeDialog(
                         )
                         Text(summary)
                     }
+                    if (internetReady) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Switch(automatic, {
+                                automatic = it
+                            }, Modifier.testTag("sync-auto-enable"))
+                            Text(stringResource(R.string.sync_auto_enable), Modifier.weight(1f))
+                        }
+                        Text(
+                            stringResource(R.string.sync_auto_consent),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(dismiss) { Text(stringResource(R.string.cancel)) }
@@ -315,7 +335,8 @@ internal fun PartnerScopeDialog(
                                     PartnerSharing.remembered(selected, layout),
                                     note,
                                     attached,
-                                    attachedId
+                                    attachedId,
+                                    automatic
                                 )
                             )
                         },

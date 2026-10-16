@@ -1,5 +1,12 @@
 # Ritela Sync — этап 7, доступная локальная часть настроек
 
+Дополнение 2026-10-16: мастер file invitation объединяет pairing с relay setup,
+выбор auto scope и recipient author approval доступны без повторных подтверждений
+каждого изменения. Чат различает queued/server accepted/received/error с причиной
+и Retry. Pause находится в сведениях о контакте. [Инструкция](../RITELA_SYNC_USING.md).
+Server deletion/last-success и author transfer/recovery UX остаются открыты.
+Ниже история первоначальной локальной части.
+
 2026-10-16: этап 5 подключил настоящее opt-in/activation и manual setup. При
 заданном HTTPS origin кнопка открывает отдельное согласие с password-полем кода
 пилота; до подтверждения сеть не запускается. Без origin кнопка недоступна.

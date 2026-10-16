@@ -73,6 +73,7 @@ private sealed interface SyncSettingsLoad {
 
 @Composable
 internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () -> Unit) {
+    val session = LocalProfileSession.current
     val flow = remember(repository) {
         repository.snapshots.map<SyncSettingsSnapshot, SyncSettingsLoad> {
             SyncSettingsLoad.Ready(it)
@@ -214,7 +215,8 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                                             true
                                     }
                                 },
-                                onCancel = { cancelling = entry }
+                                onCancel = { cancelling = entry },
+                                onRetry = { perform { session?.syncNow(retry = true) } }
                             )
                         }
                     }
@@ -400,7 +402,8 @@ private fun SyncQueueCard(
     entry: SyncQueueEntry,
     working: Boolean,
     onDetails: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onRetry: () -> Unit
 ) {
     SettingsGroup(Modifier.testTag("sync-entry-${entry.key}")) {
         Text(
@@ -413,6 +416,7 @@ private fun SyncQueueCard(
                     entry.records -> R.string.sync_records
                     entry.kind == "DOODLE" -> R.string.partner_doodle_kind
                     entry.kind == "DATA" -> R.string.sync_message
+                    entry.kind == "SYNC_CAPS" -> R.string.sync_connection_controls
                     else -> R.string.sync_receipt
                 }
             )
@@ -440,6 +444,12 @@ private fun SyncQueueCard(
             modifier = Modifier.testTag("sync-status-${entry.key}")
         )
         SyncAction(R.string.sync_contents, "sync-contents-${entry.key}", !working, onDetails)
+        entry.problem?.let { problem ->
+            Text(stringResource(syncProblemText(problem)), color = MaterialTheme.colorScheme.error)
+            if (!entry.tooLarge) {
+                SyncAction(R.string.sync_chat_retry, "sync-retry-${entry.key}", !working, onRetry)
+            }
+        }
         if (entry.canCancel) {
             SyncAction(
                 if (entry.records) R.string.sync_pause_records else R.string.sync_cancel_send,

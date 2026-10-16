@@ -1,5 +1,20 @@
 # Локальное хранение
 
+Упрощение подключения/auto records не меняет DDL Room 11 и прежние схемы.
+В существующих SYNC_CAPS передаются authorRequest/authorApproval/connectionReply:
+scope, epoch, pairing context, подписанный grant и ID запроса. Одобрение scopes
+сохраняется служебным сообщением до активации received author. Настройки маршрута
+редактируются только в protected relay_routes.credentials; message.body их не содержит.
+Служебные HPKE bytes сохраняются до HTTP; E2E ACK очищает их, как у других сообщений.
+Подписанное pair invitation может включать публичный transport certificate и
+зашифрованный partner setup; лимит приглашения 32 KiB. Manual packet остаётся прежним.
+Auto scope живёт в sync_links, фиксируется по ID; source journal дополнен производным
+FORECAST event для обновления выбранного прогноза без изменения алгоритма.
+Успешное применение SYNC создаёт локальное DATA-сообщение sync-update:identity:
+generation:epoch:sequence со снимком на этот момент. Исходные записи получателя
+не меняются; replay не создаёт второе сообщение. Foreground budget хранит только
+числовые timestamps по профилю, очищается с удалением профиля.
+
 Текущая схема с 2026-10-16 — Room 11, [11.json](../app/schemas/app.ritela.data.RitelaDatabase/11.json).
 Пять новых relay-таблиц описаны в конце документа; MIGRATION_10_11 не меняет
 прежние данные и consent. Дальше сохранена история предыдущих версий.

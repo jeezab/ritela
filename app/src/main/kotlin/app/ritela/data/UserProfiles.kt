@@ -10,12 +10,14 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
+import app.ritela.RitelaApplication
 import app.ritela.ui.PeriodViewModel
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -210,19 +212,74 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
                     Context.MODE_PRIVATE
                 ).getString("catalog", null)
                     ?.let { JSONObject(it).optString("active") == profileId } == true
-        }, app.ritela.BuildConfig.RELAY_ORIGIN)
+        }, app.ritela.BuildConfig.RELAY_ORIGIN).also {
+            it.prepareAutomatic = { automaticSync.prepare() }
+            it.authorizeAutomatic = { id -> automaticSync.authorized(id) }
+            it.afterDelivery = { automaticSync.refreshReservations() }
+        }
     }
     private val syncScheduler by lazy {
         app.ritela.data.sync.SyncScheduler(context.applicationContext, profileId)
+    }
+    private val foregroundSync by lazy {
+        app.ritela.data.sync.ForegroundSync(context.applicationContext, profileId, relay)
+    }
+    val syncChatVisible = MutableStateFlow(false)
+    fun syncInteraction() = foregroundSync.interacted()
+    suspend fun syncNow(retry: Boolean = false) {
+        foregroundSync.interacted()
+        if (retry) relay.retry()
+        foregroundSync.send()
+        foregroundSync.check()
+    }
+    suspend fun syncForeground() {
+        syncChatVisible.collectLatest { chat ->
+            while (!syncClosed) {
+                val result = foregroundSync.check()
+                kotlinx.coroutines.delay(
+                    if (result ==
+                        app.ritela.data.sync.RelayRun.MORE
+                    ) {
+                        1000L
+                    } else {
+                        foregroundSync.interval(chat)
+                    }
+                )
+            }
+        }
     }
     val syncSettings = app.ritela.data.sync.SyncSettingsRepository(database, { relay }) {
         relay.cancelRequests()
         syncScheduler.cancel()
     }
     private val partnerVault by lazy { PartnerKeyVault(context.applicationContext, profileId) }
+    private val relayConnections by lazy {
+        app.ritela.data.sync.RelayConnections(
+            database,
+            partner,
+            relay,
+            app.ritela.BuildConfig.RELAY_ORIGIN,
+            {
+                val manager = context.getSystemService(android.net.ConnectivityManager::class.java)
+                manager.getNetworkCapabilities(
+                    manager.activeNetwork
+                )?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) ==
+                    true
+            }
+        )
+    }
+    val automaticSync by lazy {
+        app.ritela.data.sync.AutomaticSync(database, partner, relay)
+    }
     val partner: PartnerRepository by lazy {
         PartnerRepository(database, partnerVault::loadOrCreate, partnerVault::save).also {
             it.relaySetup = { peer, device, value -> relay.acceptSetup(peer, device, value) }
+            it.relayInvitation =
+                { invitation, target -> relayConnections.invitation(invitation, target) }
+            it.relayPairing = { invitation -> relayConnections.accepted(invitation) }
+            it.relayWake = { syncNow() }
+            it.automaticIncoming =
+                { peer, device, content -> automaticSync.verifyIncoming(peer, device, content) }
         }
     }
     private val partnerKeyScope =
@@ -245,7 +302,9 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
             "relay_routes",
             "relay_packets",
             "sync_message_intents",
-            "sync_outbox"
+            "sync_outbox",
+            "sync_changes",
+            "sync_links"
         ).map {
             val consent = database.syncState().profileStates().singleOrNull()?.internetEnabled == 1
             val config = database.relay().config()
@@ -253,7 +312,17 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
             Triple(
                 consent && configured,
                 database.relay().pendingIds() +
-                    if (config?.registered == false) listOf("registration") else emptyList(),
+                    (if (config?.registered == false) listOf("registration") else emptyList()) +
+                    (
+                        if (database.syncState().links().any {
+                                it.automaticEnabled == 1
+                            }
+                        ) {
+                            listOf("auto:${database.syncJournal().watermark()}")
+                        } else {
+                            emptyList()
+                        }
+                        ),
                 database.relay().routes().map {
                     it.route
                 }
@@ -279,7 +348,16 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
                         context.applicationContext,
                         partner,
                         partnerActive,
-                        { peer, device -> relay.prepareSetup(peer, device) }
+                        { peer, device -> relay.prepareSetup(peer, device) },
+                        {
+                            val profiles = (context.applicationContext as RitelaApplication)
+                                .profiles.registry.profiles.value
+                            profiles.firstOrNull {
+                                it.id ==
+                                    profileId
+                            }?.name
+                                ?: "Ritela"
+                        }
                     )
                 }
             }
@@ -392,6 +470,7 @@ class ProfileManager(private val context: Context) {
             }
             PartnerKeyVault.delete(context, id)
             app.ritela.data.sync.RelayKeyVault.delete(context, id)
+            app.ritela.data.sync.ForegroundSync.clear(context, id)
             val savedDoodles = SavedDoodleLibrary.location(context, id)
             check(savedDoodles.parentFile == context.filesDir)
             check(!savedDoodles.exists() || savedDoodles.delete())

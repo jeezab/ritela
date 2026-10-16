@@ -81,6 +81,9 @@ interface RelayDao {
 
     @Insert suspend fun route(row: RelayRouteRow)
 
+    @Query("UPDATE relay_routes SET credentials=:credentials WHERE route=:route")
+    suspend fun routeCredentials(route: String, credentials: ByteArray)
+
     @Query("SELECT * FROM relay_packets WHERE id=:id")
     suspend fun packet(id: String): RelayPacketRow?
 

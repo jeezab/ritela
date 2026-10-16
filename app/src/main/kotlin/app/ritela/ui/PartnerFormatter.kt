@@ -25,6 +25,7 @@ class PartnerFormatter(private val resources: Resources) {
         ZoneId.systemDefault()
     ).format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale))
     fun dialogPreview(message: PartnerMessage): String {
+        if (message.kind == "SYNC_REQUEST") return resources.getString(R.string.sync_auto_request)
         if (message.kind == "DOODLE") {
             val caption = runCatching {
                 app.ritela.data.PartnerCodec.doodle(JSONObject(message.body)).caption
@@ -43,7 +44,11 @@ class PartnerFormatter(private val resources: Resources) {
         resources.getString(R.string.partner_last_exchange, moment(time))
     fun dataTitle(created: Long): String =
         resources.getString(R.string.partner_data_recorded, moment(created))
-    fun chatStatus(message: PartnerMessage, dated: Boolean = false): String {
+    fun chatStatus(
+        message: PartnerMessage,
+        dated: Boolean = false,
+        delivery: app.ritela.data.sync.SyncQueueEntry? = null
+    ): String {
         val time = if (dated) {
             moment(message.received)
         } else {
@@ -53,8 +58,31 @@ class PartnerFormatter(private val resources: Resources) {
         val status = resources.getString(
             when {
                 message.opened -> R.string.partner_opened
-                message.delivered -> R.string.partner_delivered
+
+                message.delivered -> if (delivery !=
+                    null
+                ) {
+                    R.string.partner_received_status
+                } else {
+                    R.string.partner_delivered
+                }
+
                 !message.outgoing -> R.string.partner_received_status
+
+                delivery?.status == app.ritela.data.sync.SyncQueueStatus.CANCELLED ->
+                    R.string.sync_cancelled
+
+                delivery?.problem != null -> R.string.sync_chat_error
+
+                delivery?.status == app.ritela.data.sync.SyncQueueStatus.AWAITING_RECEIPT ->
+                    R.string.sync_chat_stored
+
+                delivery?.status == app.ritela.data.sync.SyncQueueStatus.BLOCKED ->
+                    R.string.sync_chat_error
+
+                delivery?.status == app.ritela.data.sync.SyncQueueStatus.WAITING ->
+                    R.string.sync_chat_queued
+
                 else -> R.string.partner_wait_send
             }
         )

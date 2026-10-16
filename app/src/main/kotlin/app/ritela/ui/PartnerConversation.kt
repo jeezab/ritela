@@ -80,7 +80,7 @@ internal fun conversationMessages(
     messages: List<PartnerMessage>,
     identities: Set<String>
 ): List<PartnerMessage> = messages.filter {
-    it.identity in identities && it.kind in setOf("DATA", "DOODLE") &&
+    it.identity in identities && it.kind in setOf("DATA", "DOODLE", "SYNC_REQUEST") &&
         it.body.isNotEmpty() && !it.hiddenFromChat
 }
     .distinctBy { it.id }.sortedWith(compareBy<PartnerMessage> { it.received }.thenBy { it.id })
@@ -518,6 +518,7 @@ internal fun PartnerMessageBubble(
     delete: ((Boolean) -> Unit)? = null
 ) {
     val formatter = PartnerFormatter(LocalResources.current)
+    val delivery = LocalSyncDelivery.current[message.id]
     Row(
         modifier.fillMaxWidth().testTag("partner-message-${message.id}"),
         horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start
@@ -545,7 +546,9 @@ internal fun PartnerMessageBubble(
                             color = HomeColors.muted
                         )
                     }
-                    if (message.kind == "DOODLE") {
+                    if (message.kind == "SYNC_REQUEST") {
+                        AutomaticApproval(message)
+                    } else if (message.kind == "DOODLE") {
                         val doodle =
                             remember(message.body) { PartnerCodec.doodle(JSONObject(message.body)) }
                         val visible = message.outgoing || message.opened ||
@@ -608,14 +611,34 @@ internal fun PartnerMessageBubble(
                             enabled = enabled,
                             modifier = Modifier.testTag("partner-send-${message.id}")
                         ) {
-                            Text(stringResource(R.string.partner_choose_channel))
+                            Text(
+                                stringResource(
+                                    if (delivery !=
+                                        null
+                                    ) {
+                                        R.string.sync_chat_retry
+                                    } else {
+                                        R.string.partner_choose_channel
+                                    }
+                                )
+                            )
                         }
                     }
                     Text(
-                        formatter.chatStatus(message, dated = message.kind == "DATA"),
+                        formatter.chatStatus(
+                            message,
+                            dated = message.kind == "DATA",
+                            delivery = delivery
+                        ),
                         style = MaterialTheme.typography.labelSmall,
                         color = HomeColors.muted
                     )
+                    delivery?.problem?.let { problem ->
+                        Text(
+                            stringResource(syncProblemText(problem)),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }

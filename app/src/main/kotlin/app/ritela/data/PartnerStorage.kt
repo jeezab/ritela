@@ -61,6 +61,11 @@ interface PartnerDao {
     @Query("SELECT * FROM partner_messages WHERE identity=:identity")
     suspend fun history(identity: String): List<PartnerMessage>
 
+    @Query(
+        "SELECT * FROM partner_messages WHERE identity=:identity AND device=:device AND outgoing=:outgoing AND kind='SYNC_CAPS' AND body!='' ORDER BY created DESC,rowid DESC LIMIT 128"
+    )
+    suspend fun controls(identity: String, device: String, outgoing: Boolean): List<PartnerMessage>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(message: PartnerMessage)
 

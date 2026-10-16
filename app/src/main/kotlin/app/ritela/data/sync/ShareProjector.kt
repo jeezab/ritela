@@ -40,7 +40,7 @@ class ShareProjector(private val forecasts: (suspend () -> JSONObject)? = null) 
             ProjectedChange(row.entityType, row.entityKey, row.sequence, body)
         }.toMutableList()
         if (ShareCategory.FORECASTS in scope.categories &&
-            (baseline || rows.any { it.entityType == "PERIOD" })
+            (baseline || rows.any { it.entityType in setOf("PERIOD", "FORECAST") })
         ) {
             // The provider must use the owner's existing FORECASTS-only preview in one DB snapshot.
             val snapshot =

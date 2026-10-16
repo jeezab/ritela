@@ -1,5 +1,77 @@
 # Точка продолжения
 
+2026-10-16: запрос об упрощении подключения/доставки и автообновлениях выбранного
+дневника реализован локально. Инструкция — docs/RITELA_SYNC_USING.md.
+
+Подтверждённый Send сразу запускает upload, даже при исчерпании fetch budget;
+server Retry-After/backoff сохраняется. Открытый RESUMED профиль сразу получает
+входящие и продолжает adaptive receive (5/15 s в активном чате, 60 s при idle
+и на прочих экранах). Bucket 24/refill 15 s, 264 checks/hour сохраняется по
+профилю; switch не сбрасывает бюджет. STOPPED/switch/close отменяет и дожидается
+tracked HTTP, включая metadata follow-up. Worker остаётся delayed hourly + durable
+one-time work, без постоянного background polling.
+
+Чат/очередь показывают queued/server accepted/E2E received/error + нормализованную
+причину и Retry. NO_ROUTE отдельно сообщает о неготовом/истёкшем подключении.
+Мастер signed file invitation включает public cert и encrypted setup; после
+прежней взаимной проверки кода reverse route передаётся через relay. Секреты
+не входят в открытую часть приглашения. Лимит invitation 32 KiB; manual packet,
+internet envelope и Doodle budgets прежние. Known contacts обновляют истёкшие
+routes приглашением/ответом без повторного pairing и потери ключей/контактов.
+Без сети/при временной ошибке relay мастер сохраняет ручное подключение и DATA;
+сохранённое интернет-согласие не блокирует файловый обмен. Служебные control
+проверяются до сохранения/показа (подпись, context, epoch, frozen scope, размеры).
+
+В форме отправки отдельный auto opt-in по умолчанию off. Frozen scope по ID
+живёт в sync_links; разовый manual выбор не расширяет auto scope. Получатель
+один раз подтверждает автора/selection в чате. Journal/baseline/deltas/DELETE
+готовятся автоматически, source forecasts — прежним provider без изменения
+формул. Apply обновляет отдельную received projection и создаёт chat snapshot
+после commit; replay не даёт дублей, собственные records получателя не меняются.
+Pause доступен в сведениях о контакте. Удаление запроса скрывает его в чате,
+сохраняя необходимые permission records; ранее переданные копии не стираются
+гарантированно. Автор generation >1 не активируется этим flow.
+
+Истёкшая baseline reservation обновляется по точному сохранённому
+context/grant/epoch/scope без нового user approval; расширенный renewal отвергается.
+Недоставленные drafts заменяются новыми ID/sequence без перепаковки старого
+ciphertext; journal сохраняется. Без AUTHOR route нет MORE hot loop. При
+истечении всех routes мастер восстанавливает connection, затем обновляется
+резервация и продолжается прежний auto scope без нового согласия на данные.
+
+Финальные проверки: formatKotlin — PASS; checkKotlin assembleDebug
+testDebugUnitTest lintDebug с фильтрами Sync*Test, Relay*Test,
+ForegroundSyncBudgetTest, HttpRelayTransportTest, Partner*Test, UserProfilesTest,
+DayLogBackupTest, PeriodRepositoryTest, PeriodViewModelTest, JournalChangesTest,
+JournalLayoutTest, CyclePredictionTest; -Pritela.skipScreenshots=true,
+--max-workers=1 --no-parallel, JVM -Xmx1536m -Dfile.encoding=UTF-8 — BUILD SUCCESSFUL.
+236 tests/38 suites, 0 failures/errors/skipped; lint 0 errors/warnings/9 прежних hints.
+Включены все migration paths 1…10→11, compatibility, настоящий DATA period,
+profile switch/open, budget across recreation, wizard/replay/renewal, auto note
+update/DELETE/private fields/pause, delayed reservation после reopen/repair,
+denial расширенному renewal, malformed control до сохранения в чат,
+ручной pairing/DATA без сети после pilot activation. Ранние ошибки route duplicate insert
+и UseKtx исправлены; lint/tests не отключались. EN/RU delivery keys совпадают (20).
+APK verifier — PASS: signed app.ritela/API 26…37/network permissions/cleartext=false,
+17 255 543 bytes; SHA256
+`61b1fe0c8b3a8d76c5e496e2f9e8a72c66eb7844959c89b5b0de3fbd40a40096`.
+Workspace/diff checks — PASS; source scan не нашёл logging sinks в sync/domain.
+
+Room 11/прежние schema JSON и миграции не менялись. Нет новых libraries, public
+registration, automatic Bluetooth, D1/Worker deploy, cloud changes, версии/тега
+или push. UI/PNG/галерея/эмулятор не запускались, screenshots не генерировались.
+Пользовательский docs/ui не затронут. Production E2E, физические устройства,
+Doze/IME/визуальный review, реальные CPU/quotas и independent security review
+не подтверждены этим локальным прогоном. Server deletion/last-success UX и
+author transfer/recovery UI остаются отдельными задачами.
+
+Следующее действие: обновить APK на тестовых телефонах (для двух профилей одного
+телефона одно обновление), проверить synthetic DATA/Doodle и auto scope по
+RITELA_SYNC_USING.md. Коды пилота по-прежнему выдаёт оператор; секреты в чат не
+передавать. Устройства/экраны не запускать без нового явного запроса.
+
+## Предыдущий шаг: модель foreground budget
+
 2026-10-16: первый самостоятельный шаг текущего запроса — чистая Kotlin-модель
 ForegroundSyncBudget: capacity 24, refill 1/15 s, ceiling 264 за скользящий час;
 future timestamps/откат часов не обходят бюджет. ForegroundSyncBudgetTest проверяет

@@ -1,5 +1,12 @@
 # Ritela Sync — этап 6, локальные подтверждённые отправки
 
+Дополнение 2026-10-16: automatic record preparation, owner forecast refresh,
+адаптивный foreground receive и frozen auto scope подключены. Получатель один раз
+подтверждает автора/selection, дальнейшие journal/deltas/DELETE приходят в чат.
+Send немедленно загружает пакет; foreground fetch имеет сохраняемый budget и
+Retry-After. [Текущая инструкция](../RITELA_SYNC_USING.md), точные проверки — STATUS.
+Ниже история первой реализации; прежние «не подключено» к текущей версии не относятся.
+
 2026-10-16: runtime зависимости этапа 5 подключены: HPKE routes/config, immutable
 dispatch, transactional receive/ACK/cursor и WorkManager. Явные DATA/DOODLE и
 ACK/OPENED intents доставляются после consent/пилотной активации/manual setup.

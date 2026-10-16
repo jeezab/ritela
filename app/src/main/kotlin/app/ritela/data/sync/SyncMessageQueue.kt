@@ -64,7 +64,10 @@ class SyncMessageQueue(private val database: RitelaDatabase) {
     private val dao get() = database.syncMessageIntents()
 
     suspend fun offer(message: PartnerMessage): SyncMessageOffer = database.withTransaction {
-        require(message.outgoing && message.kind in setOf("DATA", "DOODLE", "ACK", "OPENED"))
+        require(
+            message.outgoing &&
+                message.kind in setOf("DATA", "DOODLE", "ACK", "OPENED", "SYNC_CAPS")
+        )
         val old = dao.get(message.id)
         if (old != null) {
             require(
@@ -164,7 +167,15 @@ class SyncMessageQueue(private val database: RitelaDatabase) {
                 link.scopeEpoch,
                 context,
                 SyncEnvelopeCodec.digest(
-                    canonicalJson(PartnerCodec.scope(peer.grants)).toByteArray()
+                    (
+                        if (message.kind ==
+                            "SYNC_CAPS"
+                        ) {
+                            "control"
+                        } else {
+                            canonicalJson(PartnerCodec.scope(peer.grants))
+                        }
+                        ).toByteArray()
                 )
             )
         } catch (_: IllegalArgumentException) {

@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 /** Public signed invitation, separate from an encrypted calendar/message packet. */
 object PartnerInvitationFile {
-    const val MAX_BYTES = 12000
+    const val MAX_BYTES = 32768
     fun encode(invitation: String): ByteArray = invitation.toByteArray(Charsets.UTF_8).also {
         require(it.size in 1..MAX_BYTES)
         require(decode(it) != null)
