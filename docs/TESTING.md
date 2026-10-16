@@ -1,5 +1,29 @@
 # Проверки
 
+2026-10-16, Android relay runtime: `RelayRuntimeTest` использует две файловые Room
+БД, настоящие JCA подписи/HPKE и synthetic relay exchange без DNS/HTTP. Проверяет
+полный DATA/Doodle/ACK/OPENED roundtrip, неизменяемый retry после потерянного PUT
+и reopen, Retry-After, opt-out/current-profile gate, atomic page rollback,
+отмену in-flight, peer revoke/delete и оба порядка manual/HPKE replay. Очередь
+40 сообщений проверяет отсутствие starvation и продолжение full page; отдельный
+сценарий — byte-limited short page и 32 задания без маршрута перед доступным peer.
+Потеря storage ACK после apply и оба wire hashes после clear также проверяются.
+Отдельный runtime test готовит record baseline настоящим queue encoder, явно
+подтверждает author grant, регистрирует server fence и baseline reservation,
+проверяет отдельную received projection и обратную E2E ACK без ложной доставки.
+Продолжение DELTA после истечения baseline reservation и несовпадение saved/build
+origin также покрыты: прежнее согласие не разрешает обращения к другому relay.
+`SyncWorkerTest` через TestDriver проверяет CONNECTED, unique work, cancel и
+неактивный профиль без открытия его БД и durable immediate continuation.
+SyncSettingsUiTest проверяет отмену consent без key creation/HTTP и регистрацию
+только после подтверждения; используется общий PartnerModal без UI captures.
+Home privacy assertion открывает Settings, где действительно находится текст;
+normal permission проверяется по manifest, а не по эмуляции grants в Robolectric.
+`SyncMigrationTest` расширен на все
+1…10→11, включая заполненную sync_message_intents v10, rollback из 6…10 и
+fresh/migrated DDL пяти relay-таблиц. Compose проверяется по semantics без PNG.
+Артефакты и точный результат текущего запуска — STATUS; ниже история проверок.
+
 Локальная часть этапа 7: `SyncSettingsTest`, `SyncSettingsUiTest` — consent defaults без seed, metadata-only composition, atomic disable/rollback/reopen, отдельные cancel/pause с сохранением STORED/исходных сообщений, peer/profile isolation, статусы без ложной доставки; EN/RU и 320 dp/fontScale 2.0 по semantics/scroll, без captureToImage/PNG. Неработающий internet enable явно disabled; проверка runtime opt-in/relay deletion ждёт этапы 5–6. Новый UI визуально не просматривается до запроса пользователя.
 
 Этап 6 (первая локальная часть, Room 10): `SyncMessageQueueTest` — confirmed send/no preview/no opt-out backfill, transactional rollback, reopen/ID stability, revoke/epoch/grants/device/global off, legacy large Doodle manual exchange, E2E ACK/replay/late ACK и delayed OPENED. `SyncMigrationTest` проверяет все 1…9→10, populated v8/v9 queue/inbox/projection и BLOB bytes, fresh/migrated DDL/index, DDL rollback/retry из 6/7/8/9. Runtime HTTP/WorkManager ещё отсутствуют; эти тесты не доказывают интернет-доставку. UI/PNG/эмулятор не запускаются.

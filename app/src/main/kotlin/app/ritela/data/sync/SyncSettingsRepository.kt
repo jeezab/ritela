@@ -26,10 +26,13 @@ data class SyncSettingsRow(
 @Dao
 interface SyncSettingsDao {
     @Query(
-        "SELECT * FROM (SELECT i.messageId AS id,i.identity,i.device,i.kind,i.state," +
+        "SELECT * FROM (SELECT i.messageId AS id,i.identity,i.device,i.kind," +
+            "CASE WHEN i.state IN ('CANCELLED','ACKED','BLOCKED') THEN i.state " +
+            "ELSE COALESCE(r.state,i.state) END AS state," +
             "0 AS records,COALESCE(m.delivered,0) AS delivered,i.errorCode AS error," +
             "COALESCE(m.created,0) AS created FROM sync_message_intents i " +
-            "LEFT JOIN partner_messages m ON m.id=i.messageId UNION ALL " +
+            "LEFT JOIN partner_messages m ON m.id=i.messageId " +
+            "LEFT JOIN relay_packets r ON r.id=i.messageId UNION ALL " +
             "SELECT o.packetId,o.peerIdentity,o.peerDevice,o.kind,o.state,1," +
             "COALESCE(m.delivered,0),o.errorCode,COALESCE(m.created,0) FROM sync_outbox o " +
             "LEFT JOIN partner_messages m ON m.id=o.packetId) " +
@@ -80,15 +83,29 @@ data class SyncQueueEntry(
     val tooLarge: Boolean,
     val canCancel: Boolean
 )
-data class SyncSettingsSnapshot(val internetRequested: Boolean, val entries: List<SyncQueueEntry>)
+data class SyncSettingsSnapshot(
+    val internetRequested: Boolean,
+    val entries: List<SyncQueueEntry>,
+    val registered: Boolean = false,
+    val relayProblem: Boolean = false
+)
 data class SyncQueueContents(
     val categories: Set<ShareCategory>,
     val note: Boolean,
     val doodle: Boolean
 )
 
-/** Local UI operations only: never loads credentials, registers, schedules or contacts a relay. */
-class SyncSettingsRepository(private val database: RitelaDatabase) {
+/** Queue views/actions are local. Explicit activation alone delegates to the consent-gated runtime. */
+class SyncSettingsRepository(
+    private val database: RitelaDatabase,
+    private val runtime: (() -> RelayRuntime)? = null,
+    private val stopped: (suspend () -> Unit)? = null
+) {
+    val available get() = runtime?.invoke()?.available == true
+    suspend fun activate(token: String) {
+        requireNotNull(runtime).invoke().activate(token, true)
+        runtime.invoke().runOnce()
+    }
     private val dao get() = database.syncSettings()
     val snapshots = database.invalidationTracker.createFlow(
         "sync_profile_state",
@@ -96,7 +113,9 @@ class SyncSettingsRepository(private val database: RitelaDatabase) {
         "sync_outbox",
         "partner_directory",
         "partner_messages",
-        "sync_links"
+        "sync_links",
+        "relay_config",
+        "relay_packets"
     ).map { read() }.flowOn(Dispatchers.IO)
 
     suspend fun read(): SyncSettingsSnapshot = database.withTransaction {
@@ -111,12 +130,13 @@ class SyncSettingsRepository(private val database: RitelaDatabase) {
 
                     row.state == "CANCELLED" -> SyncQueueStatus.CANCELLED
 
-                    row.state == "BLOCKED" -> SyncQueueStatus.BLOCKED
+                    row.state in setOf("BLOCKED", "EXPIRED") -> SyncQueueStatus.BLOCKED
 
                     row.state == "STORED" -> SyncQueueStatus.AWAITING_RECEIPT
 
                     row.state in setOf(
                         "PENDING_WRAP",
+                        "PENDING",
                         "READY",
                         "RETRY_WAIT",
                         "IN_FLIGHT"
@@ -133,17 +153,22 @@ class SyncSettingsRepository(private val database: RitelaDatabase) {
                     row.error == "MESSAGE_TOO_LARGE",
                     status in setOf(SyncQueueStatus.WAITING, SyncQueueStatus.BLOCKED)
                 )
-            }
+            },
+            database.relay().config()?.registered == true,
+            database.relay().config()?.error != null
         )
     }
 
-    suspend fun disable() = database.withTransaction {
-        database.syncState().ensureDefaults()
-        dao.disableInternet()
-        dao.cancelMessages()
-        dao.invalidateRecords()
-        dao.cancelRecords()
-        // STORED is retained: a local operation cannot prove deletion of handed-off bytes.
+    suspend fun disable() {
+        database.withTransaction {
+            database.syncState().ensureDefaults()
+            dao.disableInternet()
+            dao.cancelMessages()
+            dao.invalidateRecords()
+            dao.cancelRecords()
+            // STORED is retained: a local operation cannot prove deletion of handed-off bytes.
+        }
+        stopped?.invoke()
     }
 
     suspend fun cancel(key: String) = database.withTransaction {

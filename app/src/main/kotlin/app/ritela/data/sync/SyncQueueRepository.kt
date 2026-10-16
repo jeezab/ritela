@@ -264,6 +264,10 @@ class SyncQueueRepository(
         null
     }
 
+    internal suspend fun dispatchable(id: String): Boolean = database.withTransaction {
+        dao.packet(id)?.let { it.state != "CANCELLED" && eligible(it) } == true
+    }
+
     override suspend fun authorized(lease: SyncLease): Boolean = database.withTransaction {
         val row = dao.packet(lease.packetId) ?: return@withTransaction false
         if (row.peerIdentity != lease.peerIdentity || row.peerDevice != lease.peerDevice ||

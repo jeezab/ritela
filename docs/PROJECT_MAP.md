@@ -1,5 +1,17 @@
 # Карта проекта
 
+2026-10-16: продолжение этапа 5 — `data/sync/RelayStorage.kt` (5 Room 11
+entities/DAO), `RelayRuntime.kt` (registration/protected routes/immutable HPKE/
+apply/ACK/cursor/retry), `SyncWorker.kt` (worker и scheduler), явная
+MIGRATION_10_11/schema 11. `UserProfiles.kt` восстанавливает work из Room и
+отменяет HTTP перед close; `RitelaApplication.kt` — deferred WorkManager config.
+Manifest разрешает сеть и запрещает cleartext. `app/build.gradle.kts` задаёт
+точный origin через ritela.relayOrigin (по умолчанию пусто). SyncSettings и
+PartnerSecuritySettings предлагают consent/pilot activation и явный manual setup.
+`RelayRuntimeTest` проверяет двухстороннюю доставку/recovery без сокетов,
+`SyncWorkerTest` — constraints/unique work/stale profile через TestDriver.
+Детали — [этап 5](architecture/RITELA_SYNC_STAGE_5.md); ниже история прежних шагов.
+
 2026-10-15: начат этап 7 — `ui/SyncSettings.kt`, вход из SettingsScreen, EN/RU sync.xml; `data/sync/SyncSettingsRepository.kt` (metadata projection/DAO/Flow, атомарные local cancel/pause/disable), ProfileSession.syncSettings. Room 10/schema прежние. SyncSettingsTest/SyncSettingsUiTest покрывают локальные действия и адаптацию без PNG. Реальное включение интернета заблокировано до runtime этапов 5–6. [Границы этапа 7](architecture/RITELA_SYNC_STAGE_7.md).
 
 2026-10-15: начат этап 6 — `data/sync/SyncMessageQueue.kt` (Room intent/DAO/consent/context/limits/reconcile), `PartnerRepository.kt` (атомарная постановка подтверждённых DATA/DOODLE и ACK/OPENED, отзыв/удаление/E2E status), `SyncMessageQueueTest.kt`. Room 10/MIGRATION_9_10/schema 10.json добавляет только sync_message_intents; 22 прежние entities сохранены. Все migration builders/tests обновлены, 1…9→10 и rollback из 6/7/8/9. Runtime HTTP и WorkManager из этапа 5 ещё не подключены. [Границы и продолжение этапа 6](architecture/RITELA_SYNC_STAGE_6.md).

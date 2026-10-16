@@ -3,7 +3,11 @@ package app.ritela
 import android.app.Application
 import app.ritela.data.ProfileManager
 
-class RitelaApplication : Application() {
+class RitelaApplication :
+    Application(),
+    androidx.work.Configuration.Provider {
+    override val workManagerConfiguration get() = androidx.work.Configuration.Builder()
+        .setMinimumLoggingLevel(android.util.Log.ERROR).build()
     val profiles by lazy { ProfileManager(this) }
     val periods get() = profiles.session.value.periods
     val settings get() = profiles.session.value.settings

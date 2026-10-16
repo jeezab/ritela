@@ -287,8 +287,9 @@ fun PartnerScreen(padding: PaddingValues) {
         model.run {
             val prepared = action()
             model.packet.value = prepared
+            val internet = session.relay.canDeliver(prepared)
             withContext(Dispatchers.Main) {
-                if (activeSession()) sendRequests.present(request, prepared)
+                if (activeSession() && !internet) sendRequests.present(request, prepared)
             }
         }
     }
@@ -351,7 +352,12 @@ fun PartnerScreen(padding: PaddingValues) {
                     } else {
                         viewing = message
                         if (!message.outgoing) {
-                            model.run { model.repository.openDoodle(message.id, reply = false) }
+                            model.run {
+                                model.repository.openDoodle(
+                                    message.id,
+                                    reply = session.relay.linked(message.identity, message.device)
+                                )
+                            }
                         }
                     }
                 },

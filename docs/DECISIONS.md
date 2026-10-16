@@ -249,3 +249,22 @@ gh api --paginate --slurp возвращает страницы без встр�
 ## Подключение без QR, 2026-10-12
 
 Передача публичного подписанного приглашения v2 отделена от зашифрованного обмена DATA/DOODLE. Файл приглашения .ritela содержит прежний envelope, проверяемый inspectInvitation; транспорт не устанавливает доверие и не расширяет grants. Bluetooth использует отдельный UUID сервиса и кадры до 12000 bytes, затем ту же проверку ключей/подписей и двустороннего согласия. Приглашение второй стороны видно до согласия, чтобы сравнить общий код. Оба сохраняют согласие и передают подписанный полный контекст обратно. QR/ZXing/camera удалены, ключи и уже подтверждённые контакты сохраняются. Экспорт через SAF не требует широких файловых permissions. Одновременно открывать два пользователя на одном телефоне для файла не требуется.
+# 2026-10-16: durable Android relay delivery
+
+Room 11 отделяет immutable HPKE wire bytes, registration/backoff/cursor и
+protected route capabilities от прежнего manual PartnerMessage. Общий
+authenticated receive использует semantic digest для cross-transport replay;
+первый receivedAt и очищенные tombstones не восстанавливаются дубликатом.
+Storage ACK отправляется после транзакционного apply, cursor сохраняется после
+storage ACK; E2E receipt отдельно меняет delivered. HTTP retry не перешифровывает
+packet. Consent проверяется до key creation/registration/каждого connect.
+
+WorkManager 2.12.0 с отложенной инициализацией, hourly network-constrained fetch
+и unique one-time dispatch; Data только UUID профиля. Точный HTTPS origin задаёт
+оператор при сборке, по умолчанию пусто. Связывание relay keys/routes явно
+подписывается существующими подтверждёнными устройствами через ручной обмен.
+Каждый запрос сравнивает saved/build origin; смена адреса не наследует согласие.
+Replay ledger сохраняет отдельные wire hashes после clear. Baseline reservation
+не переносится на DELTA, истечение разового резерва не останавливает продолжение.
+Automatic medical grants и новая author generation не появляются из opt-in.
+Cloud deployment, public registration и automatic BLE не входят в этот шаг.

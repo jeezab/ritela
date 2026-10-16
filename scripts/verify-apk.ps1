@@ -19,10 +19,14 @@ try {
     if ($badging -notmatch "package: name='app\.ritela'") { throw 'Unexpected application ID' }
     if ($badging -notmatch "sdkVersion:'26'") { throw 'Unexpected minSdk' }
     if ($badging -notmatch "targetSdkVersion:'37'") { throw 'Unexpected targetSdk' }
-    if ($badging -match 'android.permission.(INTERNET|ACCESS_NETWORK_STATE)') { throw 'Unexpected network permission' }
+    foreach ($permission in @('INTERNET', 'ACCESS_NETWORK_STATE')) {
+        if ($badging -notmatch [regex]::Escape("android.permission.$permission")) { throw "Missing $permission" }
+    }
+    $manifest = (& (Join-Path $buildTools 'aapt2.exe') dump xmltree $apk --file AndroidManifest.xml) -join "`n"
+    if ($LASTEXITCODE -ne 0 -or $manifest -notmatch 'usesCleartextTraffic[^\r\n]*0x0') { throw 'Cleartext must be disabled' }
     $checksum = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk).Hash.ToLowerInvariant()
     [IO.File]::WriteAllText("$apk.sha256", "$checksum  $([IO.Path]::GetFileName($apk))`n", [Text.UTF8Encoding]::new($false))
-    Write-Output "PASS: signed app.ritela APK, API 26..37, no network permissions. Bytes: $((Get-Item -LiteralPath $apk).Length)"
+    Write-Output "PASS: signed app.ritela APK, API 26..37, consent-gated network permissions, cleartext disabled. Bytes: $((Get-Item -LiteralPath $apk).Length)"
     Write-Output "SHA256: $checksum"
 } finally {
     $env:JAVA_HOME = $previousJavaHome

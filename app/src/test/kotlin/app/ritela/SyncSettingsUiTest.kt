@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import app.ritela.data.RitelaDatabase
 import app.ritela.data.sync.SyncSettingsRepository
@@ -70,6 +71,64 @@ class SyncSettingsUiTest {
         compose.onNodeWithTag("settings-heading").assertTextEquals("Настройки")
     }
 
+    @Test fun openingAndCancellingPilotConsentCannotRegisterOrCreateRelayKeys() {
+        ready()
+        database { db ->
+            val context = compose.activity
+            val profile = UUID.randomUUID().toString()
+            val wrapping = javax.crypto.spec.SecretKeySpec(ByteArray(32) { 3 }, "AES")
+            val vault = app.ritela.data.sync.RelayKeyVault(context, profile) { wrapping }
+            val local = app.ritela.data.LocalPartnerKeys.create()
+            val partner = app.ritela.data.PartnerRepository(db, { local }, {})
+            val calls = java.util.concurrent.atomic.AtomicInteger()
+            val exchange = app.ritela.data.sync.RelayHttpExchange { request, authorize ->
+                authorize()
+                calls.incrementAndGet()
+                val body = if (request.method == "POST") {
+                    org.json.JSONObject().put("handle", request.headers.getValue("X-Ritela-Device"))
+                } else {
+                    org.json.JSONObject().put("packets", org.json.JSONArray()).put("cursor", "0")
+                }
+                app.ritela.data.sync.RelayHttpResponse(200, body.toString().toByteArray())
+            }
+            val runtime = app.ritela.data.sync.RelayRuntime(
+                context,
+                profile,
+                db,
+                { partner },
+                { true },
+                "https://relay.example",
+                vault,
+                exchange
+            )
+            val repository = SyncSettingsRepository(db, { runtime })
+            compose.activity.setContent {
+                HomeTheme { SyncSettingsDialog(repository) {} }
+            }
+            compose.waitUntil(10000) {
+                compose.onAllNodesWithTag("sync-queue-empty").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("sync-internet-unavailable").performScrollTo().performClick()
+            compose.onNodeWithTag("sync-activate-confirm").assertIsNotEnabled()
+            compose.onNodeWithText(context.getString(R.string.cancel)).performClick()
+            assertEquals(0, calls.get())
+            assertEquals(null, vault.load())
+            assertFalse(runBlocking { repository.read().internetRequested })
+            compose.onNodeWithTag("sync-internet-unavailable").performScrollTo().performClick()
+            compose.onNodeWithTag(
+                "sync-activation-token"
+            ).performScrollTo().performTextInput("a".repeat(64))
+            compose.onNodeWithTag("sync-activate-confirm").performClick()
+            compose.waitUntil(10000) { runBlocking { repository.read().registered } }
+            compose.waitUntil(10000) { calls.get() == 2 }
+            assertTrue(runBlocking { repository.read().internetRequested })
+            compose.activity.setContent {}
+            compose.waitForIdle()
+            runBlocking { runtime.close() }
+            java.io.File(context.filesDir, "relay-$profile.keys").delete()
+        }
+    }
+
     @Test fun contentsNeverExposeTextAndCancellationRequiresConfirmation() {
         ready()
         database { db ->
@@ -81,7 +140,10 @@ class SyncSettingsUiTest {
                 compose.onAllNodesWithTag("sync-entry-m:message").fetchSemanticsNodes().isNotEmpty()
             }
             compose.onNodeWithTag("sync-contents-m:message").performScrollTo().performClick()
-            compose.onNodeWithText("Текст послания").assertIsDisplayed()
+            compose.waitUntil(10000) {
+                compose.onAllNodesWithTag("sync-details-close").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Текст послания").performScrollTo().assertIsDisplayed()
             compose.onNodeWithText("PRIVATE_SENTINEL").assertDoesNotExist()
             compose.onNodeWithTag("sync-details-close").performClick()
             compose.onNodeWithTag("sync-cancel-m:message").performScrollTo().performClick()

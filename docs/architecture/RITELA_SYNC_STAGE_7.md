@@ -1,5 +1,12 @@
 # Ritela Sync — этап 7, доступная локальная часть настроек
 
+2026-10-16: этап 5 подключил настоящее opt-in/activation и manual setup. При
+заданном HTTPS origin кнопка открывает отдельное согласие с password-полем кода
+пилота; до подтверждения сеть не запускается. Без origin кнопка недоступна.
+STORED runtime отображается как ожидание E2E receipt, без ложного delivered.
+Baseline/scope/server deletion UI и last-success UX остаются отдельной работой.
+Дальше сохранено описание первоначальной локальной части.
+
 Добавлен вход «Синхронизация» в SettingsScreen и полный прокручиваемый диалог
 `ui/SyncSettings.kt`. Сохранены HomeTheme/SettingsGroup, тёплая палитра и общий
 sans-serif, кнопки не ниже 48 dp, EN/RU copy. Просмотр/генерация UI-снимков и

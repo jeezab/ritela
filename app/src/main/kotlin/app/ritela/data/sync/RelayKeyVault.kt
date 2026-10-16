@@ -127,6 +127,25 @@ class RelayKeyVault(
         return keys
     }
 
+    @Synchronized fun protect(purpose: String, plain: ByteArray): ByteArray {
+        check(exists())
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, wrapping())
+        cipher.updateAAD("ritela.relay:$profile:$purpose".toByteArray())
+        return cipher.iv + cipher.doFinal(plain)
+    }
+
+    @Synchronized fun unprotect(purpose: String, bytes: ByteArray): ByteArray {
+        check(exists() && bytes.size in 29..65536)
+        return PartnerCrypto.crypt(
+            Cipher.DECRYPT_MODE,
+            wrapping(),
+            bytes.copyOfRange(0, 12),
+            "ritela.relay:$profile:$purpose",
+            bytes.copyOfRange(12, bytes.size)
+        )
+    }
+
     companion object {
         fun delete(context: Context, profile: String) {
             require(UUID.fromString(profile).toString() == profile)

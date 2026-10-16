@@ -16,6 +16,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -171,7 +173,8 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
         RitelaDatabase.MIGRATION_6_7,
         RitelaDatabase.MIGRATION_7_8,
         RitelaDatabase.MIGRATION_8_9,
-        RitelaDatabase.MIGRATION_9_10
+        RitelaDatabase.MIGRATION_9_10,
+        RitelaDatabase.MIGRATION_10_11
     ).build()
     val periods = PeriodRepository(database.periods())
     val days = DayLogRepository(database.dayLogs())
@@ -195,10 +198,32 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
     )
     val partnerPreferences = PartnerPreferences(context.applicationContext, profileId)
     val savedDoodles = SavedDoodleLibrary(context.applicationContext, profileId)
-    val syncSettings = app.ritela.data.sync.SyncSettingsRepository(database)
+
+    @Volatile private var syncClosed = false
+    val relay: app.ritela.data.sync.RelayRuntime by lazy {
+        app.ritela.data.sync.RelayRuntime(context.applicationContext, profileId, database, {
+            partner
+        }, {
+            !syncClosed &&
+                context.getSharedPreferences(
+                    "users",
+                    Context.MODE_PRIVATE
+                ).getString("catalog", null)
+                    ?.let { JSONObject(it).optString("active") == profileId } == true
+        }, app.ritela.BuildConfig.RELAY_ORIGIN)
+    }
+    private val syncScheduler by lazy {
+        app.ritela.data.sync.SyncScheduler(context.applicationContext, profileId)
+    }
+    val syncSettings = app.ritela.data.sync.SyncSettingsRepository(database, { relay }) {
+        relay.cancelRequests()
+        syncScheduler.cancel()
+    }
     private val partnerVault by lazy { PartnerKeyVault(context.applicationContext, profileId) }
-    val partner by lazy {
-        PartnerRepository(database, partnerVault::loadOrCreate, partnerVault::save)
+    val partner: PartnerRepository by lazy {
+        PartnerRepository(database, partnerVault::loadOrCreate, partnerVault::save).also {
+            it.relaySetup = { peer, device, value -> relay.acceptSetup(peer, device, value) }
+        }
     }
     private val partnerKeyScope =
         CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
@@ -213,6 +238,37 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
             // Retry on explicit Partner use; never replace an unreadable identity.
         }
     }
+    private val syncObservation = partnerKeyScope.launch {
+        database.invalidationTracker.createFlow(
+            "sync_profile_state",
+            "relay_config",
+            "relay_routes",
+            "relay_packets",
+            "sync_message_intents",
+            "sync_outbox"
+        ).map {
+            val consent = database.syncState().profileStates().singleOrNull()?.internetEnabled == 1
+            val config = database.relay().config()
+            val configured = config != null
+            Triple(
+                consent && configured,
+                database.relay().pendingIds() +
+                    if (config?.registered == false) listOf("registration") else emptyList(),
+                database.relay().routes().map {
+                    it.route
+                }
+            )
+        }.distinctUntilChanged().collect { signal ->
+            if (signal.first && !syncClosed) {
+                syncScheduler.ensure(signal.second.isNotEmpty())
+            } else if (!syncClosed &&
+                database.relay().config() != null
+            ) {
+                relay.cancelRequests()
+                syncScheduler.cancel()
+            }
+        }
+    }
     val partnerActive = MutableStateFlow(false)
     val partnerModel by lazy {
         ViewModelProvider(
@@ -222,7 +278,8 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
                     app.ritela.ui.PartnerViewModel(
                         context.applicationContext,
                         partner,
-                        partnerActive
+                        partnerActive,
+                        { peer, device -> relay.prepareSetup(peer, device) }
                     )
                 }
             }
@@ -240,6 +297,11 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
     }
 
     suspend fun close() {
+        syncClosed = true
+        syncObservation.cancel()
+        syncObservation.join()
+        relay.close()
+        syncScheduler.cancel()
         withContext(Dispatchers.Main.immediate) { viewModelStore.clear() }
         settings.close()
         partnerKeyInitialization.cancel()
