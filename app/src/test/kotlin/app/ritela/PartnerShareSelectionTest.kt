@@ -29,6 +29,30 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class PartnerShareSelectionTest {
+    @Test fun newSelectionUsesOnlyCurrentFieldsWithoutErasingHistoricalLayout() {
+        val active = JournalSection("mood", tags = listOf(JournalTag("HAPPY")))
+        val archived = JournalSection("backache", tags = listOf(JournalTag("SEVERE")))
+        val layout = JournalLayout(sections = listOf(active), archivedSections = listOf(archived))
+        val selected = PartnerSharing.current(
+            ShareScope(setOf(ShareCategory.DIARY, ShareCategory.PERIODS)),
+            layout
+        )
+        assertEquals(mapOf("mood" to setOf("HAPPY")), selected.tags)
+        assertEquals(setOf("note"), selected.sections)
+        assertTrue(ShareCategory.PERIODS in selected.categories)
+        assertEquals(listOf(archived), layout.archivedSections)
+        val old = ShareScope(setOf(ShareCategory.TAGS), tags = mapOf("mood" to setOf("REMOVED")))
+        assertTrue(PartnerSharing.current(old, layout).categories.isEmpty())
+        assertEquals(setOf("REMOVED"), old.tags["mood"])
+        assertFalse(
+            "NEW" in PartnerSharing.current(
+                selected,
+                layout.copy(sections = listOf(active.copy(tags = active.tags + JournalTag("NEW"))))
+            )
+                .tags.getValue("mood")
+        )
+    }
+
     @Test fun rememberedSectionsExcludeFutureTagsAndSections() {
         val mood = JournalSection("wellbeing", tags = listOf(JournalTag("happy")))
         val layout = JournalLayout(sections = listOf(mood))

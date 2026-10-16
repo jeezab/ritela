@@ -157,10 +157,6 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                             )
                         )
                     }
-                    Text(
-                        stringResource(R.string.sync_nearby_unavailable),
-                        style = MaterialTheme.typography.bodySmall
-                    )
                 }
                 when (val loaded = state) {
                     SyncSettingsLoad.Loading -> Text(stringResource(R.string.loading))

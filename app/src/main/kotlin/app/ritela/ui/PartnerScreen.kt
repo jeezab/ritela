@@ -605,6 +605,43 @@ fun PartnerScreen(padding: PaddingValues) {
                         Text(stringResource(R.string.partner_code_label))
                         codes.forEach { Text(it) }
                     }
+                    if (session.relay.available && source.exchangeEnabled &&
+                        source.devices.any { it.enabled && it.mutualConfirmed }
+                    ) {
+                        Text(stringResource(R.string.partner_internet_repair_hint))
+                        Button(
+                            {
+                                scope.launch {
+                                    if (withContext(Dispatchers.IO) {
+                                            session.relay.registered()
+                                        }
+                                    ) {
+                                        profileViewing = false
+                                        model.createInvitation(profileName, fresh = true)
+                                    } else {
+                                        connectionActivation = true
+                                    }
+                                }
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.testTag(
+                                "partner-repair-internet"
+                            )
+                        ) {
+                            Text(stringResource(R.string.partner_internet_repair))
+                        }
+                        androidx.compose.material3.OutlinedButton({
+                            model.run {
+                                if (session.relay.registered()) {
+                                    session.syncNow(retry = true)
+                                } else {
+                                    withContext(Dispatchers.Main) { connectionActivation = true }
+                                }
+                            }
+                        }, enabled = !busy, modifier = Modifier.testTag("partner-check-delivery")) {
+                            Text(stringResource(R.string.partner_check_delivery))
+                        }
+                    }
                     if (source.devices.any { it.enabled && !it.mutualConfirmed }) {
                         Button({
                             profileViewing = false

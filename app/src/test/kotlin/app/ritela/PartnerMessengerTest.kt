@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.Density
 import app.ritela.data.PartnerMessage
@@ -205,6 +206,42 @@ class PartnerMessengerTest {
         capture("partner-messenger-narrow-english")
         compose.onNodeWithTag("partner-add-action").performClick()
         compose.onNodeWithText(compose.activity.getString(R.string.partner_import)).performClick()
+    }
+
+    @Test fun diaryFieldsStayOptionalAndArchivedFieldsAreNotOffered() {
+        ready()
+        val session = (compose.activity.application as RitelaApplication).profiles.session.value
+        val layout = app.ritela.domain.JournalLayout(
+            sections = listOf(
+                app.ritela.domain.JournalSection(
+                    "custom",
+                    "Current field",
+                    tags = listOf(app.ritela.domain.JournalTag("active", "Current tag"))
+                )
+            ),
+            archivedSections = listOf(
+                app.ritela.domain.JournalSection(
+                    "backache",
+                    "Unused field",
+                    tags = listOf(app.ritela.domain.JournalTag("old", "Unused tag"))
+                )
+            )
+        )
+        compose.activity.setContent {
+            CompositionLocalProvider(LocalProfileSession provides session) {
+                HomeTheme {
+                    PartnerScopeDialog(layout, ShareScope(setOf(ShareCategory.PERIODS)), {
+                    }, "Test") {}
+                }
+            }
+        }
+        compose.onNodeWithText("Current tag").assertDoesNotExist()
+        compose.onNodeWithTag("partner-diary-fields").performScrollTo().performClick()
+        compose.onNodeWithText("Current tag").assertExists()
+        compose.onNodeWithText("Unused field").assertDoesNotExist()
+        compose.onNodeWithText("Unused tag").assertDoesNotExist()
+        compose.onNodeWithTag("partner-diary-fields").performScrollTo().performClick()
+        compose.onNodeWithText("Current tag").assertDoesNotExist()
     }
 
     @Test fun selectionRequiresConfirmationAndCancellationDoesNotPrepare() {

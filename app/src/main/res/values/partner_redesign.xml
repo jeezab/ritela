@@ -5,10 +5,8 @@
     <string name="partner_my_calendar_hint">Cycle tracking, journal and forecasts</string>
     <string name="partner_recipient_hint">Follow your partner’s cycle</string>
     <string name="partner_mode_hint">You can change modes at any time. Your records will be kept.</string>
-    <string name="partner_category_details">Details</string>
     <string name="partner_cycle_category">Period history</string>
     <string name="partner_forecast_category">Forecasts and phases</string>
-    <string name="partner_diary_hint">Choose sections and individual tags</string>
     <string name="partner_periods_hint">All records up to and including the latest entry</string>
     <string name="partner_forecasts_hint">Latest entry, calculated dates and ranges for the next 12 months</string>
     <string name="partner_snapshot_hint">As of %1$s</string>
