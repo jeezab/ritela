@@ -4,6 +4,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -59,7 +60,12 @@ class SyncSettingsUiTest {
         compose.waitUntil(10000) {
             compose.onAllNodesWithTag("sync-queue-empty").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithTag("sync-internet-unavailable").assertIsNotEnabled()
+        val internet = compose.onNodeWithTag("sync-internet-unavailable")
+        if (BuildConfig.RELAY_ORIGIN.isEmpty()) {
+            internet.assertIsNotEnabled()
+        } else {
+            internet.assertIsEnabled()
+        }
         compose.onNodeWithTag("sync-queue-empty").performScrollTo().assertIsDisplayed()
         assertFalse(
             runBlocking {

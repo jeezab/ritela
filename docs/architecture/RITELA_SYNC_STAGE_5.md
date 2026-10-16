@@ -2,8 +2,11 @@
 
 2026-10-16: подключена цепочка consent → pilot registration → authenticated manual
 setup → durable HPKE → HTTP upload → receive/apply → storage ACK → E2E receipt.
-Cloud deployment не выполняется. Без `-Pritela.relayOrigin=https://…` сборка не
-предлагает включение сети; адрес нельзя получить из UUID D1.
+Оператор сообщил о развёртывании https://ritela-relay.zabvenen.workers.dev;
+публичный origin задан в gradle.properties. Неавторизованный HTTPS GET `/`
+проверен отдельно: HTTP 401/UNAUTHORIZED. Активация/доставка через production ещё
+не проверены. `-Pritela.relayOrigin=` делает подключение недоступным в сборке;
+наличие адреса не включает согласие и не вызывает relay из приложения.
 
 Room 11 / `MIGRATION_10_11` добавляют пять пустых таблиц: `relay_config`
 (регистрация/cursor/backoff), `relay_routes` (направленные pairing bindings),

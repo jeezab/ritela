@@ -6,7 +6,9 @@ apply/ACK/cursor/retry), `SyncWorker.kt` (worker и scheduler), явная
 MIGRATION_10_11/schema 11. `UserProfiles.kt` восстанавливает work из Room и
 отменяет HTTP перед close; `RitelaApplication.kt` — deferred WorkManager config.
 Manifest разрешает сеть и запрещает cleartext. `app/build.gradle.kts` задаёт
-точный origin через ritela.relayOrigin (по умолчанию пусто). SyncSettings и
+точный origin через ritela.relayOrigin. В gradle.properties теперь задан
+предоставленный оператором https://ritela-relay.zabvenen.workers.dev; пустой
+`-Pritela.relayOrigin=` отключает доступность подключения в сборке. SyncSettings и
 PartnerSecuritySettings предлагают consent/pilot activation и явный manual setup.
 `RelayRuntimeTest` проверяет двухстороннюю доставку/recovery без сокетов,
 `SyncWorkerTest` — constraints/unique work/stale profile через TestDriver.

@@ -1,5 +1,41 @@
 # Точка продолжения
 
+2026-10-16: после сообщения оператора о production deployment в `gradle.properties`
+задан публичный `ritela.relayOrigin=https://ritela-relay.zabvenen.workers.dev`.
+Коммит оператора с конфигурацией Worker/D1 сохранён. Адрес делает доступной форму
+активации пилота; согласие по умолчанию выключено, сам адрес не запускает обращения,
+регистрацию или создание relay keys. `-Pritela.relayOrigin=` оставляет сборку без
+доступной интернет-активации. SyncSettingsUiTest учитывает оба варианта конфигурации.
+
+Независимая проверка HTTPS GET `/` без авторизации: HTTP 401,
+`{"error":"UNAUTHORIZED"}`; TLS verification включена, redirects запрещены.
+Регистрация устройств, выдача activation tokens, отправка пакетов и изменения D1
+не выполнялись. Миграция Cloudflare, secrets и согласование recovery epoch — по
+сообщению оператора; production E2E delivery этим ответом сервера не подтверждена.
+
+Проверки: `formatKotlin` — PASS; `checkKotlin testDebugUnitTest` с фильтрами
+SyncSettingsUiTest, RelayRuntimeTest, HttpRelayTransportTest, UserProfilesTest,
+SyncWorkerTest, затем `assembleDebug lintDebug` — BUILD SUCCESSFUL; 41 tests,
+0 failures/0 errors/0 skipped. Параметры: `-Pritela.skipScreenshots=true
+--max-workers=1 --no-parallel`, JVM `-Xmx1536m -Dfile.encoding=UTF-8`.
+Lint: 0 errors/0 warnings, 9 прежних hints. `check-workspace.ps1` и
+`git diff --check` — PASS.
+`verify-apk.ps1` — PASS: signed app.ritela, API 26…37, network permissions,
+cleartext disabled; APK 17 188 340 bytes,
+SHA256 `2109b74e4eeed935be55f0065e6a26bf4ccd4e5c518401f1913afb01cee7a854`.
+UI, PNG, галерея и эмулятор не просматривались; screenshots не генерировались.
+Схема Room и миграции не менялись. Deploy/push не выполнялись; пользовательский
+неотслеживаемый `docs/ui/` не затронут. Карта, план этапа 5 и relay README обновлены.
+
+Следующее действие: установить настроенный APK на два телефона, явно активировать
+пилот в Настройки → Синхронизация с кодами оператора на каждом устройстве, выполнить
+два ручных setup roundtrip (сертификаты, затем receiver routes) и проверить synthetic
+послание/Doodle через production: получение, E2E ACK и OPENED, повтор после offline.
+Коды и секреты в чат/репозиторий не передавать. Оставшиеся работы этапов 6/7 описаны
+ниже; автоматическая подготовка медицинских записей пока не включена.
+
+## Предыдущая проверка Android runtime
+
 2026-10-16: по запросу «вернуться к этапу 5 и закончить цепочку доставки» завершена
 локальная Android-цепочка consent → pilot registration → explicit authenticated
 setup → durable HPKE → HTTP upload → transactional receive/apply → storage ACK →
