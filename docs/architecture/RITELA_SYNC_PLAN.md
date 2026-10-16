@@ -345,7 +345,10 @@ Room 11 с protected config/routes, immutable HPKE, registration, dispatch,
 transactional apply/storage ACK/cursor, E2E receipts и WorkManager. Есть явное
 согласие/пилотная активация/manual setup. INTERNET/ACCESS_NETWORK_STATE добавлены,
 cleartext запрещён; до consent relay не вызывается. Origin задаётся оператором
-при сборке, по умолчанию пустой; Cloudflare deploy/D1 не затронуты. Полная
+при сборке; в gradle.properties задан предоставленный оператором
+https://ritela-relay.zabvenen.workers.dev, empty override отключает подключение.
+Deployment выполнен оператором отдельно; мы проверили только unauthenticated
+HTTPS 401 без регистрации и отправки данных. Полная
 двухсторонняя цепочка проверяется synthetic exchange без внешней сети; реальный
 staging smoke test остаётся отдельным действием.
 

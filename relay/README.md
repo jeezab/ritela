@@ -1,8 +1,18 @@
 # Ritela Relay: локальный закрытый пилот
 
-Этап 4 не развёрнут. `wrangler.jsonc` содержит только фиктивный local D1 ID,
-`workers_dev=false`, выключенные observability/metrics. Рабочая D1 пользователя
-не подключена. В репозитории нет production secrets и скрипта deploy.
+2026-10-16: оператор сообщил об успешном развёртывании Worker `ritela-relay`:
+https://ritela-relay.zabvenen.workers.dev. Конфигурация `wrangler.jsonc` в коммите
+9365a48 уже содержит `workers_dev=true`, D1 `ritela_db` с binding `DB` и известным
+UUID. По сообщению оператора, migration 0001 применена, runtime secrets
+CAPABILITY_PEPPER/RECOVERY_EPOCH настроены и epoch согласована с relay_state.
+Неавторизованный HTTPS GET `/` независимо проверен: 401, `{"error":"UNAUTHORIZED"}`.
+Содержимое D1, secrets, authenticated delivery и deployed CPU этим не проверены.
+Production secrets в репозиторий/Android не добавляются; observability/metrics выключены.
+
+Android использует публичный origin из `gradle.properties`; наличие адреса не
+включает consent и не регистрирует телефон. Отключённая по сборке версия:
+`-Pritela.relayOrigin=`. Для пилота на обоих телефонах требуется явная активация
+выданными оператором кодами и ручной обмен setup. Коды не передавать в чат/коммиты.
 
 Локальные проверки (Node 24, PowerShell):
 
@@ -19,7 +29,8 @@ npm.cmd audit
 с синтетическими ключами; `test/measure.ts` измеряет локальные D1 meta.
 Не запускать команды remote migration/deploy как часть этих проверок.
 
-Перед будущим отдельным разрешённым развёртыванием оператору необходимо:
+Операторский checklist развёртывания/восстановления (фактические первые шаги
+выполнены оператором, следующие проверки остаются обязательными для допуска пилота):
 
 1. Проверить назначение D1, создать backup и применить `migrations/0001_relay.sql`.
 2. Установить независимые случайные `CAPABILITY_PEPPER` (не менее 32 символов)
