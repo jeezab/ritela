@@ -4,12 +4,39 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from urllib.parse import unquote
 
 import release
 
 
 class ReleaseChecks(unittest.TestCase):
+    def test_prepare_inspects_manifest_before_copying_distribution(self):
+        certificate = "ab" * 32
+        signature = "Signer #1 certificate SHA-256 digest: " + certificate + "\n"
+        badging = "package: name='app.ritela' versionCode='2000' versionName='0.2.0'\n"
+        badging += "uses-permission: name='android.permission.INTERNET'\n"
+        badging += "uses-permission: name='android.permission.ACCESS_NETWORK_STATE'\n"
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            apk = root / "synthetic.apk"
+            apk.write_bytes(b"synthetic artifact")
+            output = root / "distribution"
+            for manifest in ["", "A: android:usesCleartextTraffic=(type 0x12)0xffffffff"]:
+                with patch.object(release.subprocess, "check_output", side_effect=[signature, badging, manifest]) as command:
+                    with self.assertRaises(ValueError):
+                        release.prepare(apk, root, output, "0.2.0", 2000, certificate)
+                    self.assertIn("xmltree", command.call_args.args[0])
+                    self.assertFalse(output.exists())
+            with patch.object(release.subprocess, "check_output", side_effect=[
+                signature, badging, "A: android:usesCleartextTraffic=(type 0x12)0x0"
+            ]):
+                release.prepare(apk, root, output, "0.2.0", 2000, certificate)
+            target = output / "ritela-0.2.0.apk"
+            self.assertEqual(target.read_bytes(), apk.read_bytes())
+            self.assertEqual((output / (target.name + ".sha256")).read_text().split()[0],
+                             release.hashlib.sha256(apk.read_bytes()).hexdigest())
+
     def test_release_pages_include_every_page_and_empty_repository(self):
         old = {"tag_name": "v0.1.0"}
         newer = {"tag_name": "v0.3.0"}
@@ -65,20 +92,34 @@ class ReleaseChecks(unittest.TestCase):
     def test_artifact_identity_and_certificate(self):
         certificate = "ab" * 32
         badging = "package: name='app.ritela' versionCode='2000' versionName='0.2.0'\n"
+        badging += "uses-permission: name='android.permission.INTERNET'\n"
+        badging += "uses-permission: name='android.permission.ACCESS_NETWORK_STATE'\n"
+        manifest = "A: android:usesCleartextTraffic(0x010104ec)=(type 0x12)0x0\n"
         signature = "Signer #1 certificate SHA-256 digest: " + certificate + "\n"
-        release.validate_apk(badging, signature, "0.2.0", 2000, certificate)
+        release.validate_apk(badging, signature, "0.2.0", 2000, certificate, manifest)
+        release.validate_apk(badging, signature, "0.2.0", 2000, certificate,
+                             manifest.replace("0x0\n", "0x00000000\n"))
+        release.validate_apk(badging, signature, "0.2.0", 2000, certificate,
+                             manifest.replace("(type 0x12)0x0", "false"))
         cases = [
             (badging.replace("app.ritela", "another.app"), signature),
             (badging.replace("2000", "1"), signature),
             (badging.replace("0.2.0", "0.1.0"), signature),
             (badging + "application-debuggable\n", signature),
-            (badging + "uses-permission: name='android.permission.INTERNET'\n", signature),
+            (badging.replace("android.permission.INTERNET", "missing"), signature),
+            (badging.replace("android.permission.ACCESS_NETWORK_STATE", "missing"), signature),
             (badging, signature.replace("ab", "cd")),
             (badging, signature + "Signer #2 certificate SHA-256 digest: " + certificate + "\n"),
         ]
         for metadata, signing in cases:
             with self.subTest(metadata=metadata, signing=signing), self.assertRaises(ValueError):
-                release.validate_apk(metadata, signing, "0.2.0", 2000, certificate)
+                release.validate_apk(metadata, signing, "0.2.0", 2000, certificate, manifest)
+        for unsafe in ["", manifest.replace("0x0\n", "0xffffffff\n"),
+                       manifest.replace("0x0\n", "0x01\n"),
+                       manifest.replace("(type 0x12)0x0", "true"),
+                       manifest.replace("(type 0x12)0x0", "falseish")]:
+            with self.subTest(manifest=unsafe), self.assertRaises(ValueError):
+                release.validate_apk(badging, signature, "0.2.0", 2000, certificate, unsafe)
 
 
 if __name__ == "__main__":

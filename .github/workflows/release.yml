@@ -47,6 +47,18 @@ jobs:
         run: |
           ./scripts/check-workspace.ps1
           ./scripts/check-health-content.ps1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: relay/package-lock.json
+      - name: Check relay locally before release
+        working-directory: relay
+        run: |
+          npm ci --ignore-scripts
+          npm run check
+          npm test
+          npm run build
       - name: Prepare persistent signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

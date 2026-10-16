@@ -13,6 +13,7 @@ import app.ritela.domain.PartnerIdentity
 import java.io.File
 import java.util.UUID
 import javax.crypto.spec.SecretKeySpec
+import kotlin.random.Random
 import org.json.JSONObject
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -29,6 +30,55 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class RelayCryptoTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
+
+    @Test fun boundedCiphertextMutationsAndTruncationsAlwaysFailAuthentication() {
+        val a = LocalPartnerKeys.create()
+        val b = LocalPartnerKeys.create()
+        val keys = PartnerEnvelopeCrypto.newKeyset()
+        val recipient = peer(b, a)
+        val route = "c".repeat(64)
+        val id = UUID.randomUUID().toString()
+        val ciphertext = PartnerEnvelopeCrypto.seal(
+            a,
+            b.identityId,
+            b.deviceId,
+            b.nonce,
+            route,
+            id,
+            PartnerEnvelopeCrypto.publicKey(keys),
+            JSONObject().put("synthetic", "bounded corpus")
+        )
+        val random = Random(8128)
+        repeat(32) {
+            val changed = ciphertext.copyOf()
+            val index = random.nextInt(changed.size)
+            changed[index] = (changed[index].toInt() xor (1 shl random.nextInt(8))).toByte()
+            assertTrue(
+                runCatching {
+                    PartnerEnvelopeCrypto.open(keys, b, recipient, route, id, changed)
+                }.isFailure
+            )
+        }
+        for (size in listOf(0, 1, 31, 32, ciphertext.size / 2, ciphertext.size - 1)) {
+            assertTrue(
+                runCatching {
+                    PartnerEnvelopeCrypto.open(
+                        keys,
+                        b,
+                        recipient,
+                        route,
+                        id,
+                        ciphertext.copyOf(size)
+                    )
+                }.isFailure
+            )
+        }
+        assertEquals(
+            "bounded corpus",
+            PartnerEnvelopeCrypto.open(keys, b, recipient, route, id, ciphertext)
+                .getJSONObject("content").getString("synthetic")
+        )
+    }
     private fun peer(local: LocalPartnerKeys, remote: LocalPartnerKeys) = PartnerIdentity(
         remote.identityId,
         remote.identityPublic,

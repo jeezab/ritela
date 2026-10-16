@@ -1,5 +1,13 @@
 # Решения
 
+2026-10-16: artifact checks Sync требуют INTERNET/ACCESS_NETWORK_STATE и явного
+cleartext=false; прежний запрет любых network permissions устарел. Runtime consent
+доказывают отдельные тесты, а не manifest. Relay local checks включены в CI и
+release до signing без deploy/credentials. Метрики snapshot — только числовые
+границы, без payload/идентификаторов/секретов. Локальная recovery matrix не заменяет
+device update/production E2E/CPU/security review; backout сохраняет Room и историю,
+не применяет destructive downgrade.
+
 2026-10-15: настройки Sync показывают только уже доступные действия: ручной режим, metadata-only очередь, состав категорий/вложений, local cancel/pause и отзыв сохранённого интернет-согласия. Enable/setup/relay deletion и auto consent не имитируются до runtime этапов 5–6. Cancel сохраняет исходное послание; pause отдельно выключает auto-send одному peer/device. Off атомарен с отменой локальных pending/leases, но не удаляет STORED bytes и не заявляет remote erasure. Room 10 entities/migrations не меняются; consent и credentials при открытии настроек не создаются.
 
 2026-10-15: подтверждённые message send intents хранятся отдельно от sequenced author outbox: Room 9→10 добавляет только sync_message_intents с message ID ledger, pairing/grants/content digests и PENDING_WRAP/BLOCKED/ACKED/CANCELLED. Это исключает расход sequence автоизменений на послания/квитанции. Payload остаётся в существующем PartnerMessage; запись намерения атомарна с confirm/send, без backfill истории при opt-in. PENDING_WRAP не является HPKE ciphertext или relay storage. Старые manual packet/saved Doodle budgets сохраняются; интернет-лимит блокирует только намерение, без усечения локального содержимого. Завершение runtime этапа 5 требуется перед реальной отправкой.

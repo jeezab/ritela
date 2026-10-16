@@ -380,6 +380,12 @@ UX ещё впереди; этап целиком не завершён.
 
 ### Этап 8. Надёжность, нагрузка и подготовка выпуска
 
+Начата [локальная проверка этапа 8](RITELA_SYNC_STAGE_8.md): recovery matrix,
+bounded tamper/malformed corpus, atomic ACK и cursor burst, локальные D1 budgets,
+relay CI и исправление устаревшего запрета network permissions в artifact checks.
+Это не завершение всего этапа: physical install/update и production E2E, CPU/quotas,
+independent review и незавершённые функции этапов 6/7 остаются открыты.
+
 Файлы: `app/src/test/kotlin/app/ritela/*Sync*Test.kt`, будущие `relay/test/`, CI workflows, `docs/TESTING.md`, `docs/PARTNER.md`, документы backup/privacy, `docs/STATUS.md`. Выполнить recovery matrix, protocol fuzz/property tests с bounded payloads, профилирование CPU/bytes/row metrics и пилот на двух устройствах после отдельного запроса на устройство. Тестовые данные синтетические, production содержимое не собирается.
 
 Критерии: migration/storage tests, tamper/replay/out-of-order/revoke и cross-transport tests проходят; форматирование, debug build и lint без ухудшений; отсутствие plaintext/secret logging; проверена install/update и backout стратегия (отключить Sync, сохранить данные и историю; не destructive downgrade Room). Android-изменения проверяются через `ritela-android-check` с действующими ограничениями пользователя. UI/эмулятор не запускаются до нового запроса. Релиз допускается после отдельного решения по нерешённым security/UX ограничениям; включение платного тарифа и публикация отдельно.

@@ -1,5 +1,58 @@
 # Точка продолжения
 
+2026-10-16: выполнена локальная часть этапа 8 (надёжность и подготовка выпуска).
+Новый `docs/architecture/RITELA_SYNC_STAGE_8.md` связывает recovery matrix с
+существующими migration/receive/queue/runtime tests, фиксирует ограничения и
+install/update/backout без очистки данных/destructive downgrade Room 11.
+Backup/Partner/Testing/Releases/план/карта/решения актуализированы.
+
+Добавлены bounded tests: 32 bit flips и 6 truncations HPKE ciphertext с приёмом
+оригинала; 24 malformed control bodies и >16 KiB без изменения relay_state;
+атомарный rollback смешанной ACK-пачки с чужим маршрутом; 36×8 KiB через две
+cursor pages без дублей/потерь и fetch writes, ACK освобождает payload bytes.
+Метрики snapshot теперь используют byte upper bounds: точный размер ответа
+зависел от числа цифр AUTOINCREMENT cursor. Rows/write/statement budgets сохранены.
+
+CI: новый Relay workflow Node 24 проверяет local workerd/D1 без credentials;
+release повторяет relay checks до signing. Android workflow использует общий
+cross-platform verify-apk вместо устаревшего запрета network permissions.
+Release verifier требует network permissions/cleartext=false, сохраняет проверки
+version/debug/certificate; тестирует отказ до копирования distribution artifact.
+Исправлена скрытая ошибка старого cleartext regex: совпадение с ID атрибута
+`0x010104ec` не доказывало false. Теперь проверяется значение `=false` либо
+raw boolean zero, true/неоднозначные значения отвергаются.
+
+Проверки: `formatKotlin` — PASS после исправления форматирования нового теста.
+`checkKotlin assembleDebug testDebugUnitTest lintDebug` с фильтрами Sync*Test,
+Relay*Test, HttpRelayTransportTest, Partner*Test, UserProfilesTest, DayLogBackupTest;
+`-Pritela.skipScreenshots=true --max-workers=1 --no-parallel`, JVM
+`-Xmx1536m -Dfile.encoding=UTF-8` — BUILD SUCCESSFUL: 192 tests/32 suites,
+0 failures/0 errors/0 skipped. Все 1…10→11 и compatibility/recovery tests включены.
+Lint: 0 errors/0 warnings/9 прежних hints. Чистая установка relay dependencies
+`npm ci --ignore-scripts` — PASS (0 vulnerabilities по выводу npm), `npm run check`,
+`npm test` — 19 tests PASS, `npm run build` — dry-run PASS, 31.27 KiB/7.30 KiB gzip.
+8 Python release tests, `release.py check`, actionlint, workspace/diff — PASS.
+Source scan sync/domain/relay не нашёл Log.*, println/printStackTrace/console sinks;
+это ограниченная проверка, не независимый security review.
+APK verifier — PASS: signed app.ritela/API 26…37/network permissions/cleartext=false,
+16 950 359 bytes; SHA256
+`18cf1e316b92e9fb7c47222c4c426d0870e3676784fe4945d2ab73091ffb9d98`.
+
+UI/PNG/галерея/эмулятор не запускались; screenshots не генерировались. Schema,
+production D1, cloud secrets, версия/теги и runtime функции не менялись; deploy,
+push и публикация не выполнялись. Пользовательский `docs/ui/` не затронут.
+GitHub runner/Linux branch APK verifier локальным запуском не подтверждены.
+Остаются открыты: этапы 6/7, production E2E, physical install/update/Doze,
+реальные Worker CPU p95/quotas, independent crypto/security review. Локальное
+время suite/SQLite duration не заменяет billed CPU. Этап 8 целиком не завершён.
+
+Следующее действие: операторская выдача двух одноразовых activation tokens
+(в D1 только hashes/expiry, не в чате/репозитории), затем после явного запроса
+на физические устройства выполнить synthetic pilot/update/backout matrix из
+RITELA_SYNC_STAGE_8.md. До допуска выпуска закрыть функции этапов 6/7 и review.
+
+## Предыдущее подключение production origin
+
 2026-10-16: после сообщения оператора о production deployment в `gradle.properties`
 задан публичный `ritela.relayOrigin=https://ritela-relay.zabvenen.workers.dev`.
 Коммит оператора с конфигурацией Worker/D1 сохранён. Адрес делает доступной форму
