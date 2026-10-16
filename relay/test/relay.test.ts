@@ -58,6 +58,65 @@ beforeEach(async () => {
 });
 
 describe("closed pilot relay on local workerd/D1", () => {
+  it("rejects a bounded malformed control corpus without persisting side effects", async () => {
+    const a = await enroll();
+    const before = await bindings.DB.prepare("SELECT * FROM relay_state").first();
+    const corpus = ["", "null", "[]", "true", "17", "\"text\"", "{", '{"packets":',
+      ...Array.from({length: 16}, (_, n) => "[".repeat(n + 1) + "x" + "]".repeat(n + 1))];
+    for (const value of corpus) {
+      const response = await call(a, "POST", `/v1/devices/${a.handle}/ack`, utf8(value));
+      expect(response.status).toBe(400);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(Object.keys(await response.json() as object)).toEqual(["error"]);
+    }
+    expect((await call(a, "POST", `/v1/devices/${a.handle}/ack`, new Uint8Array(16385))).status).toBe(413);
+    expect(await bindings.DB.prepare("SELECT * FROM relay_state").first()).toEqual(before);
+  });
+
+  it("an invalid mixed ACK batch cannot delete the valid owned packet", async () => {
+    const a = await enroll(), b = await enroll(), other = await enroll();
+    const owned = await route(b, a), foreign = await route(other, a);
+    const id = crypto.randomUUID();
+    expect((await call(a, "PUT", path(owned, id), utf8("synthetic"), owned.capability)).status).toBe(200);
+    const before = await bindings.DB.prepare("SELECT * FROM relay_state").first();
+    const response = await call(b, "POST", `/v1/devices/${b.handle}/ack`, {packets: [
+      {route: owned.id, id}, {route: foreign.id, id: crypto.randomUUID()}
+    ]});
+    expect(response.status).toBe(409);
+    expect(await bindings.DB.prepare("SELECT * FROM relay_state").first()).toEqual(before);
+    expect((await (await call(b, "GET", fetchPath(b))).json() as any).packets.map((p: any) => p.id)).toEqual([id]);
+  });
+
+  it("drains a bounded burst through cursor pages with no fetch writes or duplicates", async () => {
+    const a = await enroll(), b = await enroll(), r = await route(b, a);
+    const ids = new Set<string>();
+    for (let n = 0; n < 36; n++) {
+      const id = crypto.randomUUID(); ids.add(id);
+      expect((await call(a, "PUT", path(r, id), new Uint8Array(8192).fill(n), r.capability)).status).toBe(200);
+    }
+    const seen = new Set<string>(); let cursor = "0"; let pages = 0;
+    while (seen.size < ids.size && pages < 4) {
+      const m = measure(bindings.DB);
+      const response = await worker.fetch(await request(b, "GET", fetchPath(b) + "?cursor=" + cursor), {...bindings, DB: m.db});
+      expect(response.status).toBe(200);
+      const raw = await response.text(); expect(utf8(raw).length).toBeLessThanOrEqual(512 * 1024);
+      const page = JSON.parse(raw);
+      expect(page.packets.length).toBeGreaterThan(0); expect(page.packets.length).toBeLessThanOrEqual(32);
+      expect(m.totals.rowsWritten).toBe(0); expect(m.totals.rowsRead).toBeLessThanOrEqual(512);
+      for (const p of page.packets) {
+        expect(ids.has(p.id)).toBe(true); expect(seen.has(p.id)).toBe(false); seen.add(p.id);
+        expect(atob(p.ciphertext).length).toBe(8192);
+      }
+      expect(Number(page.cursor)).toBeGreaterThan(Number(cursor)); cursor = page.cursor; pages++;
+    }
+    expect(seen).toEqual(ids); expect(pages).toBe(2);
+    expect((await bindings.DB.prepare("SELECT bytes FROM relay_state").first<any>()).bytes).toBe(36 * 8192);
+    expect((await call(b, "POST", `/v1/devices/${b.handle}/ack`, {
+      packets: [...ids].map(id => ({route: r.id, id}))
+    })).status).toBe(200);
+    expect((await bindings.DB.prepare("SELECT bytes FROM relay_state").first<any>()).bytes).toBe(0);
+  });
+
   it("repeats concurrent registration and confirms device deletion without restoring rights", async () => {
     const client = await newClient(), token = random();
     await bindings.DB.prepare("INSERT INTO activation_tokens(token_hash,expires_at) VALUES(?,?)")
@@ -137,8 +196,10 @@ describe("closed pilot relay on local workerd/D1", () => {
       const m = measure(bindings.DB); const started = performance.now();
       const res = await worker.fetch(req, {...bindings, DB: m.db});
       expect(m.totals.rowsRead).toBeLessThanOrEqual(64);
+      const responseBytes = utf8(await res.text()).length;
+      // Cursor digit count depends on AUTOINCREMENT history, so snapshot a stable byte ceiling.
       summaries[label] = {rowsReadUpperBound: 2 ** Math.ceil(Math.log2(Math.max(1, m.totals.rowsRead))), rowsWritten: m.totals.rowsWritten,
-        statements: m.totals.statements, responseBytes: utf8(await res.text()).length};
+        statements: m.totals.statements, responseBytesUpperBound: 2 ** Math.ceil(Math.log2(Math.max(1, responseBytes)))};
       expect(res.status).toBe(200); return m.totals;
     }
     const empty = await measured("emptyFetch", await request(b, "GET", fetchPath(b)));

@@ -1,5 +1,14 @@
 # Карта проекта
 
+2026-10-16: локальная часть этапа 8 —
+[матрица восстановления и выпуска](architecture/RITELA_SYNC_STAGE_8.md),
+bounded tamper corpus в RelayCryptoTest, malformed/atomic ACK/burst tests relay,
+устойчивые числовые metrics snapshots. `.github/workflows/relay.yml` проверяет
+local workerd/D1 на Node 24; release повторяет relay checks до signing.
+Android CI использует cross-platform `scripts/verify-apk.ps1`; release.py проверяет
+network permissions/cleartext вместе с version/certificate. Production/device
+и independent security review остаются отдельными условиями допуска пилота.
+
 2026-10-16: продолжение этапа 5 — `data/sync/RelayStorage.kt` (5 Room 11
 entities/DAO), `RelayRuntime.kt` (registration/protected routes/immutable HPKE/
 apply/ACK/cursor/retry), `SyncWorker.kt` (worker и scheduler), явная

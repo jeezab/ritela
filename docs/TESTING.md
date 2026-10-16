@@ -1,5 +1,12 @@
 # Проверки
 
+Этап 8: [матрица надёжности и допуска к пилоту](architecture/RITELA_SYNC_STAGE_8.md)
+связывает recovery/replay/revoke tests, bounded ciphertext/control corpus,
+burst/cursor/D1 budgets и условия физического испытания. Relay CI проверяет local
+workerd/D1; release проверяет relay до signing. Общий APK verifier требует network
+permissions и cleartext=false; release.py также проверяет certificate/version/debug.
+Это не доказывает production E2E, billed CPU или физическое install/update.
+
 2026-10-16, Android relay runtime: `RelayRuntimeTest` использует две файловые Room
 БД, настоящие JCA подписи/HPKE и synthetic relay exchange без DNS/HTTP. Проверяет
 полный DATA/Doodle/ACK/OPENED roundtrip, неизменяемый retry после потерянного PUT

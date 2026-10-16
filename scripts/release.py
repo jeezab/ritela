@@ -62,14 +62,18 @@ def check(root=ROOT, tag=None, releases=None):
     return name, code
 
 
-def validate_apk(badging, signature, name, code, certificate):
+def validate_apk(badging, signature, name, code, certificate, manifest):
     package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.M)
     if not package or package.groups() != ("app.ritela", str(code), name):
         raise ValueError("APK package/version does not match release metadata")
     if re.search(r"^application-debuggable", badging, re.M):
         raise ValueError("A debug APK cannot be distributed as a release")
-    if re.search(r"android\.permission\.(INTERNET|ACCESS_NETWORK_STATE)", badging):
-        raise ValueError("Unexpected network permissions")
+    for permission in ("INTERNET", "ACCESS_NETWORK_STATE"):
+        if f"uses-permission: name='android.permission.{permission}'" not in badging:
+            raise ValueError("Missing consent-gated network permission: " + permission)
+    if not re.search(r"usesCleartextTraffic(?:\(0x[0-9a-fA-F]+\))?\s*=\s*"
+                     r"(?:false|\(type 0x12\)0x0+)\s*$", manifest, re.M):
+        raise ValueError("Cleartext must be explicitly disabled")
     fingerprints = re.findall(r"^Signer #\d+ certificate SHA-256 digest: ([0-9a-f]+)$", signature, re.M)
     expected = certificate.replace(":", "").lower()
     if not re.fullmatch(r"[0-9a-f]{64}", expected) or fingerprints != [expected]:
@@ -85,7 +89,11 @@ def prepare(apk, sdk, output, name, code, certificate):
     badging = subprocess.check_output(
         [str(tools / ("aapt2.exe" if os.name == "nt" else "aapt2")), "dump", "badging", str(apk)], text=True
     )
-    validate_apk(badging, signature, name, code, certificate)
+    manifest = subprocess.check_output(
+        [str(tools / ("aapt2.exe" if os.name == "nt" else "aapt2")), "dump", "xmltree",
+         str(apk), "--file", "AndroidManifest.xml"], text=True
+    )
+    validate_apk(badging, signature, name, code, certificate, manifest)
     output.mkdir(parents=True, exist_ok=True)
     target = output / f"ritela-{name}.apk"
     if target.exists():
