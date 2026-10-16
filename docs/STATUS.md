@@ -1,5 +1,24 @@
 # Точка продолжения
 
+2026-10-16: первый самостоятельный шаг текущего запроса — чистая Kotlin-модель
+ForegroundSyncBudget: capacity 24, refill 1/15 s, ceiling 264 за скользящий час;
+future timestamps/откат часов не обходят бюджет. ForegroundSyncBudgetTest проверяет
+burst/refill/hour/clock rollback. Модель принимает timestamps и не содержит
+Android, I/O, генерации ключей или сетевых вызовов.
+
+Проверки текущего рабочего дерева: formatKotlin и полный выбранный Android набор
+checkKotlin/assembleDebug/testDebugUnitTest/lintDebug — BUILD SUCCESSFUL, 234 tests,
+0 failures/errors/skipped; lint 0 errors/warnings/9 прежних hints. Включён один
+ForegroundSyncBudgetTest. Workspace/diff — PASS. UI/PNG/эмулятор не запускались.
+Этот промежуточный коммит сохраняет только модель и её тест; интеграция доставки,
+мастер и auto consent пока находятся в рабочем дереве и сохраняются следующим
+проверенным шагом. Не объявлять опубликованный APK/production проверенными.
+Room/legacy storage модель не меняет, пользовательский docs/ui не затронут.
+
+Следующее действие: зафиксировать проверенную интеграцию foreground delivery,
+статусов, мастера приглашения и auto journal с однократным approval. Cloudflare,
+коды пилота, публичная регистрация и автоматический Bluetooth не изменяются.
+
 2026-10-16: выполнена локальная часть этапа 8 (надёжность и подготовка выпуска).
 Новый `docs/architecture/RITELA_SYNC_STAGE_8.md` связывает recovery matrix с
 существующими migration/receive/queue/runtime tests, фиксирует ограничения и
