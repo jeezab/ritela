@@ -2,6 +2,21 @@ package app.ritela.domain
 
 /** Explicit selections retain the existing wire format without DIARY's blanket grant. */
 object PartnerSharing {
+    /** New selections show current fields only; historical decoders and saved grants stay intact. */
+    fun current(scope: ShareScope, layout: JournalLayout): ShareScope {
+        val selection = explicit(scope, layout)
+        val tags = layout.sections.associate { section ->
+            section.id to section.tags.map { it.id }.toSet().let { available ->
+                if (section.id in selection.sections) {
+                    available
+                } else {
+                    selection.tags[section.id].orEmpty().intersect(available)
+                }
+            }
+        }
+        return diary(selection, selection.sections.intersect(setOf("note")), tags)
+    }
+
     /** Freeze section-wide choices to current tag IDs; future tags require fresh consent. */
     fun remembered(scope: ShareScope, layout: JournalLayout): ShareScope {
         val selected = explicit(scope, layout)

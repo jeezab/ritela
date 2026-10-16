@@ -1,5 +1,11 @@
 # Карта проекта
 
+2026-10-16: PartnerSharing.current ограничивает новый выбор активными полями/тегами
+JournalLayout; исторический каталог остаётся для чтения и прежних разрешений.
+PartnerScopeDialog показывает необязательные поля одним сворачиваемым блоком.
+Действия подключения/проверки находятся в сведениях о контакте; прежний setup —
+в техническом разделе PartnerSecuritySettings.
+
 2026-10-16: `data/sync/RelayConnections.kt` встраивает public cert + encrypted setup
 в file invitation и завершает reverse route через relay control. `AutomaticSync.kt`
 хранит frozen scope в sync_links, requests/approvals — в служебных SYNC_CAPS,

@@ -50,7 +50,6 @@ import app.ritela.domain.PartnerSharing
 import app.ritela.domain.SavedDoodles
 import app.ritela.domain.ShareCategory
 import app.ritela.domain.ShareScope
-import app.ritela.domain.historySections
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -67,7 +66,7 @@ internal fun PartnerScopeDialog(
     val session = LocalProfileSession.current ?: return
     val repository = session.partner
     val formatter = PartnerFormatter(LocalResources.current)
-    val sections = layout.historySections()
+    val sections = layout.sections
     val maximum = ShareScope(
         setOf(
             ShareCategory.PERIODS,
@@ -78,9 +77,10 @@ internal fun PartnerScopeDialog(
     )
     val permitted = PartnerSharing.explicit(maximum, layout)
     var selected by remember(initial) {
-        mutableStateOf(PartnerSharing.explicit(initial, layout))
+        mutableStateOf(PartnerSharing.current(initial, layout))
     }
-    var expanded by remember { mutableStateOf(setOf<String>()) }
+    val chosen = PartnerSharing.current(selected, layout)
+    var diaryExpanded by remember { mutableStateOf(false) }
     var summary by remember { mutableStateOf("") }
     var ready by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
@@ -95,17 +95,14 @@ internal fun PartnerScopeDialog(
             withContext(Dispatchers.IO) { session.relay.linked(targetIdentity, targetDevice) }
     }
     val library by session.savedDoodles.items.collectAsStateWithLifecycle()
-    LaunchedEffect(selected) {
+    LaunchedEffect(chosen) {
         ready = false
         val data =
             withContext(Dispatchers.IO) {
-                repository.preview(PartnerSharing.remembered(selected, layout))
+                repository.preview(chosen)
             }
         summary = formatter.preview(data)
         ready = true
-    }
-    fun toggle(id: String) {
-        expanded = if (id in expanded) expanded - id else expanded + id
     }
     val height = with(LocalDensity.current) {
         LocalWindowInfo.current.containerSize.height.toDp() *
@@ -130,7 +127,10 @@ internal fun PartnerScopeDialog(
                     androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 }
                 Column(
-                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                    Modifier.weight(
+                        1f,
+                        fill = false
+                    ).verticalScroll(rememberScrollState()).testTag("partner-share-options"),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
@@ -179,42 +179,22 @@ internal fun PartnerScopeDialog(
                             }
                         }
                     }
-                    val diary = selected.sections.isNotEmpty() || selected.tags.isNotEmpty()
-                    val full =
-                        permitted.sections.isNotEmpty() &&
-                            selected.sections.containsAll(permitted.sections) &&
-                            selected.tags == permitted.tags
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TriStateCheckbox(
-                            if (full) {
-                                ToggleableState.On
-                            } else if (diary) {
-                                ToggleableState.Indeterminate
-                            } else {
-                                ToggleableState.Off
-                            },
-                            {
-                                selected =
-                                    if (diary) {
-                                        PartnerSharing.diary(selected, emptySet(), emptyMap())
-                                    } else {
-                                        PartnerSharing.defaultDiary(selected, permitted)
-                                    }
-                            },
-                            enabled = permitted.sections.isNotEmpty() || permitted.tags.isNotEmpty()
-                        )
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.partner_diary))
-                            Text(
-                                stringResource(R.string.partner_diary_hint),
-                                style = MaterialTheme.typography.bodySmall
+                    TextButton(
+                        { diaryExpanded = !diaryExpanded },
+                        Modifier.fillMaxWidth().testTag("partner-diary-fields")
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.partner_current_diary_fields,
+                                chosen.tags.values.sumOf { it.size } + chosen.sections.size
                             )
-                        }
-                        TextButton({
-                            toggle("diary")
-                        }) { Text(stringResource(R.string.partner_category_details)) }
+                        )
                     }
-                    if ("diary" in expanded) {
+                    if (diaryExpanded) {
+                        Text(
+                            stringResource(R.string.partner_current_diary_hint),
+                            style = MaterialTheme.typography.bodySmall
+                        )
                         sections.forEach { section ->
                             val fullSection = section.id in selected.sections
                             val tags = selected.tags[section.id].orEmpty()
@@ -263,11 +243,8 @@ internal fun PartnerScopeDialog(
                                         canFull || permitted.tags[section.id].orEmpty().isNotEmpty()
                                 )
                                 Text(journalSectionLabel(section), Modifier.weight(1f))
-                                TextButton({
-                                    toggle(section.id)
-                                }) { Text(stringResource(R.string.partner_category_details)) }
                             }
-                            if (section.id in expanded) {
+                            run {
                                 section.tags.forEach { tag ->
                                     Row(
                                         Modifier.padding(start = 16.dp),
@@ -315,9 +292,14 @@ internal fun PartnerScopeDialog(
                     }
                     if (internetReady) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(automatic, {
-                                automatic = it
-                            }, Modifier.testTag("sync-auto-enable"))
+                            Switch(
+                                automatic,
+                                {
+                                    automatic = it
+                                },
+                                Modifier.testTag("sync-auto-enable"),
+                                enabled = selected.categories.isNotEmpty()
+                            )
                             Text(stringResource(R.string.sync_auto_enable), Modifier.weight(1f))
                         }
                         Text(
@@ -332,11 +314,11 @@ internal fun PartnerScopeDialog(
                         {
                             confirm(
                                 DataShare(
-                                    PartnerSharing.remembered(selected, layout),
+                                    chosen,
                                     note,
                                     attached,
                                     attachedId,
-                                    automatic
+                                    automatic && selected.categories.isNotEmpty()
                                 )
                             )
                         },

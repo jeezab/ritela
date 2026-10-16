@@ -93,7 +93,7 @@ internal fun PartnerSecuritySettings() {
             source.devices.forEach { Text(it.id, style = MaterialTheme.typography.bodySmall) }
         }
     }
-    if (session.relay.available) {
+    if (technical && session.relay.available) {
         Text(stringResource(R.string.sync_link_help))
         directory.identities.filter { it.exchangeEnabled }.forEach { peer ->
             peer.devices.filter { it.enabled && it.mutualConfirmed }.forEach { device ->
