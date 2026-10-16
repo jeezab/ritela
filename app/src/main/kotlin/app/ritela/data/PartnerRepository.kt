@@ -58,6 +58,7 @@ class PartnerRepository(
         it?.let { PartnerCodec.directory(it.json) }
             ?: PartnerDirectory()
     }
+    internal var relaySetup: (suspend (String, String, JSONObject) -> Unit)? = null
     private val syncApply = SyncApplyRepository(database, ::validateData)
     private val syncMessages = app.ritela.data.sync.SyncMessageQueue(database)
     val messages = combine(dao.messages(), database.syncReceive().states()) { history, states ->
@@ -91,6 +92,32 @@ class PartnerRepository(
             )
             result
         }
+
+    suspend fun prepareRelaySetup(
+        identity: String,
+        device: String,
+        offer: JSONObject
+    ): PartnerMessage = database.withTransaction {
+        val remote = snapshot().identities.single { it.id == identity }.devices.single {
+            it.id ==
+                device
+        }
+        val payload = SyncEnvelopeCodec.capabilities().put("senderNonce", remote.localNonce)
+            .put("recipientNonce", remote.remoteNonce).put("relay", offer)
+        val message = prepare(identity, device, "SYNC_CAPS", payload)
+        val old = database.syncReceive().capability(identity, device)
+        val context = "${remote.localNonce}:${remote.remoteNonce}"
+        database.syncReceive().capability(
+            SyncCapabilityRow(
+                identity,
+                device,
+                context,
+                true,
+                old?.context == context && old.accepted
+            )
+        )
+        message
+    }
 
     suspend fun initializeSyncAuthor(): String = SyncAuthorGrants(database).initialize(identity())
 
@@ -631,7 +658,15 @@ class PartnerRepository(
                 ).toString()
                 require(envelope.toByteArray().size <= PartnerCrypto.MAX_PACKET)
                 PartnerMessage(
-                    id, identity, device, true, kind, created, created, payload.toString(), envelope
+                    id, identity, device, true, kind, created, created,
+                    JSONObject(payload.toString()).apply {
+                        if (kind ==
+                            "SYNC_CAPS"
+                        ) {
+                            remove("relay")
+                        }
+                    }.toString(),
+                    envelope
                 ).also {
                     dao.insert(it)
                     rememberDoodle(it)
@@ -716,100 +751,241 @@ class PartnerRepository(
                     require(body.getString(it) == header.getString(it))
                 }
                 require(body.getString("link") == device.localNonce)
-                val id = body.getString("id").also { require(UUID.fromString(it).toString() == it) }
-                val kind = body.getString("kind")
-                require(kind in listOf("DATA", "DOODLE", "ACK", "OPENED", "SYNC_CAPS", "SYNC"))
-                val content = body.getJSONObject("content")
-                if (kind == "SYNC") {
-                    require(bytes.size <= SyncLimits.ENVELOPE_BYTES)
-                    requireSyncCapabilities(sender.id, device.id)
-                    syncApply.receive(id, sender.id, device.id, bytes, content, now())
-                }
-                if (kind == "DOODLE") PartnerCodec.doodle(content)
-                if (kind == "DATA") validateData(content)
-                val previous = dao.message(id)
-                if (previous != null) {
-                    require(
-                        !previous.outgoing && previous.identity == sender.id &&
-                            previous.device == device.id
-                    )
-                    // A cleared message is a tombstone, never restored by replay.
-                    require(
-                        previous.envelope.isEmpty() ||
-                            previous.envelope == bytes.toString(Charsets.UTF_8)
-                    )
-                    return@withTransaction ReceivedPartnerPacket(previous, true)
-                }
-                if (kind == "SYNC_CAPS") {
-                    SyncEnvelopeCodec.validateCapabilities(content)
-                    require(
-                        content.getString("senderNonce") == device.remoteNonce &&
-                            content.getString("recipientNonce") == device.localNonce
-                    )
-                    val context = "${device.localNonce}:${device.remoteNonce}"
-                    val old = database.syncReceive().capability(sender.id, device.id)
-                    database.syncReceive().capability(
-                        SyncCapabilityRow(
-                            sender.id,
-                            device.id,
-                            context,
-                            old?.context == context && old.offered,
-                            true
-                        )
-                    )
-                }
-                if (kind == "ACK" || kind == "OPENED") {
-                    val original = dao.message(content.getString("message"))
-                    require(
-                        original != null && original.outgoing && original.identity == sender.id &&
-                            original.device == device.id
-                    )
-                    if (kind == "ACK" && original.kind == "SYNC") {
-                        val ids = content.getJSONArray("applied")
-                        require(ids.length() <= SyncLimits.ACK_IDS)
-                        for (i in 0 until ids.length()) {
-                            val applied = requireNotNull(dao.message(ids.getString(i)))
-                            require(
-                                applied.outgoing && applied.kind == "SYNC" &&
-                                    applied.identity == sender.id && applied.device == device.id
-                            )
-                            dao.delivered(applied.id)
-                            database.syncQueue().cancel(applied.id)
-                        }
-                    } else if (kind == "ACK") {
-                        dao.delivered(original.id)
-                        syncMessages.acknowledged(original.id, sender.id, device.id)
-                    } else {
-                        require(
-                            original.kind == "DOODLE" ||
-                                (
-                                    original.kind == "DATA" && original.body.isNotEmpty() &&
-                                        JSONObject(original.body).has("doodle")
-                                    ) ||
-                                (
-                                    original.kind == "DATA" && original.body.isEmpty() &&
-                                        database.syncReceive().hasDoodle(original.id) == 1
-                                    )
-                        )
-                        dao.delivered(original.id)
-                        dao.opened(original.id)
-                        syncMessages.acknowledged(original.id, sender.id, device.id)
-                    }
-                }
-                val message =
-                    PartnerMessage(
-                        id, sender.id, device.id, false, kind,
-                        body.getLong("created").also {
-                            require(it in 0..253402300799999L)
-                        },
-                        now(),
-                        content.toString(), bytes.toString(Charsets.UTF_8), delivered = true
-                    )
-                dao.insert(message)
-                ReceivedPartnerPacket(message, false)
+                receiveAuthenticated(
+                    sender,
+                    device,
+                    body.getString("id"),
+                    body.getString("kind"),
+                    body.getJSONObject("content"),
+                    body.getLong("created"),
+                    bytes,
+                    bytes.toString(Charsets.UTF_8)
+                )
             }
         }
     }
+
+    private suspend fun receiveAuthenticated(
+        sender: app.ritela.domain.PartnerIdentity,
+        device: app.ritela.domain.PartnerDevice,
+        id: String,
+        kind: String,
+        content: JSONObject,
+        created: Long,
+        bytes: ByteArray,
+        stored: String
+    ): ReceivedPartnerPacket {
+        require(UUID.fromString(id).toString() == id)
+        val digest = app.ritela.data.sync.SyncEnvelopeCodec.digest(
+            app.ritela.data.sync.canonicalJson(
+                JSONObject().put("kind", kind).put("created", created)
+                    .put("content", content)
+            ).toByteArray()
+        )
+        val previous = dao.message(id)
+        val hpke = stored.startsWith("ritela.hpke:")
+        val wireDigest = app.ritela.data.sync.SyncEnvelopeCodec.digest(bytes)
+        if (previous != null) {
+            require(
+                !previous.outgoing && previous.identity == sender.id &&
+                    previous.device == device.id &&
+                    previous.kind == kind
+            )
+            if (previous.envelope.isNotEmpty() &&
+                previous.envelope.startsWith("ritela.hpke:") == stored.startsWith("ritela.hpke:")
+            ) {
+                require(previous.envelope == stored)
+            }
+            val receipt = database.relay().received(id)
+            if (receipt == null && kind == "SYNC" && !hpke) {
+                require(database.syncReceive().packet(id)?.digest == wireDigest)
+            }
+            if (receipt !=
+                null
+            ) {
+                require(
+                    receipt.identity == sender.id && receipt.device == device.id &&
+                        receipt.digest == digest
+                )
+                val oldWire = if (hpke) receipt.hpkeDigest else receipt.manualDigest
+                require(oldWire == null || oldWire == wireDigest)
+                if (oldWire == null) {
+                    database.relay().received(
+                        if (hpke) {
+                            receipt.copy(hpkeDigest = wireDigest)
+                        } else {
+                            receipt.copy(manualDigest = wireDigest)
+                        }
+                    )
+                }
+            } else if (previous.body.isNotEmpty()) {
+                require(
+                    previous.created == created &&
+                        app.ritela.data.sync.canonicalJson(JSONObject(previous.body)) ==
+                        app.ritela.data.sync.canonicalJson(content)
+                )
+            }
+            return ReceivedPartnerPacket(previous, true)
+        }
+        require(database.relay().received(id) == null)
+        val keepDigest = database.relay().receivedCount() < 65536
+        require(keepDigest || !stored.startsWith("ritela.hpke:"))
+        require(kind in listOf("DATA", "DOODLE", "ACK", "OPENED", "SYNC_CAPS", "SYNC"))
+        if (kind == "SYNC") {
+            require(bytes.size <= SyncLimits.ENVELOPE_BYTES)
+            requireSyncCapabilities(sender.id, device.id)
+            syncApply.receive(id, sender.id, device.id, bytes, content, now())
+        }
+        if (kind == "DOODLE") PartnerCodec.doodle(content)
+        if (kind == "DATA") validateData(content)
+        if (kind == "SYNC_CAPS") {
+            SyncEnvelopeCodec.validateCapabilities(content)
+            require(
+                content.getString("senderNonce") == device.remoteNonce &&
+                    content.getString("recipientNonce") == device.localNonce
+            )
+            if (content.has(
+                    "relay"
+                )
+            ) {
+                requireNotNull(
+                    relaySetup
+                ).invoke(sender.id, device.id, content.getJSONObject("relay"))
+            }
+            val context = "${device.localNonce}:${device.remoteNonce}"
+            val old = database.syncReceive().capability(sender.id, device.id)
+            database.syncReceive().capability(
+                SyncCapabilityRow(
+                    sender.id,
+                    device.id,
+                    context,
+                    old?.context == context && old.offered,
+                    true
+                )
+            )
+        }
+        if (kind == "ACK" || kind == "OPENED") {
+            val original = dao.message(content.getString("message"))
+            require(
+                original != null && original.outgoing && original.identity == sender.id &&
+                    original.device == device.id
+            )
+            if (kind == "ACK" && original.kind == "SYNC") {
+                val ids = content.getJSONArray("applied")
+                require(ids.length() <= SyncLimits.ACK_IDS)
+                for (i in 0 until ids.length()) {
+                    val applied = requireNotNull(dao.message(ids.getString(i)))
+                    require(
+                        applied.outgoing && applied.kind == "SYNC" &&
+                            applied.identity == sender.id && applied.device == device.id
+                    )
+                    dao.delivered(applied.id)
+                    database.syncQueue().cancel(applied.id)
+                }
+            } else if (kind == "ACK") {
+                dao.delivered(original.id)
+                syncMessages.acknowledged(original.id, sender.id, device.id)
+            } else {
+                require(
+                    original.kind == "DOODLE" ||
+                        (
+                            original.kind == "DATA" && original.body.isNotEmpty() &&
+                                JSONObject(original.body).has("doodle")
+                            ) ||
+                        (
+                            original.kind == "DATA" && original.body.isEmpty() &&
+                                database.syncReceive().hasDoodle(original.id) == 1
+                            )
+                )
+                dao.delivered(original.id)
+                dao.opened(original.id)
+                syncMessages.acknowledged(original.id, sender.id, device.id)
+            }
+        }
+        val message =
+            PartnerMessage(
+                id, sender.id, device.id, false, kind,
+                created.also {
+                    require(it in 0..253402300799999L)
+                },
+                now(),
+                JSONObject(content.toString()).apply {
+                    if (kind ==
+                        "SYNC_CAPS"
+                    ) {
+                        remove("relay")
+                    }
+                }.toString(),
+                stored, delivered = true
+            )
+        dao.insert(message)
+        if (keepDigest) {
+            database.relay().received(
+                app.ritela.data.sync.RelayReceivedRow(
+                    id,
+                    sender.id,
+                    device.id,
+                    digest,
+                    manualDigest = wireDigest.takeUnless { hpke },
+                    hpkeDigest = wireDigest.takeIf { hpke }
+                )
+            )
+        }
+        return ReceivedPartnerPacket(message, false)
+    }
+
+    suspend fun sealRelay(id: String, route: String, hpke: String): ByteArray {
+        val message = retry(id)
+        val local = identity()
+        val remote = snapshot().identities.single { it.id == message.identity }.devices.single {
+            it.id ==
+                message.device
+        }
+        return app.ritela.data.sync.PartnerEnvelopeCrypto.seal(
+            local,
+            message.identity,
+            message.device,
+            remote.remoteNonce,
+            route,
+            id,
+            hpke,
+            JSONObject().put("kind", message.kind)
+                .put("created", message.created).put("payload", JSONObject(message.body))
+        )
+    }
+
+    suspend fun receiveRelay(
+        keyset: com.google.crypto.tink.KeysetHandle,
+        peer: String,
+        route: String,
+        id: String,
+        bytes: ByteArray
+    ): ReceivedPartnerPacket = mutex.withLock {
+        database.withTransaction {
+            val sender = snapshot().identities.single { it.id == peer && it.exchangeEnabled }
+            val value = app.ritela.data.sync.PartnerEnvelopeCrypto.open(
+                keyset,
+                identity(),
+                sender,
+                route,
+                id,
+                bytes
+            )
+            val device = sender.devices.single { it.id == value.getString("device") }
+            val content = value.getJSONObject("content")
+            receiveAuthenticated(
+                sender,
+                device,
+                id,
+                content.getString("kind"),
+                content.getJSONObject("payload"),
+                content.getLong("created"),
+                bytes,
+                "ritela.hpke:" + PartnerCrypto.b64(bytes)
+            )
+        }
+    }
+
     suspend fun acknowledgement(message: PartnerMessage): PartnerMessage {
         require(!message.outgoing)
         val content = JSONObject().put("message", message.id)

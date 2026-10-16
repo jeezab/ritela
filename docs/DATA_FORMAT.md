@@ -1,5 +1,9 @@
 # Локальное хранение
 
+Текущая схема с 2026-10-16 — Room 11, [11.json](../app/schemas/app.ritela.data.RitelaDatabase/11.json).
+Пять новых relay-таблиц описаны в конце документа; MIGRATION_10_11 не меняет
+прежние данные и consent. Дальше сохранена история предыдущих версий.
+
 2026-10-15: текущая схема — Room v10, [10.json](../app/schemas/app.ritela.data.RitelaDatabase/10.json). MIGRATION_9_10 добавляет только `sync_message_intents`: messageId PK, identity/device/kind, epoch, context/grantsDigest/messageDigest, state/errorCode и index state. Все 22 прежние entities и схемы/миграции 1…9 сохранены. Новая таблица пуста при upgrade, payload остаётся в PartnerMessage; согласие/ключи/сеть не активируются. `PENDING_WRAP` — локальное намерение, не сетевой пакет; `BLOCKED`, `ACKED`, `CANCELLED` не отправляются. Подробнее — [этап 6](architecture/RITELA_SYNC_STAGE_6.md). Ниже сохранена история схем.
 
 Предыдущая схема — Room v9, [9.json](../app/schemas/app.ritela.data.RitelaDatabase/9.json). MIGRATION_8_9 добавляет только `sync_capabilities` (per-device offers/current pairing context), `sync_received_author` (approved generation/key reference/grant), `sync_received_state` (epoch/sequence/scope/materialized snapshot), `sync_received_records` (отдельные projected records/tombstones), `sync_inbox` (immutable ID/digest и bounded pending), `sync_doodle_receipts` (marker для late OPENED очищенного DATA), `sync_handover` (точный результат retirement). Прежние пятнадцать entities и схемы/миграции 1…8 не изменены; новые таблицы пустые, интернет не включается. Подробности — [этап 3 Sync](architecture/RITELA_SYNC_STAGE_3.md). Обычный backup не переносит ключи, authority, inbox/checkpoints и не откатывает их.
@@ -59,3 +63,11 @@ Migration 4→5 только добавляет partner_directory (катало�
 Room остаётся v5: изменения используют прежние JSON поля, без изменения SQL-схемы. В `journal_layout.config` добавлены необязательные `archivedSections` (до 256 разделов/256 тегов в каждом) и `tags[].withoutPenetration` (Boolean; при отсутствии true только для MASTURBATION). Активные разделы/теги сохраняют прежние лимиты 64. Архив хранит названия и свойства удалённых тегов/разделов; обычное сохранение, восстановление defaults и импорт структуры объединяют его с прежней структурой и не обновляют `day_logs`. Архив переносится обычным экспортом структуры; Partner отправляет названия только в рамках выбранных категорий/тегов.
 
 Несколько настроений: одно встроенное значение остаётся в прежнем `mood`, остальные значения и пользовательские теги — в `custom["mood"]`; чтение объединяет их, редактирование другого поля сохраняет полный набор. Sex.CONDOM/NO_BARRIER сохраняют ID, подписи теперь «Секс с защитой»/«Секс без защиты». NONE совместим с дополнительными тегами; взаимное исключение NONE/CONDOM/NO_BARRIER применяется к новым действиям выбора, а старые сочетания не отклоняются при чтении/импорте. VAGINAL и discharge.UNUSUAL доступны для исторического декодирования, но исключены из нового выбора. Уже потерянное до этого изменения название пользовательского UUID нельзя восстановить из ID: UI показывает «Удалённый тег», не выдаёт UUID за название.
+# Room 11: relay runtime, 2026-10-16
+
+`MIGRATION_10_11` добавляет только пустые `relay_config`, `relay_routes`,
+`relay_packets`, `relay_received`, `relay_peers`. Прежние таблицы и схемы 1…10
+сохранены. Token/capabilities — Keystore-protected BLOB; HPKE ciphertext хранится
+до HTTP, cursor — после authenticated apply/storage ACK. Consent по умолчанию off,
+upgrade не активирует сеть и не переносит историю в outbox. Формат медицинского
+backup и отдельного identity export не меняется. Детали: [этап 5](architecture/RITELA_SYNC_STAGE_5.md).

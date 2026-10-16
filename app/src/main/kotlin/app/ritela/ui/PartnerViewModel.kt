@@ -23,9 +23,15 @@ import kotlinx.coroutines.launch
 class PartnerViewModel(
     context: Context,
     val repository: PartnerRepository,
-    private val mutableBusy: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val mutableBusy: MutableStateFlow<Boolean> = MutableStateFlow(false),
+    private val internetSetup: (suspend (String, String) -> PartnerMessage)? = null
 ) : ViewModel() {
     val error = MutableStateFlow(false)
+    fun prepareInternet(identity: String, device: String, ready: (PartnerMessage) -> Unit) = run {
+        val prepared = requireNotNull(internetSetup).invoke(identity, device)
+        packet.value = prepared
+        kotlinx.coroutines.withContext(Dispatchers.Main) { ready(prepared) }
+    }
     val directory = repository.directory.catch { failure ->
         if (failure is CancellationException) throw failure
         error.value = true

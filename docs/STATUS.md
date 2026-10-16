@@ -1,5 +1,86 @@
 # Точка продолжения
 
+2026-10-16: по запросу «вернуться к этапу 5 и закончить цепочку доставки» завершена
+локальная Android-цепочка consent → pilot registration → explicit authenticated
+setup → durable HPKE → HTTP upload → transactional receive/apply → storage ACK →
+E2E ACK/OPENED. `RelayRuntime` объединяет confirmed message intents и record outbox,
+сохраняет immutable ciphertext до HTTP, повторяет те же ID/bytes после потери
+ответа/reopen, хранит cursor/backoff/Retry-After, не объявляет STORED доставкой.
+Страница применяется целиком; ACK/cursor после commit, повторы manual/HPKE
+сохраняют первый receivedAt и tombstones. Replay ledger хранит semantic digest и
+отдельные wire hashes даже после clear. Новый author generation >1 не активируется
+без явного server transfer. Размеры/TTL/локальный byte budget остаются ограничены.
+Для подготовленной record outbox проверен настоящий queue encoder → HPKE →
+separate received projection → E2E ACK: явные author approval/registerAuthorFence
+и receiver-owned AUTHOR route с baseline reservation. Reservation используется
+только для BASELINE, последующая DELTA проходит после её истечения. Автоматическая
+подготовка при правках не включена. Saved origin проверяется для всех control/
+delivery requests; смена origin в сборке не использует прежнее согласие на другой
+сервер. Tracked jobs стартуют только после добавления в набор отмены, без гонки
+начала запроса с close.
+
+Room 11/MIGRATION_10_11/schema 11.json добавляет только relay_config/routes/
+packets/received/peers; все 23 прежние entities и схемы 1…10 сохранены. Token и
+capabilities — profile Keystore-protected BLOB, WorkManager.Data — только UUID.
+WorkManager 2.12.0 запускается отложенно: unique network-constrained upload,
+hourly periodic fetch/flex/jitter, immediate durable continuation для остатка
+очереди/непустой byte-limited page, backoff только для ошибок. Нет hot loop из-за
+отсутствия маршрута; такие сообщения не блокируют другого получателя. Profile
+switch/delete/close отменяет и дожидается HTTP перед закрытием Room; disable
+сначала отзывает consent, затем останавливает запросы/work. До согласия нет relay
+requests/registration/key creation/sync jobs. INTERNET/ACCESS_NETWORK_STATE
+добавлены, cleartext запрещён, startup provider не экспортируется.
+
+В настройках доступно явное consent/activation с password-полем кода пилота при
+заданном build origin `-Pritela.relayOrigin=https://…`. По умолчанию origin пустой,
+включение недоступно: UUID D1 адресом API не является. Оба телефона обмениваются
+сертификатами и направленными маршрутами через два ручных setup roundtrip;
+кнопка подготовки открывает системную передачу зашифрованного файла. Обычный
+Send при готовом маршруте идёт в очередь без file/Bluetooth chooser, открытие
+входящего Doodle ставит OPENED. Setup не разрешает automatic medical records.
+Маршрут до 7 суток; обновление в этом пилоте явное. Ручные файлы/RFCOMM,
+профили/контакты/legacy keys/Doodles сохранены. Детали и эксплуатационные границы —
+docs/architecture/RITELA_SYNC_STAGE_5.md; план, карта, решения, DATA_FORMAT,
+PARTNER и TESTING актуализированы. Отзыв доступа/удаление relay packets не
+обещает стирание уже полученных или экспортированных копий.
+
+Проверки: formatKotlin — PASS. Финальный `checkKotlin testDebugUnitTest` с
+фильтрами RelayRuntimeTest, Sync*Test, Partner*Test, UserProfilesTest,
+DayLogBackupTest, RelayCryptoTest, HttpRelayTransportTest,
+HomeScreenTest.emptyHomeExplainsLocalPrivacy, затем assembleDebug/lintDebug;
+`-Pritela.skipScreenshots=true --max-workers=1 --no-parallel`, JVM
+`-Xmx1536m -Dfile.encoding=UTF-8` — BUILD SUCCESSFUL, 192 tests, 0 failures,
+0 errors, 0 skipped. Включены 14 RelayRuntimeTest (реальные JCA signatures/HPKE,
+две/три файловые БД и synthetic exchange без сокетов), TestDriver constraints/
+unique continuation/stale profile, 5 SyncSettingsUiTest по semantics. Все
+1…10→11, populated v10 intents и прежние BLOB/queue/projection, fresh/migrated
+DDL и фактический rollback/retry из 6…10 — PASS. Независимое сравнение JSON
+подтвердило неизменность всех 23 прежних entities; 43 EN/RU keys совпадают.
+В промежуточных прогонах исправлены provider exported flag, wire immutability
+после clear и layout формы activation: используется общий PartnerModal с
+bounded scroll/IME/footer. UI tests ожидают async contents; проверка текста
+приватности открывает реальные Settings, normal permission проверяется по
+manifest (Robolectric grant status не воспроизводит установку Android).
+
+Lint: 0 errors/0 warnings/9 прежних hints. verify-apk — PASS: signed app.ritela,
+API 26–37, network permissions/cleartext проверены, 17 188 299 bytes;
+SHA256 8756fbdd353a731b3a1f0348184ae746ba5ac80fa5c950773ae5ac21822299a6.
+APK: app/build/outputs/apk/debug/app-debug.apk. Workspace, diff/staged checks —
+PASS. UI/PNG/галерея/эмулятор и физический Bluetooth/IME/Doze не просматривались;
+снимки не генерировались. Независимый crypto review и deployed CPU/quotas этим
+не подтверждены. Cloudflare/D1/deploy/push/тег не выполнялись; docs/ui не добавлены.
+
+Следующее действие для живого пилота — получить HTTPS origin развёрнутого Worker
+и отдельно выполнить разрешённую операторскую настройку/secure token issuance,
+собрать с origin, активировать оба телефона и провести live roundtrip. В чате
+задан вопрос об уже развёрнутом origin; до ответа не угадывать endpoint и не
+трогать D1 133088c5-c0e6-40b7-b264-af6ef7d1cdd8. Дальнейшая локальная работа этапа
+6: adaptive foreground receive с общим budget, auto record preparation/forecast
+refresh; этап 7: baseline/scope/last-success/deletion UX. Эти этапы не объявлены
+завершёнными. Публичная регистрация и automatic Bluetooth/BLE не добавляются.
+
+## Предыдущие шаги
+
 2026-10-15: по запросу пользователя начат этап 7. Добавлен раздел «Синхронизация» в настройки: ручной режим, очередь/история до 100 metadata entries, индивидуальный получатель, категории/наличие послания и Doodle без их содержимого, отдельные статусы waiting/blocked/handed-off/E2E delivered/cancelled. Cancel message intent и pause auto records одному peer/device требуют подтверждения, исходные послания/ручной обмен сохраняются. Сохранённое internet consent можно отозвать: транзакционно flag=0, отмена локальных pending/leases и invalidate progress; STORED bytes не стираются и remote deletion не заявляется. Приватность объясняет future access, server queues/backups и локальные/экспортированные копии получателя. Все 34 строки сразу EN/RU; HomeTheme/SettingsGroup и sans-serif сохранены. Новый SyncSettingsRepository привязан к ProfileSession, чтение не создаёт consent/ключи и не обращается в сеть. Room остаётся v10, schemas/migrations/manifest/dependencies не менялись. Подробно — docs/architecture/RITELA_SYNC_STAGE_7.md.
 
 Проверки: formatKotlin — PASS. `checkKotlin assembleDebug lintDebug testDebugUnitTest` с фильтрами SyncSettingsTest, SyncSettingsUiTest, SyncMessageQueueTest, UserProfilesUiTest.addRenameSwitchAndLanguageAreIndependentAndReturnToHome; `-Pritela.skipScreenshots=true --max-workers=1 --no-parallel`, JVM `-Xmx1536m -Dfile.encoding=UTF-8` — BUILD SUCCESSFUL, 20 tests / 0 failures / 0 errors / 0 skipped (7 новых storage/settings + 4 UI). Проверены no implicit consent, metadata без sentinel plaintext, atomic disable/trigger rollback/reopen, независимые cancel/pause, peer/profile isolation, сохранение manual message/STORED bytes, EN/RU, подтверждение/отказ, прокрутка 320 dp/fontScale 2.0 и доступность confirmation buttons. Первый compile test выявил ошибочный импорт assertDoesNotExist (это member API), импорт удалён; затем 20 PASS. После добавления scroll в длинный confirmation и async wait/large-font test повторены format/build/lint/все выбранные тесты — 20 PASS. Lint: 0 errors, 0 warnings, 9 прежних hints. verify-apk — PASS: signed API 26–37 без network permissions, 17 484 851 bytes, SHA256 402cb93fd5cbd9cc1101de0ecff6680b81294f68967bf68ae2c0293cbca5acff. XML EN/RU key parity, workspace/diff/staged checks — PASS.

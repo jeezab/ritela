@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -54,7 +57,7 @@ internal fun SyncSettings() {
             stringResource(R.string.sync_title),
             R.drawable.ic_shield,
             modifier = Modifier.testTag("sync-settings"),
-            value = stringResource(R.string.sync_manual)
+            value = stringResource(R.string.sync_settings_summary)
         ) {
             showing = true
         }
@@ -79,6 +82,10 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
     val state by flow.collectAsStateWithLifecycle(initialValue = SyncSettingsLoad.Loading)
     var working by remember(repository) { mutableStateOf(false) }
     var error by remember(repository) { mutableStateOf(false) }
+    var activation by remember(repository) { mutableStateOf(false) }
+    var token by remember(repository) { mutableStateOf("") }
+    val registered = (state as? SyncSettingsLoad.Ready)?.value?.registered == true
+    val active = registered && (state as? SyncSettingsLoad.Ready)?.value?.internetRequested == true
     var disable by remember(repository) { mutableStateOf(false) }
     var cancelling by remember(repository) { mutableStateOf<SyncQueueEntry?>(null) }
     var details by remember(repository) { mutableStateOf<SyncQueueContents?>(null) }
@@ -125,17 +132,29 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                 )
                 SettingsGroup {
                     Text(
-                        stringResource(R.string.sync_manual),
+                        stringResource(
+                            if (active) R.string.sync_internet_enabled else R.string.sync_manual
+                        ),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(stringResource(R.string.sync_manual_description))
                     OutlinedButton(
-                        onClick = {},
-                        enabled = false,
+                        onClick = { activation = true },
+                        enabled = repository.available && !active && !working,
                         modifier = Modifier.fillMaxWidth()
                             .heightIn(min = 48.dp).testTag("sync-internet-unavailable")
                     ) {
-                        Text(stringResource(R.string.sync_internet_unavailable))
+                        Text(
+                            stringResource(
+                                if (!repository.available) {
+                                    R.string.sync_internet_unavailable
+                                } else if (active) {
+                                    R.string.sync_internet_enabled
+                                } else {
+                                    R.string.sync_internet_enable
+                                }
+                            )
+                        )
                     }
                     Text(
                         stringResource(R.string.sync_nearby_unavailable),
@@ -150,7 +169,20 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                     is SyncSettingsLoad.Ready -> {
                         if (loaded.value.internetRequested) {
                             SettingsGroup {
-                                Text(stringResource(R.string.sync_permission_saved))
+                                Text(
+                                    stringResource(
+                                        if (!repository.available) {
+                                            R.string.sync_permission_saved
+                                        } else {
+                                            R.string.sync_link_help
+                                        }
+                                    )
+                                )
+                                if (loaded.value.relayProblem) {
+                                    Text(
+                                        stringResource(R.string.sync_connection_problem)
+                                    )
+                                }
                                 SyncAction(R.string.sync_disable, "sync-disable", !working) {
                                     disable =
                                         true
@@ -201,6 +233,51 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                     Text(stringResource(R.string.sync_privacy_future))
                     Text(stringResource(R.string.sync_privacy_relay))
                     Text(stringResource(R.string.sync_privacy_local))
+                }
+            }
+            if (activation) {
+                val dismissActivation = {
+                    activation = false
+                    token = ""
+                }
+                PartnerModal(
+                    stringResource(R.string.sync_internet_enable),
+                    dismissActivation,
+                    footer = {
+                        Column {
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                    .testTag("sync-activate-confirm"),
+                                enabled = registered || token.matches(Regex("[0-9a-f]{64}")),
+                                onClick = {
+                                    val value = token
+                                    token = ""
+                                    activation = false
+                                    perform { repository.activate(value) }
+                                }
+                            ) { Text(stringResource(R.string.sync_consent_confirm)) }
+                            TextButton(
+                                onClick = dismissActivation,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            ) { Text(stringResource(R.string.cancel)) }
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.sync_consent))
+                    if (!registered) {
+                        androidx.compose.material3.OutlinedTextField(
+                            token,
+                            { if (it.length <= 64) token = it },
+                            singleLine = true,
+                            label = { Text(stringResource(R.string.sync_activation)) },
+                            modifier = Modifier.fillMaxWidth().testTag("sync-activation-token"),
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                autoCorrectEnabled = false
+                            )
+                        )
+                    }
                 }
             }
             if (disable || cancelling != null) {

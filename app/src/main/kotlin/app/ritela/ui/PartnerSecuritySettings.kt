@@ -93,6 +93,26 @@ internal fun PartnerSecuritySettings() {
             source.devices.forEach { Text(it.id, style = MaterialTheme.typography.bodySmall) }
         }
     }
+    if (session.relay.available) {
+        Text(stringResource(R.string.sync_link_help))
+        directory.identities.filter { it.exchangeEnabled }.forEach { peer ->
+            peer.devices.filter { it.enabled && it.mutualConfirmed }.forEach { device ->
+                OutlinedButton(
+                    onClick = {
+                        model.prepareInternet(peer.id, device.id) { message ->
+                            if (activeSession()) {
+                                PartnerFiles.share(context, session.profileId, message)
+                            }
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.sync_link_prepare, peer.name))
+                }
+            }
+        }
+    }
     if (keyTransfer) {
         PartnerModal(stringResource(R.string.partner_your_devices), {
             keyPassword = ""

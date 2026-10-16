@@ -1,6 +1,13 @@
 # Ritela Sync: технический план
 
-Дата аудита и уточнения: 2026-10-15. Основание: первоначальный аудит после `9679650`, план `c7bac34` и уточнения пользователя. **По последним командам реализованы этапы 1 и 2: модели, Room 8, локальный журнал/проекция/очередь и движок с тестовыми портами.** Объём — [этап 1](RITELA_SYNC_STAGE_1.md), [этап 2](RITELA_SYNC_STAGE_2.md); фактические проверки — [STATUS](../STATUS.md). Wire v2, криптографические адаптеры, приём/apply и relay остаются будущими этапами; облако не менялось.
+Актуализация: 2026-10-16. Основание: аудит после `9679650`, план `c7bac34`
+и последующие команды пользователя. Этапы 1–3 реализованы локально; этап 4 дал
+локальный Worker/D1 и Tink HPKE. По текущему запросу завершена Android-цепочка
+этапа 5, включая Room 11, HTTP runtime, WorkManager и явный pilot setup.
+Этапы 6–7 частичны: confirmed messages/Doodles/receipts и настройки подключены,
+auto records/forecast, adaptive foreground receive и полный baseline/deletion UX
+ещё впереди. Детали каждого этапа — §9; точные проверки — [STATUS](../STATUS.md).
+Облако не менялось. Таблицы первоначального аудита ниже описывают исходное состояние.
 
 Пользователь уже создал Cloudflare D1: `133088c5-c0e6-40b7-b264-af6ef7d1cdd8`. Это идентификатор ресурса, не пароль и не адрес API. Доступность, имя базы, account ID, тариф, регион и её содержимое не проверялись: доступа к аккаунту Cloudflare в этом аудите не было. Повторно создавать базу не требуется; применение миграций и развёртывание Worker — отдельные будущие действия.
 
@@ -333,7 +340,14 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ### Этап 5. Android HTTP и фоновое выполнение
 
-Начата отдельная часть HTTPS adapter: [RITELA_SYNC_STAGE_5.md](RITELA_SYNC_STAGE_5.md). Клиент/подписи/fetch/ACK и отмена IO реализованы изолированно; runtime wiring, durable relay configuration/checkpoint и WorkManager ещё предстоят. INTERNET permission пока отсутствует; этап в целом не завершён.
+Android runtime подключён локально: [RITELA_SYNC_STAGE_5.md](RITELA_SYNC_STAGE_5.md).
+Room 11 с protected config/routes, immutable HPKE, registration, dispatch,
+transactional apply/storage ACK/cursor, E2E receipts и WorkManager. Есть явное
+согласие/пилотная активация/manual setup. INTERNET/ACCESS_NETWORK_STATE добавлены,
+cleartext запрещён; до consent relay не вызывается. Origin задаётся оператором
+при сборке, по умолчанию пустой; Cloudflare deploy/D1 не затронуты. Полная
+двухсторонняя цепочка проверяется synthetic exchange без внешней сети; реальный
+staging smoke test остаётся отдельным действием.
 
 Файлы: `data/sync/HttpRelayTransport.kt`, `SyncWorker.kt`, `SyncScheduler.kt`, `UserProfiles.kt`, `RitelaApplication.kt`, `AndroidManifest.xml`, `gradle/libs.versions.toml`, `app/build.gradle.kts`; `scripts/verify-apk.ps1` и документы приватности, если они проверяют прежнее отсутствие INTERNET. Добавить INTERNET/ACCESS_NETWORK_STATE по необходимости, WorkManager, HTTPS allowlist endpoint и запрет cleartext; при достаточности использовать платформенный `HttpsURLConnection` в IO с timeout/cancellation, иначе обосновать один HTTP client. Не добавлять общий сетевой слой ради единственного endpoint.
 
@@ -341,7 +355,10 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ### Этап 6. Автоматическая доставка записей, посланий и дудлов
 
-Начата локальная часть подтверждённых send intents и квитанций: [RITELA_SYNC_STAGE_6.md](RITELA_SYNC_STAGE_6.md). Room 10, атомарная запись с PartnerMessage, idempotence/revoke/delete/limits; реальная отправка ждёт незавершённых runtime зависимостей этапа 5. Этап 6 в целом не завершён, auto records/forecast refresh ещё не подключены.
+Подтверждённые send intents и квитанции [этапа 6](RITELA_SYNC_STAGE_6.md)
+подключены к runtime этапа 5: DATA/DOODLE/ACK/OPENED доставляются после явного setup.
+Этап 6 в целом не завершён: auto record preparation/forecast refresh и adaptive
+foreground receive с общим budget ещё не подключены.
 
 Файлы: `PartnerViewModel.kt`, `PartnerRepository.kt`, `domain/SavedDoodles.kt`, `data/sync/SyncQueueRepository.kt`, `SyncApplyRepository.kt`. Подключить подтверждённое send action к очереди, автопроекцию разрешённых изменений, forecast refresh, E2E receipts и delayed-open. Draft и saved doodle library не отправляются автоматически. Зависимости: уже добавленные, без FCM.
 
@@ -349,7 +366,10 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ### Этап 7. Настройки и прозрачность
 
-Начата доступная локальная часть: [RITELA_SYNC_STAGE_7.md](RITELA_SYNC_STAGE_7.md). Ручной режим/metadata queue/composition/local cancel/pause/disable и privacy explanations; включение Internet/auto setup и server deletion недоступны до runtime этапов 5–6. Этап целиком не завершён, реальная baseline/consent настройка ещё впереди.
+В [этапе 7](RITELA_SYNC_STAGE_7.md) доступны manual mode/metadata queue/composition/
+cancel/pause/disable/privacy и явный Internet consent/activation с manual setup.
+Без build origin включение недоступно. Baseline/scope/last-success/server deletion
+UX ещё впереди; этап целиком не завершён.
 
 Файлы: `ui/SettingsScreen.kt`, `PartnerScreen.kt`, `PartnerSharing.kt`, `PartnerSecuritySettings.kt`, `PartnerConversation.kt`, `PartnerFormatter.kt`, будущие `SyncSettings.kt`/`SyncQueueScreen.kt`, `res/values/` и `values-ru/`. Реализовать независимые consent/scope/auto toggles, baseline preview, состав/очередь/последний успех, ошибки и удаление relay-данных. Применить `ui-quality-audit`; новых UI библиотек не требуется.
 
@@ -363,7 +383,11 @@ Paid D1 допускает 10 ГБ на базу; сценарий 10 000 пол
 
 ## 10. Что требуется от владельца проекта
 
-Архитектура принята за основу: single-author с fencing/явным recovery, быстрая foreground доставка, редкая фоновая проверка, TTL 7 суток, закрытый пилот с activation tokens, HPKE wrapper через Tink и отсутствие полной forward secrecy. Пользователь разрешил этапы 1 и 2; последним уточнением продолжён этап 2. Локальные journal/queue готовы, production send/receive не подключены. Следующие этапы требуют отдельного решения; текущее разрешение не включает cloud deployment или передачу данных.
+Архитектура принята за основу: single-author с fencing/явным recovery, быстрая
+foreground доставка, редкая фоновая проверка, TTL 7 суток, закрытый пилот с
+activation tokens, Tink HPKE и отсутствие полной forward secrecy. Последний запрос
+возвращает к этапу 5 и завершает Android delivery runtime. Cloud deployment,
+платный тариф и передача реальных медицинских данных этим не разрешаются.
 
 Перед будущим staging: сообщить имя и назначение уже созданной D1, account ID и тариф, выбрать workers.dev/свой домен и разрешённое размещение данных, выделить тестовую среду, утвердить retention и предел затрат. Доступ настраивается локально через Wrangler/OAuth либо scoped deployment token с минимальными правами Workers/D1; секреты не присылать в чат и не коммитить. ID базы уже известен. Android не получает операторские Cloudflare credentials.
 

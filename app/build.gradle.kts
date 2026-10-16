@@ -28,6 +28,10 @@ require(signingValues.all { it.isNullOrBlank() } || signingValues.all { !it.isNu
 }
 
 android {
+    val relayOrigin = providers.gradleProperty("ritela.relayOrigin").orElse("").get()
+    require(relayOrigin.isEmpty() || relayOrigin.matches(Regex("https://[a-z0-9.-]+")))
+    defaultConfig { buildConfigField("String", "RELAY_ORIGIN", "\"$relayOrigin\"") }
+    buildFeatures { buildConfig = true }
     namespace = "app.ritela"
     compileSdk = 37
 
@@ -101,6 +105,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.work.runtime)
+    testImplementation(libs.androidx.work.testing)
     implementation(libs.tink.android)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.room.runtime)

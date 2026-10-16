@@ -1,8 +1,10 @@
 # Ritela Sync — этап 6, локальные подтверждённые отправки
 
-Начата первая часть этапа 6. Незавершённые зависимости этапа 5 не скрываются:
-нет runtime HPKE route bindings, persistent HTTP dispatch/fetch checkpoint или
-WorkManager. Интернет-приложение пока не подключено; новых permissions нет.
+2026-10-16: runtime зависимости этапа 5 подключены: HPKE routes/config, immutable
+dispatch, transactional receive/ACK/cursor и WorkManager. Явные DATA/DOODLE и
+ACK/OPENED intents доставляются после consent/пилотной активации/manual setup.
+Остаются automatic record preparation/forecast refresh, adaptive foreground
+receive и общий UX автоматических scopes/baseline. Ниже история первой части.
 
 ## Реализованный путь
 

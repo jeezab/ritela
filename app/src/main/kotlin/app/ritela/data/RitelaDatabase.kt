@@ -38,9 +38,14 @@ import app.ritela.data.sync.SyncStateDao
         SyncReceivedRecordRow::class, SyncInboxRow::class,
         app.ritela.data.sync.SyncDoodleReceiptRow::class,
         app.ritela.data.sync.SyncHandoverRow::class,
-        app.ritela.data.sync.SyncMessageIntentRow::class
+        app.ritela.data.sync.SyncMessageIntentRow::class,
+        app.ritela.data.sync.RelayConfigRow::class,
+        app.ritela.data.sync.RelayRouteRow::class,
+        app.ritela.data.sync.RelayPacketRow::class,
+        app.ritela.data.sync.RelayReceivedRow::class,
+        app.ritela.data.sync.RelayPeerRow::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 abstract class RitelaDatabase : RoomDatabase() {
@@ -56,8 +61,44 @@ abstract class RitelaDatabase : RoomDatabase() {
     abstract fun syncReceive(): SyncReceiveDao
     abstract fun syncMessageIntents(): app.ritela.data.sync.SyncMessageIntentDao
     abstract fun syncSettings(): app.ritela.data.sync.SyncSettingsDao
+    abstract fun relay(): app.ritela.data.sync.RelayDao
 
     companion object {
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS relay_config (id INTEGER NOT NULL PRIMARY KEY," +
+                        "origin TEXT NOT NULL,activation BLOB,registered INTEGER NOT NULL," +
+                        "cursor INTEGER NOT NULL," +
+                        "nextAttempt INTEGER NOT NULL,attempts INTEGER NOT NULL,error" +
+                        " TEXT,lastCheck INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS relay_routes (route TEXT NOT NULL PRIMARY KEY," +
+                        "identity TEXT NOT NULL,device TEXT NOT NULL,incoming INTEGER NOT" +
+                        " NULL,expires INTEGER NOT NULL," +
+                        "context TEXT NOT NULL,credentials BLOB NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS relay_packets (id TEXT NOT NULL PRIMARY KEY," +
+                        "identity TEXT NOT NULL,device TEXT NOT NULL,route TEXT NOT NULL," +
+                        "expires INTEGER NOT NULL," +
+                        "generation INTEGER NOT NULL,grant TEXT,envelope BLOB NOT NULL," +
+                        "sourceDigest TEXT NOT NULL," +
+                        "state TEXT NOT NULL,nextAttempt INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS relay_received (id TEXT NOT NULL PRIMARY KEY," +
+                        "identity TEXT NOT NULL,device TEXT NOT NULL,digest TEXT NOT NULL," +
+                        "manualDigest TEXT,hpkeDigest TEXT)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS relay_peers (identity TEXT NOT NULL," +
+                        "device TEXT NOT NULL," +
+                        "certificate TEXT NOT NULL,PRIMARY KEY(identity,device))"
+                )
+            }
+        }
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -77,7 +118,8 @@ abstract class RitelaDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS sync_handover " +
-                        "(id INTEGER NOT NULL, proposal TEXT NOT NULL, grant TEXT NOT NULL, PRIMARY KEY(id))"
+                        "(id INTEGER NOT NULL, proposal TEXT NOT NULL, grant TEXT NOT" +
+                        " NULL, PRIMARY KEY(id))"
                 )
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS sync_doodle_receipts " +
@@ -252,17 +294,20 @@ abstract class RitelaDatabase : RoomDatabase() {
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
-                    "ALTER TABLE partner_messages ADD COLUMN hiddenFromChat INTEGER NOT NULL DEFAULT 0"
+                    "ALTER TABLE partner_messages ADD COLUMN hiddenFromChat INTEGER" +
+                        " NOT NULL DEFAULT 0"
                 )
             }
         }
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
-                    "CREATE TABLE partner_directory (id INTEGER NOT NULL, json TEXT NOT NULL, PRIMARY KEY(id))"
+                    "CREATE TABLE partner_directory (id INTEGER NOT NULL, json TEXT" +
+                        " NOT NULL, PRIMARY KEY(id))"
                 )
                 db.execSQL(
-                    "CREATE TABLE partner_messages (id TEXT NOT NULL, identity TEXT NOT NULL, device TEXT NOT NULL, outgoing INTEGER NOT NULL, kind TEXT NOT NULL, created INTEGER NOT NULL, received INTEGER NOT NULL, body TEXT NOT NULL, envelope TEXT NOT NULL, delivered INTEGER NOT NULL, opened INTEGER NOT NULL, PRIMARY KEY(id))"
+                    "CREATE TABLE partner_messages (id TEXT NOT NULL, identity TEXT" +
+                        " NOT NULL, device TEXT NOT NULL, outgoing INTEGER NOT NULL, kind TEXT NOT NULL, created INTEGER NOT NULL, received INTEGER NOT NULL, body TEXT NOT NULL, envelope TEXT NOT NULL, delivered INTEGER NOT NULL, opened INTEGER NOT NULL, PRIMARY KEY(id))"
                 )
             }
         }
@@ -279,7 +324,8 @@ abstract class RitelaDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE day_logs ADD COLUMN custom TEXT NOT NULL DEFAULT '{}'")
                 db.execSQL("ALTER TABLE day_logs ADD COLUMN calendarIcon TEXT")
                 db.execSQL(
-                    "CREATE TABLE journal_layout (id INTEGER NOT NULL, config TEXT NOT NULL, PRIMARY KEY(id))"
+                    "CREATE TABLE journal_layout (id INTEGER NOT NULL, config TEXT" +
+                        " NOT NULL, PRIMARY KEY(id))"
                 )
             }
         }

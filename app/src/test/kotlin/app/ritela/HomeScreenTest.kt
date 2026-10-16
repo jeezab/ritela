@@ -88,6 +88,7 @@ class HomeScreenTest {
             compose.onAllNodesWithText("Начнём с даты").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Начнём с даты").assertIsDisplayed()
+        compose.onNodeWithTag("nav-settings").performClick()
         compose.onNodeWithText(
             "Записи хранятся на этом устройстве"
         ).performScrollTo().assertIsDisplayed()
@@ -98,10 +99,11 @@ class HomeScreenTest {
         assertFalse(
             applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_ALLOW_BACKUP != 0
         )
-        assertEquals(
-            PackageManager.PERMISSION_DENIED,
-            compose.activity.checkSelfPermission("android.permission.INTERNET")
-        )
+        val permissions = compose.activity.packageManager.getPackageInfo(
+            compose.activity.packageName,
+            PackageManager.GET_PERMISSIONS
+        ).requestedPermissions.orEmpty()
+        assertTrue("android.permission.INTERNET" in permissions)
     }
 
     @Test

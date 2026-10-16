@@ -1,4 +1,82 @@
-# Ritela Sync — этап 5, работа продолжается
+# Ritela Sync — этап 5: Android delivery runtime
+
+2026-10-16: подключена цепочка consent → pilot registration → authenticated manual
+setup → durable HPKE → HTTP upload → receive/apply → storage ACK → E2E receipt.
+Cloud deployment не выполняется. Без `-Pritela.relayOrigin=https://…` сборка не
+предлагает включение сети; адрес нельзя получить из UUID D1.
+
+Room 11 / `MIGRATION_10_11` добавляют пять пустых таблиц: `relay_config`
+(регистрация/cursor/backoff), `relay_routes` (направленные pairing bindings),
+`relay_packets` (immutable HPKE), `relay_received` (canonical semantic replay
+digest и отдельные manual/HPKE wire hashes), `relay_peers` (public certificates).
+Схемы 1…10 и все 23 прежние entities
+сохраняются; upgrade не активирует сеть и не backfill-ит историю. Activation token
+и route capabilities хранятся в защищённых BLOB под отдельным profile Keystore
+ключом. WorkManager.Data содержит только UUID профиля. Setup удаляется из
+plaintext PartnerMessage.body; прежний зашифрованный manual envelope сохраняется.
+
+`RelayRuntime` сериализует pump профиля. Подтверждённые intents/record outbox
+материализуются в сохранённый HPKE до HTTP. Потерянный ответ/перезапуск повторяют
+те же ID/bytes. STORED — хранение сервером; delivered требует authenticated E2E
+квитанции. Вся страница импортируется одной Room transaction: подписи/address/
+pairing, projection, replay digest и ACK. Затем storage ACK, затем cursor. Сбой
+между ними безопасно повторяет импорт; manual/HTTP дубликат сохраняет первый
+receivedAt и tombstone. 408/429/5xx/IO дают durable backoff/Retry-After; ошибки
+доступа/конфликта/валидации требуют явного возобновления, не создают hot loop.
+
+Для уже подготовленной record outbox есть отдельный явный API:
+`registerAuthorFence()` публикует только существующий ACTIVE generation-1 grant,
+не назначает автора. После отдельного receiver author approval создаётся
+`createReceiveRoute(authority=senderHandle, baselineBytes, baselineParts)` с
+reservation; затем обычные queue encoder/HPKE/apply/E2E ACK. Такой route требует
+того же sender handle, successor generation остаётся заблокированным. Этот путь
+не является автоматическим UI baseline setup этапа 7 и не запускает подготовку
+изменений при каждой правке.
+Разовая reservation передаётся только с BASELINE; DELTA использует обычный
+дневной budget и не блокируется истёкшим резервом первоначальной передачи.
+
+Локальные ограничения: ciphertext 16 МиБ, 512 pending intents, 65 536 packet/replay
+IDs, TTL до 7 суток; прежние wire limits adapter сохраняются. Большие legacy
+Doodles остаются доступны вручную. Новая author generation >1 блокируется до
+явного server transfer, согласие на сеть не даёт automatic medical grants.
+
+`SyncWorker`/`SyncScheduler`: unique one-time work и hourly periodic fetch,
+15-minute flex, jitter до 10 минут, CONNECTED, exponential retry для сетевых ошибок.
+Непустая (в том числе ограниченная по bytes) страница и готовый остаток очереди
+создают durable immediate continuation; отсутствие маршрута не образует hot loop.
+Инициализация
+WorkManager отложена; opt-out не создаёт sync jobs. Room invalidations восстанавливают
+работу и замечают новые задания/routes, cursor-only updates не образуют цикл.
+Каждый запрос проверяет active profile/consent; upload дополнительно rechecks
+peer/device/grants/epoch/pairing/source digest. Switch/delete/close отменяет и
+дожидается HTTP перед закрытием Room. INTERNET/ACCESS_NETWORK_STATE добавлены,
+cleartext запрещён; до согласия DNS/HTTP/регистрации/relay key creation нет.
+Каждый control/delivery запрос также требует совпадения saved и build origin:
+обновление сборки с другим адресом не переносит прежнее согласие на новый сервер.
+
+Пилот: оператор отдельно развёртывает Worker и выпускает tokens; приложение
+собирается с точным HTTPS origin. На каждом телефоне: настройки синхронизации →
+согласие и код. Затем оба дважды обмениваются setup через прежний файл/Bluetooth:
+сначала публичными transport certificates, потом receiver-owned routes. После
+этого подтверждённые послания/Doodles и receipts идут без ручного файла. Кнопка
+подготовки setup открывает системную передачу зашифрованного файла; обычный Send
+при действующем маршруте не требует повторного выбора file/Bluetooth. Форма кода
+использует общий PartnerModal с прокруткой/IME insets и закреплёнными действиями.
+Маршрут действует до семи суток; в этом пилоте его обновляют новым явным setup.
+После expiry ручной обмен остаётся доступен; старые packet IDs не оживляются
+сменой маршрута, требуется новая подтверждённая отправка.
+
+Disable отзывает будущий доступ и отменяет локальную работу, не обещая удалить
+уже отправленные bytes. При peer revoke runtime пытается удалить relay packets;
+это не стирает прочитанные/экспортированные копии. При global off HTTP удаления
+нет. Medical backup не переносит relay keys/config/checkpoints.
+
+Отдельно остаются adaptive foreground receive, auto record preparation/forecast
+refresh (этап 6), baseline/scope/deletion UX (этап 7), author-transfer UI,
+security review и физические устройства. Public registration и automatic BLE
+не добавляются, ручной RFCOMM сохраняется. Точные проверки — `docs/STATUS.md`.
+
+## История первой изолированной части (до runtime)
 
 Первая самостоятельная часть — `data/sync/HttpRelayTransport.kt` и
 `HttpRelayTransportTest.kt`. Это adapter существующего `SyncTransport`,
