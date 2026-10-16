@@ -1,5 +1,21 @@
 # Карта проекта
 
+2026-10-16: `data/sync/RelayConnections.kt` встраивает public cert + encrypted setup
+в file invitation и завершает reverse route через relay control. `AutomaticSync.kt`
+хранит frozen scope в sync_links, requests/approvals — в служебных SYNC_CAPS,
+подготавливает journal/deltas и выбранные forecasts прежним provider. `ui/AutomaticSharing.kt`
+показывает однократное approval и pause; PartnerSharing — отдельный auto opt-in.
+PartnerRepository сохраняет отдельные incoming chat snapshots после apply.
+`SyncControlValidation.kt` проверяет служебные запросы/подтверждения до сохранения
+и отображения: подпись автора, pairing context, scope, epoch и границы размеров.
+Схема Room 11 прежняя; инструкция — [RITELA_SYNC_USING](RITELA_SYNC_USING.md).
+
+2026-10-16: `domain/sync/ForegroundSyncBudget.kt` и `data/sync/ForegroundSync.kt`
+задают сохраняемый token bucket/часовой ceiling и интервалы visible chat.
+ProfileApp запускает receive только RESUMED, ProfileSession привязывает loop к
+профилю, Send вызывает немедленный pump. LocalSyncDelivery/PartnerFormatter и
+SyncProblems разделяют queued/server stored/received/error без изменения Room.
+
 2026-10-16: локальная часть этапа 8 —
 [матрица восстановления и выпуска](architecture/RITELA_SYNC_STAGE_8.md),
 bounded tamper corpus в RelayCryptoTest, malformed/atomic ACK/burst tests relay,

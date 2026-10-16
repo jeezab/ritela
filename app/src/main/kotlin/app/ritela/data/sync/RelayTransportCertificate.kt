@@ -29,9 +29,17 @@ object RelayTransportCertificate {
         ).toString()
     }
 
-    fun verify(peer: PartnerIdentity, deviceId: String, certificate: String): JSONObject {
+    fun verify(
+        peer: PartnerIdentity,
+        deviceId: String,
+        certificate: String,
+        requireMutual: Boolean = true
+    ): JSONObject {
         require(peer.exchangeEnabled && certificate.toByteArray().size <= 16384)
-        val device = peer.devices.single { it.id == deviceId && it.enabled && it.mutualConfirmed }
+        val device = peer.devices.single {
+            it.id == deviceId && it.enabled &&
+                (!requireMutual || it.mutualConfirmed)
+        }
         val envelope = JSONObject(certificate)
         val raw = envelope.getString("body")
         require(

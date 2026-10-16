@@ -4,9 +4,11 @@
 и последующие команды пользователя. Этапы 1–3 реализованы локально; этап 4 дал
 локальный Worker/D1 и Tink HPKE. По текущему запросу завершена Android-цепочка
 этапа 5, включая Room 11, HTTP runtime, WorkManager и явный pilot setup.
-Этапы 6–7 частичны: confirmed messages/Doodles/receipts и настройки подключены,
-auto records/forecast, adaptive foreground receive и полный baseline/deletion UX
-ещё впереди. Детали каждого этапа — §9; точные проверки — [STATUS](../STATUS.md).
+Подключены auto records/forecast, adaptive foreground receive, статусы чата и
+мастер file invitation; разрешения закреплены за выбранными ID и подтверждённым
+автором. [Инструкция](../RITELA_SYNC_USING.md). Полный server deletion/last-success UX,
+author transfer/recovery UI и physical pilot остаются отдельными работами.
+Детали этапов — §9; точные проверки — [STATUS](../STATUS.md).
 Облако не менялось. Таблицы первоначального аудита ниже описывают исходное состояние.
 
 Пользователь уже создал Cloudflare D1: `133088c5-c0e6-40b7-b264-af6ef7d1cdd8`. Это идентификатор ресурса, не пароль и не адрес API. Доступность, имя базы, account ID, тариф, регион и её содержимое не проверялись: доступа к аккаунту Cloudflare в этом аудите не было. Повторно создавать базу не требуется; применение миграций и развёртывание Worker — отдельные будущие действия.
@@ -360,8 +362,9 @@ staging smoke test остаётся отдельным действием.
 
 Подтверждённые send intents и квитанции [этапа 6](RITELA_SYNC_STAGE_6.md)
 подключены к runtime этапа 5: DATA/DOODLE/ACK/OPENED доставляются после явного setup.
-Этап 6 в целом не завершён: auto record preparation/forecast refresh и adaptive
-foreground receive с общим budget ещё не подключены.
+Следующим шагом подключены automatic journal preparation/forecast refresh,
+adaptive foreground receive с сохраняемым budget, авторское подтверждение и
+обновления в чат. Реальный pilot/physical Doze и независимый review ещё нужны.
 
 Файлы: `PartnerViewModel.kt`, `PartnerRepository.kt`, `domain/SavedDoodles.kt`, `data/sync/SyncQueueRepository.kt`, `SyncApplyRepository.kt`. Подключить подтверждённое send action к очереди, автопроекцию разрешённых изменений, forecast refresh, E2E receipts и delayed-open. Draft и saved doodle library не отправляются автоматически. Зависимости: уже добавленные, без FCM.
 
@@ -371,8 +374,10 @@ foreground receive с общим budget ещё не подключены.
 
 В [этапе 7](RITELA_SYNC_STAGE_7.md) доступны manual mode/metadata queue/composition/
 cancel/pause/disable/privacy и явный Internet consent/activation с manual setup.
-Без build origin включение недоступно. Baseline/scope/last-success/server deletion
-UX ещё впереди; этап целиком не завершён.
+Без build origin включение недоступно. Мастер приглашения включает setup,
+добавлены auto scope opt-in и recipient author approval, нормализованные причины
+ошибок/повтор и queued/STORED/E2E статусы. Last-success/server deletion UX и
+полный transfer/recovery остаются открыты; этап целиком не завершён.
 
 Файлы: `ui/SettingsScreen.kt`, `PartnerScreen.kt`, `PartnerSharing.kt`, `PartnerSecuritySettings.kt`, `PartnerConversation.kt`, `PartnerFormatter.kt`, будущие `SyncSettings.kt`/`SyncQueueScreen.kt`, `res/values/` и `values-ru/`. Реализовать независимые consent/scope/auto toggles, baseline preview, состав/очередь/последний успех, ошибки и удаление relay-данных. Применить `ui-quality-audit`; новых UI библиотек не требуется.
 

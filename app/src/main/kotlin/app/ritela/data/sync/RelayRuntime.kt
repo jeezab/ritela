@@ -42,6 +42,104 @@ class RelayRuntime(
     @Volatile private var closed = false
     private val dao get() = database.relay()
     val available get() = origin.isNotEmpty()
+    internal var prepareAutomatic: (suspend () -> Unit)? = null
+    internal var authorizeAutomatic: (suspend (String) -> Boolean)? = null
+    internal var afterDelivery: (suspend () -> Boolean)? = null
+
+    suspend fun registered(): Boolean = enabled() && dao.config()?.registered == true
+    suspend fun sendRoute(peer: String, device: String): String? = if (!registered()) {
+        null
+    } else {
+        dao.routes().lastOrNull {
+            !it.incoming && it.identity == peer && it.device == device && valid(it)
+        }?.route
+    }
+
+    /** Signed control data is sealed before enqueue; route capabilities never enter message.body. */
+    suspend fun queueControl(
+        peer: String,
+        device: String,
+        offer: JSONObject,
+        extra: JSONObject = JSONObject()
+    ): PartnerMessage = tracked {
+        check(registered())
+        val route = dao.routes().last {
+            !it.incoming && it.identity == peer && it.device == device &&
+                valid(it)
+        }
+        val cert = RelayTransportCertificate.verify(
+            partner().snapshot().identities.single {
+                it.id ==
+                    peer
+            },
+            device,
+            credentials(route).getString("certificate")
+        )
+        database.withTransaction {
+            check(enabled())
+            val (message, payload) = partner().prepareRelayControl(peer, device, offer, extra)
+            val local = partner().identity()
+            val remote = partner().snapshot().identities.single { it.id == peer }.devices.single {
+                it.id ==
+                    device
+            }
+            val bytes = PartnerEnvelopeCrypto.seal(
+                local,
+                peer,
+                device,
+                remote.remoteNonce,
+                route.route,
+                message.id,
+                cert.getString("hpke"),
+                JSONObject().put(
+                    "kind",
+                    message.kind
+                ).put("created", message.created).put("payload", payload)
+            )
+            require(dao.bytes() + bytes.size <= 16 * 1024 * 1024 && dao.count() < 65536)
+            dao.packet(
+                RelayPacketRow(
+                    message.id, peer, device, route.route,
+                    minOf(
+                        route.expires,
+                        now() + 7 * 86400000L
+                    ),
+                    0, null, bytes, sourceDigest(message)
+                )
+            )
+            check(SyncMessageQueue(database).offer(message) == SyncMessageOffer.QUEUED)
+            message
+        }
+    }
+
+    suspend fun receiveOffer(peer: String, device: String, certificate: String): String {
+        check(registered())
+        val existing = dao.routes().lastOrNull {
+            it.incoming && it.identity == peer &&
+                it.device == device &&
+                valid(it) &&
+                credentials(it).optString("authority").isEmpty() &&
+                credentials(it).optString("certificate") == certificate &&
+                credentials(it).has("offer")
+        }
+        return existing?.let { credentials(it).getString("offer") }
+            ?: createReceiveRoute(peer, device, certificate)
+    }
+
+    suspend fun foregroundReady(): Boolean = enabled() && dao.config()?.let {
+        it.nextAttempt <= now() && (it.registered || it.activation != null)
+    } == true
+
+    /** Explicit retry may reopen validation failures, but never bypasses server Retry-After. */
+    suspend fun retry() {
+        if (!enabled()) return
+        val config = dao.config() ?: return
+        if (config.nextAttempt ==
+            Long.MAX_VALUE
+        ) {
+            dao.config(config.copy(nextAttempt = 0, error = null))
+        }
+    }
 
     /** A local routing decision for the explicit Send action; never starts network work. */
     suspend fun canDeliver(message: PartnerMessage): Boolean {
@@ -159,10 +257,17 @@ class RelayRuntime(
         val route = PartnerCrypto.random(32).joinToString("") { "%02x".format(it) }
         val capability = PartnerCrypto.random(32).joinToString("") { "%02x".format(it) }
         val expiry = now() + 7 * 86400000L
+        val reservationExpires = if (baselineBytes > 0) now() + 600000L else 0L
         val body = JSONObject().put("route", route).put("sender", cert.getString("handle"))
             .put("capability", capability).put("expiresAt", expiry).put("authority", authority)
         client(keys).request("POST", "/v1/routes", body.toString().toByteArray())
-        val credentials = JSONObject().put("capability", capability).put("certificate", certificate)
+        val credentials = JSONObject().put(
+            "capability",
+            capability
+        ).put("certificate", certificate).put(
+            "authority",
+            authority ?: ""
+        )
         if (baselineBytes > 0) {
             require(authority != null && baselineBytes <= 6291456 && baselineParts in 1..64)
             val reservation = UUID.randomUUID().toString()
@@ -172,7 +277,7 @@ class RelayRuntime(
                 JSONObject().put("id", reservation)
                     .put("bytes", baselineBytes).put("parts", baselineParts).put(
                         "expiresAt",
-                        now() + 600000
+                        reservationExpires
                     )
                     .toString().toByteArray()
             )
@@ -199,6 +304,8 @@ class RelayRuntime(
                 local.deviceId
             ).put("nonce", local.nonce).put("to", peer).put("target", device)
             .put("route", route).put("capability", capability).put("expires", expiry)
+            .put("reservationExpires", reservationExpires)
+            .put("authority", authority ?: "")
             .put(
                 "certificate",
                 certificate()
@@ -210,7 +317,16 @@ class RelayRuntime(
         ).put(
             "signature",
             PartnerCrypto.sign(PartnerCrypto.privateKey(local.devicePrivate, "EC"), raw)
-        ).toString()
+        ).toString().also { offer ->
+            database.withTransaction {
+                check(enabled())
+                requireNotNull(dao.route(route))
+                dao.routeCredentials(
+                    route,
+                    vault.protect(route, credentials.put("offer", offer).toString().toByteArray())
+                )
+            }
+        }
     }
 
     suspend fun installSendRoute(offer: String) = database.withTransaction {
@@ -283,93 +399,168 @@ class RelayRuntime(
         )
     }
 
-    suspend fun runOnce(): RelayRun = tracked {
-        if (!enabled()) return@tracked RelayRun.IDLE
-        val config = dao.config() ?: return@tracked RelayRun.IDLE
-        if (config.origin != origin || !available) return@tracked RelayRun.PAUSED
-        if (config.nextAttempt == Long.MAX_VALUE) return@tracked RelayRun.PAUSED
-        if (config.nextAttempt > now()) return@tracked RelayRun.RETRY
-        try {
-            val keys = requireNotNull(vault.load())
-            val http = client(keys)
-            if (!config.registered) {
-                val activation = vault.unprotect("activation", requireNotNull(config.activation))
-                try {
-                    val result = http.request(
-                        "POST",
-                        "/v1/devices",
-                        JSONObject().put("handle", keys.handle)
-                            .put(
-                                "publicKey",
-                                keys.apiPublic
-                            ).put("activation", activation.toString(Charsets.UTF_8))
-                            .toString().toByteArray()
+    suspend fun runOnce(fetch: Boolean = true): RelayRun = tracked(serialize = false) {
+        val result = mutex.withLock pump@{
+            if (!enabled()) return@pump RelayRun.IDLE
+            val config = dao.config() ?: return@pump RelayRun.IDLE
+            if (config.origin != origin || !available) return@pump RelayRun.PAUSED
+            if (config.nextAttempt == Long.MAX_VALUE) return@pump RelayRun.PAUSED
+            if (config.nextAttempt > now()) return@pump RelayRun.RETRY
+            try {
+                val keys = requireNotNull(vault.load())
+                val http = client(keys)
+                if (!config.registered) {
+                    val activation = vault.unprotect(
+                        "activation",
+                        requireNotNull(config.activation)
                     )
-                    require(result.getString("handle") == keys.handle)
-                    dao.config(config.copy(activation = null, registered = true))
-                } finally {
-                    activation.fill(0)
-                }
-            }
-            materialize()
-            send(http)
-            val page = http.fetch(requireNotNull(dao.config()).cursor)
-            database.withTransaction {
-                check(enabled())
-                for (packet in page.packets) {
-                    val route = requireNotNull(dao.route(packet.route))
-                    require(route.incoming && valid(route))
-                    val received = partner().receiveRelay(
-                        keys.hpke,
-                        route.identity,
-                        route.route,
-                        packet.id,
-                        packet.ciphertext
-                    )
-                    require(received.message.device == route.device)
-                    if (received.message.kind in
-                        setOf("DATA", "DOODLE", "SYNC")
-                    ) {
-                        partner().acknowledgement(received.message)
+                    try {
+                        val result = http.request(
+                            "POST",
+                            "/v1/devices",
+                            JSONObject().put("handle", keys.handle)
+                                .put(
+                                    "publicKey",
+                                    keys.apiPublic
+                                ).put("activation", activation.toString(Charsets.UTF_8))
+                                .toString().toByteArray()
+                        )
+                        require(result.getString("handle") == keys.handle)
+                        dao.config(config.copy(activation = null, registered = true))
+                    } finally {
+                        activation.fill(0)
                     }
                 }
-            }
-            if (page.packets.isNotEmpty()) http.acknowledge(page.packets)
-            database.withTransaction {
-                check(enabled())
-                dao.config(
-                    requireNotNull(dao.config()).copy(
-                        cursor = page.cursor,
-                        nextAttempt = 0,
-                        attempts = 0,
-                        error = null,
-                        lastCheck = now()
+                prepareAutomatic?.invoke()
+                materialize()
+                send(http)
+                if (!fetch) {
+                    dao.config(
+                        requireNotNull(
+                            dao.config()
+                        ).copy(nextAttempt = 0, attempts = 0, error = null)
                     )
-                )
+                    return@pump if (moreUploads()) RelayRun.MORE else RelayRun.SUCCESS
+                }
+                val page = http.fetch(requireNotNull(dao.config()).cursor)
+                database.withTransaction {
+                    check(enabled())
+                    for (packet in page.packets) {
+                        val route = requireNotNull(dao.route(packet.route))
+                        require(route.incoming && valid(route))
+                        val received = partner().receiveRelay(
+                            keys.hpke,
+                            route.identity,
+                            route.route,
+                            packet.id,
+                            packet.ciphertext
+                        )
+                        require(received.message.device == route.device)
+                        if (received.message.kind in
+                            setOf("DATA", "DOODLE", "SYNC", "SYNC_CAPS")
+                        ) {
+                            partner().acknowledgement(received.message)
+                        }
+                    }
+                }
+                if (page.packets.isNotEmpty()) http.acknowledge(page.packets)
+                database.withTransaction {
+                    check(enabled())
+                    dao.config(
+                        requireNotNull(dao.config()).copy(
+                            cursor = page.cursor,
+                            nextAttempt = 0,
+                            attempts = 0,
+                            error = null,
+                            lastCheck = now()
+                        )
+                    )
+                }
+                prepareAutomatic?.invoke()
+                materialize()
+                send(http)
+                if (page.packets.isNotEmpty() || moreUploads()) {
+                    RelayRun.MORE
+                } else {
+                    RelayRun.SUCCESS
+                }
+            } catch (
+                cancelled: CancellationException
+            ) {
+                throw cancelled
+            } catch (
+                failure: RelayHttpFailure
+            ) {
+                failure(failure.retryable, "HTTP_${failure.status}", failure.retryAfterMillis)
+            } catch (
+                _: IOException
+            ) {
+                failure(true, "NETWORK")
+            } catch (_: Exception) {
+                failure(false, "VALIDATION")
             }
-            materialize()
-            send(http)
-            if (page.packets.isNotEmpty() || moreUploads()) {
-                RelayRun.MORE
-            } else {
-                RelayRun.SUCCESS
-            }
-        } catch (
-            cancelled: CancellationException
-        ) {
+        }
+        if (result !in setOf(RelayRun.SUCCESS, RelayRun.MORE)) return@tracked result
+        try {
+            if (afterDelivery?.invoke() == true) RelayRun.MORE else result
+        } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (
-            failure: RelayHttpFailure
-        ) {
-            failure(failure.retryable, "HTTP_${failure.status}", failure.retryAfterMillis)
-        } catch (
-            _: IOException
-        ) {
-            failure(true, "NETWORK")
+        } catch (failure: RelayHttpFailure) {
+            mutex.withLock {
+                failure(failure.retryable, "HTTP_${failure.status}", failure.retryAfterMillis)
+            }
+        } catch (_: IOException) {
+            mutex.withLock { failure(true, "NETWORK") }
         } catch (_: Exception) {
-            failure(false, "VALIDATION")
+            mutex.withLock { failure(false, "VALIDATION") }
         }
     }
+
+    private fun reservationReady(route: RelayRouteRow, message: PartnerMessage): Boolean {
+        if (message.kind != "SYNC" ||
+            JSONObject(message.body).optString("kind") != "BASELINE"
+        ) {
+            return true
+        }
+        val credentials = credentials(route)
+        return credentials.optString("reservation").isNotEmpty() &&
+            credentials.optLong("reservationExpires", route.expires - 7 * 86400000L + 600000L) >
+            now()
+    }
+
+    private suspend fun routeFor(message: PartnerMessage): RelayRouteRow? =
+        dao.routes().lastOrNull {
+            !it.incoming && it.identity == message.identity && it.device == message.device && valid(
+                it
+            ) &&
+                (message.kind != "SYNC" || (authorRoute(it) && reservationReady(it, message)))
+        }
+
+    private fun authorRoute(route: RelayRouteRow): Boolean = credentials(route).let {
+        it.optString("authority") == vault.load()?.handle ||
+            (!it.has("authority") && it.optString("reservation").isNotEmpty())
+    }
+
+    internal suspend fun recordRouteReady(
+        peer: String,
+        device: String,
+        baseline: Boolean
+    ): Boolean = registered() &&
+        dao.routes().any {
+            !it.incoming && it.identity == peer && it.device == device && valid(it) &&
+                authorRoute(it) &&
+                (
+                    !baseline ||
+                        credentials(it).let { data ->
+                            data.optString("reservation").isNotEmpty() &&
+                                data.optLong(
+                                    "reservationExpires",
+                                    it.expires - 7 * 86400000L + 600000L
+                                ) >
+                                now()
+                        }
+                    )
+        }
 
     private suspend fun materialize() {
         val messages = SyncMessageQueue(database).pending().map { it.id }.toSet()
@@ -379,10 +570,7 @@ class RelayRuntime(
             if (wrapped == 32) break
             if (dao.packet(id) != null) continue
             val message = database.partner().message(id) ?: continue
-            val route = dao.routes().lastOrNull {
-                !it.incoming && it.identity == message.identity &&
-                    it.device == message.device && valid(it)
-            } ?: continue
+            val route = routeFor(message) ?: continue
             database.withTransaction {
                 if (!authorizedSource(id)) return@withTransaction
                 val content = JSONObject(message.body)
@@ -425,7 +613,7 @@ class RelayRuntime(
         if (!hasRoom()) return false
         return dao.pendingIds().any { id ->
             dao.packet(id) == null && database.partner().message(id)?.let {
-                linked(it.identity, it.device) && authorizedSource(id)
+                routeFor(it) != null && authorizedSource(id)
             } == true
         }
     }
@@ -477,11 +665,13 @@ class RelayRuntime(
         }
     }
 
-    private suspend fun authorizedSource(id: String): Boolean {
+    private suspend fun authorizedSource(id: String, upload: Boolean = true): Boolean {
         if (!enabled()) return false
         val message = database.partner().message(id) ?: return false
         if (message.delivered) return false
         return if (message.kind == "SYNC") {
+            if (authorizeAutomatic?.invoke(id) == false) return false
+            if (upload && routeFor(message) == null) return false
             val row = database.syncQueue().packet(id) ?: return false
             row.state != "CANCELLED" &&
                 SyncQueueRepository(database, SyncPacketEncoder { error("ENCODER_UNUSED") })
@@ -496,7 +686,8 @@ class RelayRuntime(
         val message = database.partner().message(packet.id) ?: return false
         val route = dao.route(packet.route) ?: return false
         return valid(route) && sourceDigest(message) == packet.sourceDigest &&
-            authorizedSource(packet.id)
+            authorizedSource(packet.id, upload = packet.state != "STORED") &&
+            (packet.state == "STORED" || reservationReady(route, message))
     }
     private suspend fun valid(route: RelayRouteRow): Boolean = route.expires > now() &&
         runCatching { route.context == binding(route.identity, route.device) }.getOrDefault(false)
@@ -566,18 +757,24 @@ class RelayRuntime(
         )
         return if (retry) RelayRun.RETRY else RelayRun.PAUSED
     }
-    private suspend fun <T> tracked(action: suspend () -> T): T = coroutineScope {
-        val job = async(start = CoroutineStart.LAZY) {
-            mutex.withLock {
-                check(!closed)
-                action()
+    private suspend fun <T> tracked(serialize: Boolean = true, action: suspend () -> T): T =
+        coroutineScope {
+            val job = async(start = CoroutineStart.LAZY) {
+                if (serialize) {
+                    mutex.withLock {
+                        check(!closed)
+                        action()
+                    }
+                } else {
+                    check(!closed)
+                    action()
+                }
+            }
+            jobs.add(job)
+            try {
+                job.await()
+            } finally {
+                jobs.remove(job)
             }
         }
-        jobs.add(job)
-        try {
-            job.await()
-        } finally {
-            jobs.remove(job)
-        }
-    }
 }

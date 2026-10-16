@@ -81,7 +81,8 @@ data class SyncQueueEntry(
     val records: Boolean,
     val status: SyncQueueStatus,
     val tooLarge: Boolean,
-    val canCancel: Boolean
+    val canCancel: Boolean,
+    val problem: String? = null
 )
 data class SyncSettingsSnapshot(
     val internetRequested: Boolean,
@@ -120,6 +121,8 @@ class SyncSettingsRepository(
 
     suspend fun read(): SyncSettingsSnapshot = database.withTransaction {
         val profile = database.syncState().profileStates().singleOrNull()
+        val config = database.relay().config()
+        val routes = database.relay().routes()
         val names = database.partner().snapshot()?.let { PartnerCodec.directory(it.json) }
             ?.identities?.associate { it.id to it.name }.orEmpty()
         SyncSettingsSnapshot(
@@ -151,7 +154,23 @@ class SyncSettingsRepository(
                     row.records,
                     status,
                     row.error == "MESSAGE_TOO_LARGE",
-                    status in setOf(SyncQueueStatus.WAITING, SyncQueueStatus.BLOCKED)
+                    row.kind != "SYNC_CAPS" &&
+                        status in setOf(SyncQueueStatus.WAITING, SyncQueueStatus.BLOCKED),
+                    if (status in setOf(SyncQueueStatus.WAITING, SyncQueueStatus.BLOCKED)) {
+                        row.error ?: config?.error
+                            ?: if (config?.registered == true && routes.none {
+                                    !it.incoming && it.identity == row.identity &&
+                                        it.device == row.device &&
+                                        it.expires > System.currentTimeMillis()
+                                }
+                            ) {
+                                "NO_ROUTE"
+                            } else {
+                                null
+                            }
+                    } else {
+                        null
+                    }
                 )
             },
             database.relay().config()?.registered == true,

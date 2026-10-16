@@ -1,5 +1,10 @@
 # Ritela Sync — этап 5: Android delivery runtime
 
+Дополнение: [упрощённое подключение и auto updates](../RITELA_SYNC_USING.md)
+включают service setup в приглашение, immediate upload/foreground receive,
+отдельный auto consent и author approval. Room 11 и relay HTTP API прежние.
+Изложенные ниже два ручных setup roundtrip остаются совместимым fallback.
+
 2026-10-16: подключена цепочка consent → pilot registration → authenticated manual
 setup → durable HPKE → HTTP upload → receive/apply → storage ACK → E2E receipt.
 Оператор сообщил о развёртывании https://ritela-relay.zabvenen.workers.dev;

@@ -14,7 +14,8 @@ data class DataShare(
     val scope: ShareScope,
     val note: String = "",
     val doodle: Doodle? = null,
-    val savedDoodleId: String? = null
+    val savedDoodleId: String? = null,
+    val automatic: Boolean = false
 )
 
 object SavedDoodles {

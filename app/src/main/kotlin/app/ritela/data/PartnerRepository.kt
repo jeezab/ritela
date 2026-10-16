@@ -41,7 +41,8 @@ data class PairInvitation(
     val device: PartnerDevice,
     val version: Int = 2,
     val confirmation: String? = null,
-    val signedInvitation: String = ""
+    val signedInvitation: String = "",
+    val relayOffer: String? = null
 )
 data class ReceivedPartnerPacket(val message: PartnerMessage, val duplicate: Boolean)
 
@@ -59,10 +60,23 @@ class PartnerRepository(
             ?: PartnerDirectory()
     }
     internal var relaySetup: (suspend (String, String, JSONObject) -> Unit)? = null
+    internal var relayInvitation: (suspend (String, PairInvitation?) -> String)? = null
+    internal var relayPairing: (suspend (PairInvitation) -> Unit)? = null
+    internal var relayWake: (suspend () -> Unit)? = null
+    internal var automaticIncoming: (suspend (String, String, JSONObject) -> Unit)? = null
     private val syncApply = SyncApplyRepository(database, ::validateData)
     private val syncMessages = app.ritela.data.sync.SyncMessageQueue(database)
     val messages = combine(dao.messages(), database.syncReceive().states()) { history, states ->
-        history + states.map {
+        history.map { message ->
+            if (!message.outgoing && message.kind == "SYNC_CAPS" &&
+                message.body.isNotEmpty() && JSONObject(message.body).has("authorRequest") &&
+                !JSONObject(message.body).getJSONObject("authorRequest").optBoolean("renewal")
+            ) {
+                message.copy(kind = "SYNC_REQUEST")
+            } else {
+                message
+            }
+        } + states.map {
             PartnerMessage(
                 "sync-projection:${it.identity}", it.identity, "", false, "SYNC_PROJECTION",
                 it.received, it.received, it.snapshot, "", delivered = true, hiddenFromChat = true
@@ -97,13 +111,24 @@ class PartnerRepository(
         identity: String,
         device: String,
         offer: JSONObject
-    ): PartnerMessage = database.withTransaction {
+    ): PartnerMessage = prepareRelayControl(identity, device, offer).first
+
+    internal suspend fun prepareRelayControl(
+        identity: String,
+        device: String,
+        offer: JSONObject,
+        extra: JSONObject = JSONObject()
+    ): Pair<PartnerMessage, JSONObject> = database.withTransaction {
         val remote = snapshot().identities.single { it.id == identity }.devices.single {
             it.id ==
                 device
         }
         val payload = SyncEnvelopeCodec.capabilities().put("senderNonce", remote.localNonce)
             .put("recipientNonce", remote.remoteNonce).put("relay", offer)
+        extra.keys().forEach { key ->
+            require(key in setOf("authorRequest", "authorApproval", "connectionReply"))
+            payload.put(key, extra.get(key))
+        }
         val message = prepare(identity, device, "SYNC_CAPS", payload)
         val old = database.syncReceive().capability(identity, device)
         val context = "${remote.localNonce}:${remote.remoteNonce}"
@@ -116,7 +141,7 @@ class PartnerRepository(
                 old?.context == context && old.accepted
             )
         )
-        message
+        message to payload
     }
 
     suspend fun initializeSyncAuthor(): String = SyncAuthorGrants(database).initialize(identity())
@@ -178,6 +203,13 @@ class PartnerRepository(
             mutex.withLock {
                 database.withTransaction {
                     val message = requireNotNull(dao.message(id))
+                    if (!message.outgoing && message.kind == "SYNC_CAPS" &&
+                        message.body.isNotEmpty() &&
+                        JSONObject(message.body).has("authorRequest")
+                    ) {
+                        dao.hide(id)
+                        return@withTransaction
+                    }
                     require(message.kind in setOf("DATA", "DOODLE"))
                     syncMessages.cancel(id)
                     rememberDoodle(message)
@@ -195,6 +227,21 @@ class PartnerRepository(
         }
     }
     suspend fun identity(): LocalPartnerKeys = withContext(Dispatchers.IO) { loadKeys() }
+    private suspend fun automaticGrants(identity: String, chosen: ShareScope): ShareScope {
+        var result = chosen
+        for (link in database.syncState().links().filter {
+            it.peerIdentity == identity &&
+                it.automaticEnabled == 1 &&
+                it.scopeJson != null
+        }) {
+            result =
+                app.ritela.domain.PartnerSharing.union(
+                    result,
+                    PartnerCodec.scope(JSONObject(requireNotNull(link.scopeJson)))
+                )
+        }
+        return result
+    }
     suspend fun snapshot(): PartnerDirectory =
         dao.snapshot()?.let { PartnerCodec.directory(it.json) } ?: PartnerDirectory()
     private suspend fun mutate(change: (PartnerDirectory) -> PartnerDirectory) = mutex.withLock {
@@ -210,11 +257,12 @@ class PartnerRepository(
             snapshot().identities.firstOrNull { it.id == invite.identity }?.devices
                 ?.firstOrNull { it.id == invite.device.id && it.enabled }?.verificationContext
         }
-        return keys.invitation(name, confirmed)
+        val invitation = keys.invitation(name, confirmed)
+        return relayInvitation?.invoke(invitation, target) ?: invitation
     }
     suspend fun inspectInvitation(invitation: String): PairInvitation =
         withContext(Dispatchers.IO) {
-            require(invitation.length <= 12000)
+            require(invitation.toByteArray().size <= PartnerInvitationFile.MAX_BYTES)
             val envelope = JSONObject(invitation)
             val raw = envelope.getString("body")
             val body = JSONObject(raw)
@@ -258,7 +306,8 @@ class PartnerRepository(
                 PartnerDevice(deviceId, deviceKey, certificate, identity().nonce, nonce),
                 version,
                 body.optString("confirmed").takeIf { it.isNotEmpty() },
-                invitation
+                invitation,
+                body.optString("relay").takeIf { it.isNotEmpty() }
             )
         }
 
@@ -299,6 +348,7 @@ class PartnerRepository(
                 )
             )
         }
+        relayPairing?.invoke(invitation)
     }
 
     suspend fun verificationCode(invitation: PairInvitation): String =
@@ -319,7 +369,10 @@ class PartnerRepository(
         }
         if (device.verificationContext == null) return device.mutualConfirmed
         if (device.verificationContext != pairingContext(identity(), invitation)) return false
-        if (device.mutualConfirmed) return true
+        if (device.mutualConfirmed) {
+            relayPairing?.invoke(invitation)
+            return true
+        }
         if (invitation.confirmation != device.verificationContext) return false
         pair(invitation)
         return true
@@ -678,7 +731,10 @@ class PartnerRepository(
                                         identities = directory.identities.map { partner ->
                                             if (partner.id == identity) {
                                                 partner.copy(
-                                                    grants = requireNotNull(chosen),
+                                                    grants = automaticGrants(
+                                                        identity,
+                                                        requireNotNull(chosen)
+                                                    ),
                                                     lastSelection = chosen
                                                 )
                                             } else {
@@ -834,12 +890,28 @@ class PartnerRepository(
         if (kind == "SYNC") {
             require(bytes.size <= SyncLimits.ENVELOPE_BYTES)
             requireSyncCapabilities(sender.id, device.id)
+            automaticIncoming?.invoke(sender.id, device.id, content)
+            val before = database.syncReceive().state(sender.id)
             syncApply.receive(id, sender.id, device.id, bytes, content, now())
+            val after = database.syncReceive().state(sender.id)
+            if (after != null && after != before) {
+                val updateId = "sync-update:${sender.id}:" +
+                    "${after.generation}:${after.epoch}:${after.sequence}"
+                if (dao.message(updateId) == null) {
+                    dao.insert(
+                        PartnerMessage(
+                            updateId, sender.id, device.id, false, "DATA",
+                            created, now(), after.snapshot, "", delivered = true
+                        )
+                    )
+                }
+            }
         }
         if (kind == "DOODLE") PartnerCodec.doodle(content)
         if (kind == "DATA") validateData(content)
         if (kind == "SYNC_CAPS") {
             SyncEnvelopeCodec.validateCapabilities(content)
+            app.ritela.data.sync.SyncControlValidation.validate(content, sender, device)
             require(
                 content.getString("senderNonce") == device.remoteNonce &&
                     content.getString("recipientNonce") == device.localNonce

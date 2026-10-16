@@ -147,6 +147,7 @@ fun PartnerScreen(padding: PaddingValues) {
     val connectedNotice by model.connectedNotice.collectAsStateWithLifecycle()
     val legacyInvitation by model.legacyInvitation.collectAsStateWithLifecycle()
     var onboarding by remember { mutableStateOf(false) }
+    var connectionActivation by remember { mutableStateOf(false) }
     val profileName = (context.applicationContext as RitelaApplication).profiles.registry.profiles
         .collectAsStateWithLifecycle().value.firstOrNull {
             it.id == session.profileId
@@ -166,6 +167,11 @@ fun PartnerScreen(padding: PaddingValues) {
     var managementAction by remember { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<PartnerMessage?>(null) }
     var opened by remember { mutableStateOf<String?>(null) }
+    DisposableEffect(session, opened) {
+        session.syncChatVisible.value = opened != null
+        if (opened != null) session.syncInteraction()
+        onDispose { session.syncChatVisible.value = false }
+    }
     val sendRequests = remember { PartnerSendRequests() }
     DisposableEffect(sendRequests) { onDispose { sendRequests.invalidate() } }
     var phones by remember { mutableStateOf(false) }
@@ -288,6 +294,7 @@ fun PartnerScreen(padding: PaddingValues) {
             val prepared = action()
             model.packet.value = prepared
             val internet = session.relay.canDeliver(prepared)
+            if (internet) session.syncNow(retry = true)
             withContext(Dispatchers.Main) {
                 if (activeSession() && !internet) sendRequests.present(request, prepared)
             }
@@ -403,6 +410,10 @@ fun PartnerScreen(padding: PaddingValues) {
                     false
             }) {
                 Text(stringResource(R.string.partner_onboarding_steps))
+                Text(stringResource(R.string.sync_connection_steps))
+                TextButton({
+                    connectionActivation = true
+                }) { Text(stringResource(R.string.sync_internet_enable)) }
                 Button({
                     onboarding = false
                     model.createInvitation(profileName, fresh = true)
@@ -411,6 +422,12 @@ fun PartnerScreen(padding: PaddingValues) {
                     onboarding = false
                     importFile.launch(arrayOf("application/octet-stream", "application/vnd.ritela"))
                 }, enabled = !busy) { Text(stringResource(R.string.partner_open_invitation)) }
+            }
+        }
+        if (connectionActivation) {
+            SyncSettingsDialog(session.syncSettings) {
+                connectionActivation =
+                    false
             }
         }
         if (connectedNotice) {
@@ -433,6 +450,7 @@ fun PartnerScreen(padding: PaddingValues) {
             PartnerModal(stringResource(R.string.partner_invite), {
                 model.invitation.value = null
             }) {
+                Text(stringResource(R.string.sync_connection_steps))
                 PartnerInvitationActions(
                     pairingTarget != null,
                     !busy,
@@ -507,7 +525,9 @@ fun PartnerScreen(padding: PaddingValues) {
                     periodState.journalLayout,
                     source.lastSelection ?: ShareScope(),
                     { sharing = false },
-                    source.name
+                    source.name,
+                    targetIdentity = source.id,
+                    targetDevice = device.id
                 ) { share ->
                     prepareSend {
                         val prepared = model.repository.confirmData(
@@ -517,6 +537,13 @@ fun PartnerScreen(padding: PaddingValues) {
                             share.note,
                             share.doodle
                         )
+                        if (share.automatic) {
+                            session.automaticSync.enable(
+                                source.id,
+                                device.id,
+                                share.scope
+                            )
+                        }
                         share.savedDoodleId?.let { session.savedDoodles.use(it) }
                         prepared
                     }
@@ -553,6 +580,7 @@ fun PartnerScreen(padding: PaddingValues) {
                         }
                     }
                     source.devices.forEachIndexed { index, phone ->
+                        AutomaticSharingControls(source.id, phone.id)
                         HorizontalDivider(color = HomeColors.border.copy(alpha = 0.45f))
                         Text(stringResource(R.string.partner_device_number, index + 1))
                         Text(

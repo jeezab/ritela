@@ -1,5 +1,38 @@
 # Решения
 
+Резервация baseline обновляется служебным запросом без нового user approval
+только при точном совпадении сохранённых context/grant/epoch/scope. Source отменяет
+неподтверждённые прежние drafts, сохраняет journal, создаёт новый baseline с новыми
+ID/sequence; прежний ciphertext не перепаковывается под тем же ID. Record upload
+не использует истёкшую резервацию; STORED baseline ждёт E2E без повторного upload.
+Metadata follow-up выполняется после освобождения pump mutex, оставаясь дочерней
+частью tracked job: close/switch отменяет и дожидается также follow-up HTTP.
+Без доступного AUTHOR route MORE не создаёт hot loop; control-обмен использует
+имеющийся message route. Истечение всех routes требует мастера подключения.
+
+2026-10-16: мастер file invitation объединяет pairing и relay setup. Открыто
+передаётся только подписанный public transport certificate; capability offer
+находится в прежнем зашифрованном partner packet внутри приглашения. Лимит 32 KiB,
+публичной регистрации нет. Pending peer certificate проверяется криптографически,
+но не даёт route/data access до взаимного подтверждения. Служебный ответ уже идёт
+через relay, HPKE bytes записываются до enqueue/HTTP.
+
+Auto consent — отдельный, изначально выключенный выбор владельца для конкретного
+peer/device и фиксированных ID полей. Получатель подтверждает автора/selection один
+раз в чате. Approval с context/epoch/scope записывается до активации author; будущие
+пакеты проверяются по нему. Обычный manual scope не расширяет автонабор, старый
+автонабор сохраняется независимо от разового выбора. Автор generation >1 не
+активируется этим flow. Журнал/deltas/DELETE применяются атомарно и создают chat
+snapshot только после изменения projection; повтор не создаёт чат-дубль.
+Room 11 и прежние миграции не меняются. Relay API/Cloudflare deployment не меняются.
+
+2026-10-16: foreground delivery выполняется при RESUMED активного профиля;
+подтверждённый Send инициирует pump немедленно. Token bucket сохраняется отдельно
+по профилю: capacity 24/refill 15 s, ceiling 264/hour; смена профиля/вкладки не
+сбрасывает бюджет. Retry сохраняет server Retry-After; PAUSED validation можно
+повторить явно. Статус чата различает queue/STORED/E2E ACK/error, metadata берётся
+из Room и не помещается в wire protocol.
+
 2026-10-16: artifact checks Sync требуют INTERNET/ACCESS_NETWORK_STATE и явного
 cleartext=false; прежний запрет любых network permissions устарел. Runtime consent
 доказывают отдельные тесты, а не manifest. Relay local checks включены в CI и

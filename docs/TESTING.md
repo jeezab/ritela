@@ -1,5 +1,22 @@
 # Проверки
 
+Delayed baseline test пересоздаёт обе файловые БД/runtime после 10 минут,
+проверяет renewal без нового согласия, затем истечение всех routes/repair через
+мастер и продолжение прежнего автонабора. Новые immutable packet IDs/sequence
+заменяют отменённый draft; повторное согласие в чате не появляется.
+
+Упрощение Sync: RelayRuntimeTest проверяет wizard invitation/response/confirmation
+без дополнительных setup files, отсутствие plaintext capability в приглашении,
+идемпотентность повтора, DATA с настоящей PeriodEntity, foreground delivery при
+переключении профилей, сохранение бюджета при пересоздании controller, upload при
+исчерпанном fetch budget. Automatic flow проверяет обязательный recipient approval,
+baseline, изменение/DELETE в чат, отсутствие невыбранных полей, отказ расширенному
+scope и pause. ForegroundSyncBudgetTest — burst/refill/hour/clock rollback.
+Отдельные сценарии отвергают malformed control до сохранения в чат и проверяют
+ручные pairing/DATA без HTTP после активации пилота при отключённой сети.
+Добавлены CyclePredictionTest и DAO/ViewModel recalculation tests: алгоритмы не
+менялись, выбранные прогнозы подготавливаются прежним owner provider.
+
 Этап 8: [матрица надёжности и допуска к пилоту](architecture/RITELA_SYNC_STAGE_8.md)
 связывает recovery/replay/revoke tests, bounded ciphertext/control corpus,
 burst/cursor/D1 budgets и условия физического испытания. Relay CI проверяет local

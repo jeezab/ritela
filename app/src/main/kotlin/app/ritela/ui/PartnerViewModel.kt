@@ -24,7 +24,8 @@ class PartnerViewModel(
     context: Context,
     val repository: PartnerRepository,
     private val mutableBusy: MutableStateFlow<Boolean> = MutableStateFlow(false),
-    private val internetSetup: (suspend (String, String) -> PartnerMessage)? = null
+    private val internetSetup: (suspend (String, String) -> PartnerMessage)? = null,
+    private val profileName: () -> String = { "Ritela" }
 ) : ViewModel() {
     val error = MutableStateFlow(false)
     fun prepareInternet(identity: String, device: String, ready: (PartnerMessage) -> Unit) = run {
@@ -98,9 +99,26 @@ class PartnerViewModel(
         val inspected = repository.inspectInvitation(invitation)
         if (repository.acceptKnown(inspected)) {
             candidate.value = null
-            this.invitation.value = null
-            pairingTarget.value = null
-            connectedNotice.value = true
+            val offer = inspected.relayOffer?.let { org.json.JSONObject(it) }
+            if (offer != null && !offer.has("setup")) {
+                val reply = repository.invitation(profileName(), inspected)
+                val replyOffer = org.json.JSONObject(org.json.JSONObject(reply).getString("body"))
+                    .optString("relay").takeIf { it.isNotEmpty() }?.let { org.json.JSONObject(it) }
+                if (replyOffer?.has("setup") == true) {
+                    pairingTarget.value = inspected
+                    verificationCode.value = repository.verificationCode(inspected)
+                    this.invitation.value = reply
+                    connectedNotice.value = false
+                } else {
+                    this.invitation.value = null
+                    pairingTarget.value = null
+                    connectedNotice.value = true
+                }
+            } else {
+                this.invitation.value = null
+                pairingTarget.value = null
+                connectedNotice.value = true
+            }
         } else if (inspected.version == 1) {
             legacyInvitation.value = true
         } else {

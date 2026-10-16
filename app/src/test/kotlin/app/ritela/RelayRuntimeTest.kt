@@ -8,6 +8,9 @@ import app.ritela.data.PartnerCodec
 import app.ritela.data.PartnerCrypto
 import app.ritela.data.PartnerMessage
 import app.ritela.data.PartnerRepository
+import app.ritela.data.sync.AutomaticSync
+import app.ritela.data.sync.ForegroundSync
+import app.ritela.data.sync.RelayConnections
 import app.ritela.data.sync.RelayHttpExchange
 import app.ritela.data.sync.RelayHttpRequest
 import app.ritela.data.sync.RelayHttpResponse
@@ -261,7 +264,9 @@ class RelayRuntimeTest {
         var db = syncTestDatabase(context, name)
         var partner = repository()
         var selected = true
+        var online = true
         var runtime = runtime()
+        lateinit var automatic: AutomaticSync
         init {
             attach()
         }
@@ -272,6 +277,20 @@ class RelayRuntimeTest {
         )
         private fun attach() {
             partner.relaySetup = { peer, device, value -> runtime.acceptSetup(peer, device, value) }
+            val connections = RelayConnections(
+                db,
+                partner,
+                runtime,
+                "https://relay.example",
+                { online }
+            )
+            partner.relayInvitation = connections::invitation
+            partner.relayPairing = connections::accepted
+            automatic = AutomaticSync(db, partner, runtime)
+            runtime.prepareAutomatic = automatic::prepare
+            runtime.authorizeAutomatic = automatic::authorized
+            runtime.afterDelivery = automatic::refreshReservations
+            partner.automaticIncoming = automatic::verifyIncoming
         }
         suspend fun activate() {
             runtime.activate("a".repeat(64), true)
@@ -313,12 +332,384 @@ class RelayRuntimeTest {
         "SYNTHETIC_SECRET"
     )
 
+    @Test fun foregroundOpenDeliversAcrossProfileSwitchAndBudgetSurvivesControllerRecreation() =
+        runBlocking {
+            val server = Server()
+            Phone(server).use { a ->
+                Phone(server).use { b ->
+                    setup(a, b)
+                    b.selected = false
+                    val message = send(a, b)
+                    assertEquals(
+                        RelayRun.SUCCESS,
+                        ForegroundSync(context, a.profile, a.runtime) { time }.check()
+                    )
+                    val calls = server.calls
+                    assertEquals(
+                        RelayRun.IDLE,
+                        ForegroundSync(context, b.profile, b.runtime) { time }.check()
+                    )
+                    assertEquals(calls, server.calls)
+                    a.selected = false
+                    b.selected = true
+                    assertEquals(
+                        RelayRun.MORE,
+                        ForegroundSync(context, b.profile, b.runtime) { time }.check()
+                    )
+                    assertNotNull(b.db.partner().message(message.id))
+                    a.selected = true
+                    b.selected = false
+                    ForegroundSync(context, a.profile, a.runtime) { time }.check()
+                    assertTrue(a.partner.retry(message.id).delivered)
+                    repeat(22) {
+                        ForegroundSync(context, a.profile, a.runtime) { time }.check()
+                    }
+                    val exhaustedCalls = server.calls
+                    assertEquals(
+                        RelayRun.IDLE,
+                        ForegroundSync(context, a.profile, a.runtime) { time }.check()
+                    )
+                    assertEquals(exhaustedCalls, server.calls)
+                    val next = send(a, b)
+                    ForegroundSync(context, a.profile, a.runtime) { time }.send()
+                    assertEquals("STORED", requireNotNull(a.db.relay().packet(next.id)).state)
+                }
+            }
+        }
+
+    @Test fun invitationWizardEstablishesBothDirectionsWithoutManualSetupFiles() = runBlocking {
+        val server = Server()
+        Phone(server).use { a ->
+            Phone(server).use { b ->
+                val offline = a.partner.invitation("A")
+                assertFalse(JSONObject(JSONObject(offline).getString("body")).has("relay"))
+                assertEquals(0, server.calls)
+                a.activate()
+                b.activate()
+                val first = b.partner.inspectInvitation(a.partner.invitation("A"))
+                b.partner.pair(first)
+                assertFalse(
+                    b.partner.snapshot().identities.single().devices.single().mutualConfirmed
+                )
+                assertFalse(b.runtime.linked(a.local.identityId, a.local.deviceId))
+                val response = a.partner.inspectInvitation(b.partner.invitation("B", first))
+                a.partner.pair(response)
+                val confirmation = a.partner.invitation("A", response)
+                for (route in server.routes.values) {
+                    assertFalse(
+                        confirmation.contains(route.capability)
+                    )
+                }
+                assertTrue(
+                    confirmation.toByteArray().size <=
+                        app.ritela.data.PartnerInvitationFile.MAX_BYTES
+                )
+                val inspected = b.partner.inspectInvitation(confirmation)
+                assertTrue(b.partner.acceptKnown(inspected))
+                val pending = b.db.syncMessageIntents().count()
+                assertTrue(b.partner.acceptKnown(inspected))
+                assertEquals(pending, b.db.syncMessageIntents().count())
+                b.runtime.runOnce()
+                a.runtime.runOnce()
+                assertTrue(a.runtime.linked(b.local.identityId, b.local.deviceId))
+                assertTrue(b.runtime.linked(a.local.identityId, a.local.deviceId))
+                val message = send(a, b)
+                a.runtime.runOnce()
+                b.runtime.runOnce()
+                a.runtime.runOnce()
+                assertTrue(a.partner.retry(message.id).delivered)
+            }
+        }
+    }
+
+    @Test fun manualPairingAndDataStillWorkOfflineAfterPilotActivation() = runBlocking {
+        val server = Server()
+        Phone(server).use { a ->
+            Phone(server).use { b ->
+                a.activate()
+                b.activate()
+                a.online = false
+                b.online = false
+                val calls = server.calls
+                val first = b.partner.inspectInvitation(a.partner.invitation("A"))
+                b.partner.pair(first)
+                val response = a.partner.inspectInvitation(b.partner.invitation("B", first))
+                a.partner.pair(response)
+                assertTrue(
+                    b.partner.acceptKnown(
+                        b.partner.inspectInvitation(a.partner.invitation("A", response))
+                    )
+                )
+                val message = send(a, b)
+                assertEquals("DATA", b.partner.receive(message.envelope.toByteArray()).message.kind)
+                assertEquals(calls, server.calls)
+                assertTrue(server.routes.isEmpty())
+            }
+        }
+    }
+
+    @Test fun malformedControlIsRejectedBeforeItCanPoisonChatState() = runBlocking {
+        val server = Server()
+        Phone(server).use { a ->
+            Phone(server).use { b ->
+                setup(a, b)
+                val bad = a.runtime.queueControl(
+                    b.local.identityId,
+                    b.local.deviceId,
+                    JSONObject().put("certificate", a.runtime.certificate()),
+                    JSONObject().put("authorRequest", 1)
+                )
+                a.runtime.runOnce()
+                assertEquals(RelayRun.PAUSED, b.runtime.runOnce())
+                assertNull(b.db.partner().message(bad.id))
+                assertTrue(runCatching { b.partner.messages.first() }.isSuccess)
+                assertEquals("VALIDATION", requireNotNull(b.db.relay().config()).error)
+            }
+        }
+    }
+
+    @Test fun knownContactsRepairExpiredRoutesWithAnInvitationAndOneResponse() = runBlocking {
+        val server = Server()
+        Phone(server).use { a ->
+            Phone(server).use { b ->
+                setup(a, b)
+                time += 7 * 86400000L + 1
+                assertFalse(a.runtime.linked(b.local.identityId, b.local.deviceId))
+                val invitation = b.partner.inspectInvitation(a.partner.invitation("A"))
+                assertTrue(b.partner.acceptKnown(invitation))
+                val response = a.partner.inspectInvitation(b.partner.invitation("B", invitation))
+                assertTrue(a.partner.acceptKnown(response))
+                a.runtime.runOnce()
+                b.runtime.runOnce()
+                a.runtime.runOnce()
+                assertTrue(a.runtime.linked(b.local.identityId, b.local.deviceId))
+                assertTrue(b.runtime.linked(a.local.identityId, a.local.deviceId))
+            }
+        }
+    }
+
+    @Test fun delayedBaselineRenewsWithoutRepeatingConsentAfterReopen() = runBlocking {
+        val server = Server()
+        Phone(server).use { a ->
+            Phone(server).use { b ->
+                setup(a, b)
+                val selection = ShareScope(setOf(ShareCategory.SECTIONS), sections = setOf("note"))
+                a.db.dayLogs().save(
+                    DayLogEntity.from(DayLog(LocalDate.ofEpochDay(10), note = "DELAYED"))
+                )
+                a.automatic.enable(b.local.identityId, b.local.deviceId, selection)
+                a.runtime.runOnce()
+                b.runtime.runOnce()
+                val request = b.db.partner().controls(
+                    a.local.identityId,
+                    a.local.deviceId,
+                    false
+                ).single {
+                    JSONObject(it.body).has("authorRequest")
+                }
+                b.automatic.approve(request.id)
+                b.runtime.runOnce()
+                time += 600001
+                a.reopen()
+                b.reopen()
+                repeat(6) {
+                    a.runtime.runOnce()
+                    b.runtime.runOnce()
+                }
+                assertTrue(
+                    requireNotNull(
+                        b.db.syncReceive().state(a.local.identityId)
+                    ).snapshot.contains("DELAYED")
+                )
+                assertEquals(1, b.partner.messages.first().count { it.kind == "SYNC_REQUEST" })
+                assertTrue(
+                    a.db.partner().controls(b.local.identityId, b.local.deviceId, true).any {
+                        JSONObject(it.body).optJSONObject("authorRequest")?.optBoolean("renewal") ==
+                            true
+                    }
+                )
+                time += 7 * 86400000L + 1
+                a.db.dayLogs().save(
+                    DayLogEntity.from(DayLog(LocalDate.ofEpochDay(10), note = "AFTER_REPAIR"))
+                )
+                assertEquals(RelayRun.SUCCESS, a.runtime.runOnce())
+                val invitation = b.partner.inspectInvitation(a.partner.invitation("A"))
+                assertTrue(b.partner.acceptKnown(invitation))
+                val response = a.partner.inspectInvitation(b.partner.invitation("B", invitation))
+                assertTrue(a.partner.acceptKnown(response))
+                repeat(7) {
+                    a.runtime.runOnce()
+                    b.runtime.runOnce()
+                }
+                assertTrue(
+                    requireNotNull(
+                        b.db.syncReceive().state(a.local.identityId)
+                    ).snapshot.contains("AFTER_REPAIR")
+                )
+                assertEquals(1, b.partner.messages.first().count { it.kind == "SYNC_REQUEST" })
+            }
+        }
+    }
+
+    @Test fun approvedDiaryChangesAndDeletesReachChatWithoutAnotherConfirmation() = runBlocking {
+        val server = Server()
+        Phone(server).use { a ->
+            Phone(server).use { b ->
+                setup(a, b)
+                val selection =
+                    ShareScope(
+                        setOf(ShareCategory.PERIODS, ShareCategory.SECTIONS),
+                        sections = setOf("note")
+                    )
+                a.db.dayLogs().save(
+                    DayLogEntity.from(
+                        DayLog(
+                            LocalDate.ofEpochDay(10),
+                            note = "SHARED",
+                            custom = mapOf("private" to setOf("PRIVATE_VALUE"))
+                        )
+                    )
+                )
+                a.automatic.enable(b.local.identityId, b.local.deviceId, selection)
+                a.runtime.runOnce()
+                assertEquals(
+                    0,
+                    server.uploads.count {
+                        a.db.partner().message(it.id)?.kind == "SYNC"
+                    }
+                )
+                b.runtime.runOnce()
+                assertNull(b.db.syncReceive().state(a.local.identityId))
+                val request = b.db.partner().controls(
+                    a.local.identityId,
+                    a.local.deviceId,
+                    false
+                ).single {
+                    JSONObject(it.body).has("authorRequest")
+                }
+                b.automatic.approve(request.id)
+                assertTrue(b.partner.messages.first().any { it.kind == "SYNC_REQUEST" })
+                val routes = server.routes.size
+                b.automatic.approve(request.id)
+                assertEquals(routes, server.routes.size)
+                b.partner.deleteMessage(request.id)
+                assertTrue(requireNotNull(b.db.partner().message(request.id)).hiddenFromChat)
+                val widened = JSONObject(
+                    JSONObject(request.body).getJSONObject("authorRequest").toString()
+                )
+                    .put(
+                        "scope",
+                        PartnerCodec.scope(
+                            selection.copy(
+                                categories =
+                                    selection.categories + ShareCategory.FORECASTS
+                            )
+                        )
+                    )
+                    .put("renewal", true)
+                val denied = a.runtime.queueControl(
+                    b.local.identityId,
+                    b.local.deviceId,
+                    JSONObject().put("certificate", a.runtime.certificate()),
+                    JSONObject().put("authorRequest", widened)
+                )
+                a.runtime.runOnce()
+                b.runtime.runOnce()
+                assertFalse(b.automatic.isApproved(denied.id))
+                assertEquals(routes, server.routes.size)
+                b.runtime.runOnce()
+                a.runtime.runOnce()
+                b.runtime.runOnce()
+                a.runtime.runOnce()
+                val initial = requireNotNull(b.db.syncReceive().state(a.local.identityId)).snapshot
+                assertTrue(initial.contains("SHARED"))
+                assertFalse(initial.contains("PRIVATE_VALUE"))
+                time += 1000
+                a.db.dayLogs().save(
+                    DayLogEntity.from(
+                        DayLog(
+                            LocalDate.ofEpochDay(10),
+                            note = "UPDATED",
+                            custom = mapOf("private" to setOf("NEW_PRIVATE_VALUE"))
+                        )
+                    )
+                )
+                a.runtime.runOnce()
+                b.runtime.runOnce()
+                a.runtime.runOnce()
+                val updated = requireNotNull(b.db.syncReceive().state(a.local.identityId)).snapshot
+                assertTrue(updated.contains("UPDATED"))
+                assertFalse(updated.contains("NEW_PRIVATE_VALUE"))
+                assertEquals(
+                    2,
+                    b.db.partner().history(a.local.identityId).count {
+                        it.id.startsWith("sync-update:")
+                    }
+                )
+                val link = a.db.syncState().links().single()
+                assertTrue(
+                    runCatching {
+                        b.automatic.verifyIncoming(
+                            a.local.identityId,
+                            a.local.deviceId,
+                            JSONObject().put(
+                                "epoch",
+                                link.scopeEpoch
+                            ).put("grant", a.db.syncState().authorities().single().grantDigest)
+                                .put(
+                                    "scope",
+                                    PartnerCodec.scope(
+                                        ShareScope(
+                                            setOf(ShareCategory.SECTIONS),
+                                            sections = setOf("note", "private")
+                                        )
+                                    )
+                                )
+                        )
+                    }.isFailure
+                )
+                a.db.dayLogs().delete(10)
+                a.runtime.runOnce()
+                b.runtime.runOnce()
+                a.runtime.runOnce()
+                assertEquals(
+                    0,
+                    JSONObject(
+                        requireNotNull(b.db.syncReceive().state(a.local.identityId)).snapshot
+                    ).getJSONArray("days").length()
+                )
+                assertEquals(
+                    3,
+                    b.db.partner().history(a.local.identityId).count {
+                        it.id.startsWith("sync-update:")
+                    }
+                )
+                a.automatic.pause(b.local.identityId, b.local.deviceId)
+                val uploads = server.uploads.size
+                a.db.dayLogs().save(
+                    DayLogEntity.from(DayLog(LocalDate.ofEpochDay(10), note = "AFTER_PAUSE"))
+                )
+                a.runtime.runOnce()
+                assertEquals(uploads, server.uploads.size)
+            }
+        }
+    }
+
     @Test fun completeMessageAndDoodleDeliveryRequiresApplicationReceiptAndKeepsManualReplay() =
         runBlocking {
             val server = Server()
             Phone(server).use { a ->
                 Phone(server).use { b ->
                     setup(a, b)
+                    a.db.periods().addIfSeparate(
+                        app.ritela.data.PeriodEntity(
+                            UUID.randomUUID().toString(),
+                            20000,
+                            20004,
+                            time,
+                            time
+                        )
+                    )
                     val message = send(a, b)
                     assertEquals(RelayRun.SUCCESS, a.runtime.runOnce())
                     assertFalse(a.partner.retry(message.id).delivered)
@@ -333,6 +724,12 @@ class RelayRuntimeTest {
                     )
                     assertEquals(RelayRun.MORE, b.runtime.runOnce())
                     val received = b.db.partner().message(message.id)!!
+                    assertEquals(
+                        20000L,
+                        JSONObject(
+                            received.body
+                        ).getJSONArray("periods").getJSONObject(0).getLong("start")
+                    )
                     assertEquals(RelayRun.MORE, a.runtime.runOnce())
                     assertTrue(a.partner.retry(message.id).delivered)
                     assertEquals("ACKED", a.db.relay().packet(message.id)!!.state)
