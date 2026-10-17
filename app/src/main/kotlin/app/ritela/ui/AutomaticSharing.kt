@@ -5,7 +5,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,13 +31,11 @@ internal fun AutomaticApproval(message: PartnerMessage) {
     val selection = remember(message.body) { PartnerCodec.scope(request.getJSONObject("scope")) }
     val formatter = PartnerFormatter(LocalResources.current)
     val scope = rememberCoroutineScope()
-    var approved by remember(message.id) { mutableStateOf(false) }
+    val approved by remember(session, message.id) {
+        session.automaticSync.approval(message.id)
+    }.collectAsStateWithLifecycle(initialValue = false)
     var working by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
-    val delivery = LocalSyncDelivery.current
-    LaunchedEffect(message.id, delivery) {
-        approved = withContext(Dispatchers.IO) { session.automaticSync.isApproved(message.id) }
-    }
     Text(stringResource(R.string.sync_auto_request), style = MaterialTheme.typography.titleMedium)
     Text(formatter.access(selection))
     if (selection.tags.isNotEmpty() || selection.sections.isNotEmpty()) {
@@ -48,6 +45,14 @@ internal fun AutomaticApproval(message: PartnerMessage) {
                 selection.tags.values.sumOf { it.size } + selection.sections.size
             )
         )
+    }
+    if (message.outgoing) {
+        Text(
+            stringResource(
+                if (approved) R.string.sync_auto_approved else R.string.sync_auto_waiting
+            )
+        )
+        return
     }
     Text(
         stringResource(R.string.sync_auto_receive_consent),
@@ -63,7 +68,6 @@ internal fun AutomaticApproval(message: PartnerMessage) {
                         session.automaticSync.approve(message.id)
                         session.syncNow(retry = true)
                     }
-                    approved = true
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {

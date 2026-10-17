@@ -103,7 +103,7 @@ class SyncSettingsRepository(
     private val stopped: (suspend () -> Unit)? = null
 ) {
     val available get() = runtime?.invoke()?.available == true
-    suspend fun activate(token: String) {
+    suspend fun activate(token: String = "") {
         requireNotNull(runtime).invoke().activate(token, true)
         runtime.invoke().runOnce()
     }

@@ -1,15 +1,16 @@
 <resources>
     <string name="sync_problem_route">Подключение не завершено или истекло. Обменяйтесь обновлённым приглашением с этим контактом.</string>
     <string name="sync_connection_controls">Настройки подключения</string>
-    <string name="sync_connection_steps">Для доставки через интернет активируйте пилот в обоих профилях до создания приглашений. Обменяйтесь приглашением и ответами, сравните код проверки и подтвердите связь. Настройки доставки передаются автоматически; доступ к медицинским данным выбирается отдельно.</string>
+    <string name="sync_connection_steps">Включите интернет в обоих профилях до создания приглашений. Регистрация автоматическая, без аккаунта и кода активации. Обменяйтесь приглашением и ответами, сравните код проверки и подтвердите связь. Доступ к медицинским данным выбирается отдельно.</string>
     <string name="sync_auto_enable">Автоматически обновлять этот выбор</string>
     <string name="sync_auto_consent">Отправить этот пакет и разрешить будущие изменения выбранных полей этому получателю. Новые поля остаются закрытыми. Получатель один раз разрешает обновления в чате. Остановить их можно в сведениях о контакте.</string>
     <string name="sync_auto_request">Запрос на автообновления</string>
+    <string name="sync_auto_waiting">Ждём, когда получатель разрешит эти обновления в своём чате.</string>
     <string name="sync_auto_fields">Выбранных полей дневника: %1$d</string>
     <string name="sync_auto_receive_consent">Разрешить этому подтверждённому автору обновлять выбранные данные. Полученные записи остаются отдельно от вашего дневника.</string>
     <string name="sync_auto_approve">Разрешить выбранные обновления</string>
     <string name="sync_auto_approved">Обновления разрешены</string>
-    <string name="sync_auto_active">Автообновления включены</string>
+    <string name="sync_auto_active">Выбранные поля для автообновлений</string>
     <string name="sync_auto_pause">Остановить автообновления</string>
     <string name="sync_chat_queued">В очереди</string>
     <string name="sync_chat_stored">Принято сервером</string>
@@ -17,6 +18,6 @@
     <string name="sync_chat_retry">Повторить доставку</string>
     <string name="sync_problem_network">Нет соединения. Доставка повторится после восстановления сети.</string>
     <string name="sync_problem_limit">Достигнут лимит сервера. Повтор учитывает указанное сервером время ожидания.</string>
-    <string name="sync_problem_access">Сервер отказал в доступе. Проверьте активацию пилота и подключение.</string>
+    <string name="sync_problem_access">Сервер отказал в доступе. Проверьте регистрацию и подключение.</string>
     <string name="sync_problem_validation">Не удалось продолжить доставку. Проверьте подключение и повторите.</string>
 </resources>

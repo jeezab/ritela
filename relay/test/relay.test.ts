@@ -1,14 +1,16 @@
 import { env } from "cloudflare:workers";
 import { applyD1Migrations, type D1Migration } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import { Env, b64, canonical, sha, utf8, verify } from "../src/auth";
 import signatureVectors from "../test-vectors/api-signatures.json";
+import runtimeTranscript from "../test-vectors/runtime-auto.json";
 import { transferBytes } from "../src/authorities";
 import { cleanup } from "../src/cleanup";
 import { measure } from "./measure";
 
-const bindings = {...env, RATE_LIMITER: {limit: async () => ({success: true})}} as unknown as Env & {TEST_MIGRATIONS: D1Migration[]};
+const bindings = {...env, RATE_LIMITER: {limit: async () => ({success: true})},
+  REGISTRATION_RATE_LIMITER: {limit: async () => ({success: true})}} as unknown as Env & {TEST_MIGRATIONS: D1Migration[]};
 type Client = {handle: string; publicKey: string; privateKey: CryptoKey};
 const random = () => [...crypto.getRandomValues(new Uint8Array(32))].map(x => x.toString(16).padStart(2, "0")).join("");
 async function newClient(): Promise<Client> {
@@ -58,6 +60,51 @@ beforeEach(async () => {
 });
 
 describe("closed pilot relay on local workerd/D1", () => {
+  it("accepts the Android automatic baseline, approval, update and receipt transcript on real D1", async () => {
+    await bindings.DB.prepare("DELETE FROM sqlite_sequence WHERE name='packets'").run();
+    let clock = 0;
+    const mocked = vi.spyOn(Date, "now").mockImplementation(() => clock);
+    try {
+      for (const [index, step] of runtimeTranscript.entries()) {
+        clock = Number(step.headers["X-Ritela-Time"]);
+        const body = Uint8Array.from(atob(step.body), c => c.charCodeAt(0));
+        const response = await worker.fetch(new Request("https://relay.invalid" + step.target,
+          {method: step.method, headers: step.headers, ...(step.method === "GET" ? {} : {body})}), bindings);
+        expect(response.status, `${index}: ${step.method} ${step.target}: ${await response.text()}`).toBe(200);
+      }
+    } finally { mocked.mockRestore(); }
+  });
+  it("automatically registers signed devices without tokens and keeps legacy enrollment", async () => {
+    const a = await newClient(); const body = {handle: a.handle, publicKey: a.publicKey};
+    expect((await call(a, "POST", "/v1/devices", body)).status).toBe(200);
+    expect((await call(a, "POST", "/v1/devices", body)).status).toBe(200);
+    expect(await bindings.DB.prepare("SELECT COUNT(*) AS n FROM activation_tokens").first<number>("n")).toBe(0);
+    expect((await enroll()).handle).toBeTruthy();
+    expect((await call(a, "DELETE", `/v1/devices/${a.handle}`)).status).toBe(200);
+    expect((await call(a, "POST", "/v1/devices", body)).status).toBe(403);
+  });
+  it("gates public enrollment and throttles before D1 writes", async () => {
+    const a = await newClient(); const body = {handle: a.handle, publicKey: a.publicKey};
+    expect((await worker.fetch(await request(a, "POST", "/v1/devices", body),
+      {...bindings, AUTO_REGISTRATION: "false"})).status).toBe(403);
+    expect((await worker.fetch(await request(a, "POST", "/v1/devices", body), {...bindings,
+      REGISTRATION_RATE_LIMITER: {limit: async () => ({success: false})} as RateLimit})).status).toBe(429);
+    expect(await bindings.DB.prepare("SELECT COUNT(*) AS n FROM relay_devices").first<number>("n")).toBe(0);
+    const wrong = await newClient();
+    expect((await call(wrong, "POST", "/v1/devices", body)).status).toBe(401);
+  });
+  it("enforces the registration ceiling atomically and keeps admitted retries idempotent", async () => {
+    const a = await newClient(), b = await newClient();
+    await bindings.DB.batch(Array.from({length: 99}, () => bindings.DB.prepare(
+      "INSERT INTO relay_devices(handle,api_public_key,key_version,state,recovery_epoch,created_at) VALUES(?,?,1,'ACTIVE',?,?)"
+    ).bind(crypto.randomUUID(), a.publicKey, bindings.RECOVERY_EPOCH, Date.now())));
+    const outcomes = await Promise.all([a, b].map(c => call(c, "POST", "/v1/devices",
+      {handle: c.handle, publicKey: c.publicKey})));
+    expect(outcomes.map(r => r.status).sort()).toEqual([200, 429]);
+    expect(await bindings.DB.prepare("SELECT COUNT(*) AS n FROM relay_devices").first<number>("n")).toBe(100);
+    const winner = outcomes[0].status === 200 ? a : b;
+    expect((await call(winner, "POST", "/v1/devices", {handle: winner.handle, publicKey: winner.publicKey})).status).toBe(200);
+  });
   it("rejects a bounded malformed control corpus without persisting side effects", async () => {
     const a = await enroll();
     const before = await bindings.DB.prepare("SELECT * FROM relay_state").first();

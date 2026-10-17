@@ -1,15 +1,16 @@
 <resources>
     <string name="sync_problem_route">The connection is incomplete or expired. Exchange an updated invitation with this contact.</string>
     <string name="sync_connection_controls">Connection settings</string>
-    <string name="sync_connection_steps">For internet delivery, activate the pilot in both profiles before creating invitations. Exchange the invitation and responses, compare the verification code and confirm the connection. Delivery settings are exchanged automatically; medical access is selected separately.</string>
+    <string name="sync_connection_steps">Enable internet in both profiles before creating invitations. Registration is automatic, without an account or activation code. Exchange the invitation and responses, compare the verification code and confirm the connection. Medical access is selected separately.</string>
     <string name="sync_auto_enable">Automatically update this selection</string>
     <string name="sync_auto_consent">Send this package and allow future changes to the selected fields for this recipient. New fields stay private. The recipient approves updates once in the chat. You can stop updates in the contact details.</string>
     <string name="sync_auto_request">Request for automatic updates</string>
+    <string name="sync_auto_waiting">Waiting for the recipient to allow these updates in their chat.</string>
     <string name="sync_auto_fields">Selected diary fields: %1$d</string>
     <string name="sync_auto_receive_consent">Allow this verified author to send updates to this selection. Received records remain separate from your own diary.</string>
     <string name="sync_auto_approve">Allow selected updates</string>
     <string name="sync_auto_approved">Updates allowed</string>
-    <string name="sync_auto_active">Automatic updates enabled</string>
+    <string name="sync_auto_active">Selected fields for automatic updates</string>
     <string name="sync_auto_pause">Stop automatic updates</string>
     <string name="sync_chat_queued">Queued</string>
     <string name="sync_chat_stored">Accepted by server</string>
@@ -17,6 +18,6 @@
     <string name="sync_chat_retry">Retry delivery</string>
     <string name="sync_problem_network">No connection. Delivery will retry when the network returns.</string>
     <string name="sync_problem_limit">Server limit reached. Retry will respect the server’s waiting period.</string>
-    <string name="sync_problem_access">The server denied access. Check pilot activation and the connection.</string>
+    <string name="sync_problem_access">The server denied access. Check registration and the connection.</string>
     <string name="sync_problem_validation">Delivery could not continue. Check the connection and retry.</string>
 </resources>

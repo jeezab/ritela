@@ -1,5 +1,18 @@
 # Проверки
 
+2026-10-17: SyncSettingsUiTest проверяет consent/cancel с нулём HTTP/ключей до
+подтверждения и регистрацию без token input. RelayRuntimeTest использует auto
+registration в общих Phone fixtures, отдельный mixed PERIODS/FORECASTS/note baseline
+и update, исходящий запрос до/после approval и скрытие без отзыва. Его synthetic
+HTTP transcript записывается в app/build/reports/relay-runtime-transcript.json;
+зафиксированный vector relay/test-vectors/runtime-auto.json воспроизводит 45
+подписанных запросов на настоящем local workerd/D1, включая upload/reserve/ACK.
+Vector содержит только синтетические ciphertext/capability и публичные ключи,
+не production credentials/ключи. После изменений wire protocol vector обновлять
+из этого теста и повторять replay. Worker tests также проверяют auto/legacy,
+подписи, выключение auto, rate-limit, revoked device и гонку за последнее место
+при общем пределе 100. Это не physical/production E2E.
+
 Упрощение формы отправки: PartnerShareSelectionTest проверяет исключение архивных
 полей/удалённых тегов из нового выбора без изменения исходного layout и старого
 scope; новые теги сами не включаются. PartnerMessengerTest проверяет свёрнутый

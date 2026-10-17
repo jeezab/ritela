@@ -13,7 +13,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import app.ritela.data.RitelaDatabase
 import app.ritela.data.sync.SyncSettingsRepository
@@ -115,15 +114,13 @@ class SyncSettingsUiTest {
                 compose.onAllNodesWithTag("sync-queue-empty").fetchSemanticsNodes().isNotEmpty()
             }
             compose.onNodeWithTag("sync-internet-unavailable").performScrollTo().performClick()
-            compose.onNodeWithTag("sync-activate-confirm").assertIsNotEnabled()
+            compose.onNodeWithTag("sync-activate-confirm").assertIsEnabled()
             compose.onNodeWithText(context.getString(R.string.cancel)).performClick()
             assertEquals(0, calls.get())
             assertEquals(null, vault.load())
             assertFalse(runBlocking { repository.read().internetRequested })
             compose.onNodeWithTag("sync-internet-unavailable").performScrollTo().performClick()
-            compose.onNodeWithTag(
-                "sync-activation-token"
-            ).performScrollTo().performTextInput("a".repeat(64))
+            compose.onNodeWithTag("sync-activation-token").assertDoesNotExist()
             compose.onNodeWithTag("sync-activate-confirm").performClick()
             compose.waitUntil(10000) { runBlocking { repository.read().registered } }
             compose.waitUntil(10000) { calls.get() == 2 }

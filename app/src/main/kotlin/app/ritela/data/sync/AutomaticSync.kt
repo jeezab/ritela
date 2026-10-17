@@ -27,8 +27,26 @@ class AutomaticSync(
     val links = database.invalidationTracker.createFlow("sync_links").map {
         database.syncState().links()
     }.flowOn(Dispatchers.IO)
+    fun approval(messageId: String) =
+        database.invalidationTracker.createFlow("partner_messages").map {
+            isApproved(messageId)
+        }.flowOn(Dispatchers.IO)
     suspend fun isApproved(messageId: String): Boolean {
         val message = database.partner().message(messageId) ?: return false
+        if (message.outgoing) {
+            val request = JSONObject(message.body).optJSONObject("authorRequest") ?: return false
+            return database.partner().controls(message.identity, message.device, false).any {
+                val approval = JSONObject(it.body).optJSONObject("authorApproval")
+                approval != null && approval.optBoolean("published") &&
+                    approval.optString("request") == messageId &&
+                    approval.optString("context") == request.getString("context") &&
+                    approval.optLong("epoch") == request.getLong("epoch") &&
+                    approval.optString("grant") ==
+                    SyncEnvelopeCodec.digest(request.getString("grant").toByteArray()) &&
+                    PartnerCodec.scope(approval.getJSONObject("scope")) ==
+                    PartnerCodec.scope(request.getJSONObject("scope"))
+            }
+        }
         return database.partner().controls(message.identity, message.device, true).any {
             val approval = JSONObject(it.body).optJSONObject("authorApproval")
             approval != null && approval.optString("request") == messageId &&

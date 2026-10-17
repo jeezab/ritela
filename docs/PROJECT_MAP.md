@@ -1,5 +1,12 @@
 # Карта проекта
 
+2026-10-17: RelayRuntime/SyncSettings регистрируют устройство автоматически после
+согласия, без кода; Worker index/auth/config поддерживают auto enrollment, отдельный
+registration limiter и прежний legacy token path. AutomaticSharing показывает
+исходящий запрос и Room-flow approval; UserProfiles будит foreground upload по
+journal watermark. `relay/test-vectors/runtime-auto.json` — synthetic Android
+HTTP transcript baseline/update/ACK для interop-теста на workerd/D1.
+
 2026-10-16: PartnerSharing.current ограничивает новый выбор активными полями/тегами
 JournalLayout; исторический каталог остаётся для чтения и прежних разрешений.
 PartnerScopeDialog показывает необязательные поля одним сворачиваемым блоком.
