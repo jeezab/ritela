@@ -1,5 +1,56 @@
 # Точка продолжения
 
+2026-10-17: по явному запросу реализована автоматическая регистрация без кода и
+уточнена цепочка автообновлений. Интернет по-прежнему off до явного consent;
+SyncSettings больше не содержит token field, runtime регистрирует ключи с
+handle/publicKey. Старые pending tokens/зарегистрированные профили совместимы.
+Room 11/схемы D1/миграции/ключи/ручной Bluetooth/медицинские расчёты не менялись.
+Worker поддерживает AUTO_REGISTRATION, отдельный limiter 3 попытки/IP/60 s и
+атомарный общий предел 100 устройств; revoked/pre-recovery handle не возрождается.
+Edge limiter локален для Cloudflare location и не гарантирует защиту от
+распределённого заполнения мест; массовый anti-abuse/ёмкость остаются отдельно.
+
+Проверка автообновлений: mixed PERIODS/FORECASTS/note baseline и последующее
+изменение проходят от Android через HPKE/ACK до received projection/чата.
+45 подписанных Android HTTP запросов из synthetic transcript воспроизведены на
+настоящем local workerd/D1 с production guards/reservations. Исходящий запрос
+раньше не был виден отправителю; теперь в чате видны запрос, ожидание согласия
+получателя и подтверждение через Room approval Flow. Скрытие запроса сохраняет
+consent. Journal watermark будит немедленный upload через conflated channel в
+RESUMED профиле; background WorkManager, fetch budget и server backoff сохранены.
+В тесте двух профилей одного телефона автор должен снова открыть свой профиль
+после одобрения получателя, затем получатель — для данных: неактивные профили не
+открывают БД/HTTP. Порядок добавлен в docs/RITELA_SYNC_USING.md.
+
+Проверки: formatKotlin; checkKotlin assembleDebug testDebugUnitTest lintDebug с
+Sync*Test, Relay*Test, ForegroundSyncBudgetTest, HttpRelayTransportTest, Partner*Test,
+UserProfilesTest, DayLogBackupTest, PeriodRepositoryTest, PeriodViewModelTest,
+JournalChangesTest, JournalLayoutTest, CyclePredictionTest; -Pritela.skipScreenshots=true
+--max-workers=1 --no-parallel, JVM -Xmx1536m -Dfile.encoding=UTF-8 — BUILD SUCCESSFUL.
+239 tests/38 suites, 0 failures/errors/skipped; lint 0 errors/warnings, 9 прежних
+hints. Включены все Room migration paths 1…10→11, profiles/contacts/keys/manual/
+Doodles, отказ сети без consent, registration UI cancel/confirm без кода.
+Relay: npm run check, npm test (23 passed), npm run build (dry-run) — PASS;
+auto/legacy enrollment, подпись, rate-limit, revoked device, гонка за последнее
+место и Android transcript replay. APK verifier — PASS: signed app.ritela, API
+26…37, cleartext=false, 17 053 863 bytes; SHA256
+`6f592a8753369ac65e59ec0f918691ea4ad55adcc6f2b5e1b7f1aba2a26708b9`.
+Workspace/diff checks — PASS. UI/PNG/галерея/эмулятор не запускались.
+
+Worker развёрнут командой wrangler deploy после проверок: ritela-relay,
+https://ritela-relay.zabvenen.workers.dev, версия
+`b9b252c8-8e86-4638-a28f-841230f98c55`, AUTO_REGISTRATION=true, оба limiter bindings.
+Secrets/epoch/данные D1/миграции операторскими командами не менялись; новые
+production devices для теста не создавались. GET / после deploy: 401 UNAUTHORIZED.
+Physical production E2E/Doze/визуальный и независимый security review не доказаны
+локальными тестами. Пользовательский docs/ui не затронут. Push явно запрошен.
+
+Следующее действие: обновить APK поверх установленного на обоих телефонах,
+включить интернет без кода, пройти synthetic auto request/approval/baseline/update
+по RITELA_SYNC_USING.md. Для одного телефона соблюдать переключение профилей.
+
+## Предыдущий шаг: упрощение формы и подключения
+
 2026-10-16: проверен и упрощён UI подключения/отправки по запросу пользователя.
 Причина лишних «Головы», «Спины» и удалённых тегов — historySections в форме
 нового выбора. Теперь PartnerSharing.current фиксирует только активные поля/теги

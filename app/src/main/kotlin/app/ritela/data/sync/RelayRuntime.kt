@@ -127,7 +127,7 @@ class RelayRuntime(
     }
 
     suspend fun foregroundReady(): Boolean = enabled() && dao.config()?.let {
-        it.nextAttempt <= now() && (it.registered || it.activation != null)
+        it.nextAttempt <= now()
     } == true
 
     /** Explicit retry may reopen validation failures, but never bypasses server Retry-After. */
@@ -169,10 +169,13 @@ class RelayRuntime(
         cancelRequests()
     }
 
-    suspend fun activate(token: String, consent: Boolean) {
+    suspend fun activate(token: String = "", consent: Boolean) {
         require(
             consent && current() && available &&
-                (token.matches(Regex("[0-9a-f]{64}")) || dao.config()?.registered == true)
+                (
+                    token.isEmpty() || token.matches(Regex("[0-9a-f]{64}")) ||
+                        dao.config()?.registered == true
+                    )
         )
         endpoint(origin)
         database.withTransaction {
@@ -185,7 +188,9 @@ class RelayRuntime(
                 dao.config(
                     RelayConfigRow(
                         origin = origin,
-                        activation = vault.protect("activation", token.toByteArray())
+                        activation = token.takeIf { it.isNotEmpty() }?.let {
+                            vault.protect("activation", it.toByteArray())
+                        }
                     )
                 )
             } else {
@@ -410,10 +415,7 @@ class RelayRuntime(
                 val keys = requireNotNull(vault.load())
                 val http = client(keys)
                 if (!config.registered) {
-                    val activation = vault.unprotect(
-                        "activation",
-                        requireNotNull(config.activation)
-                    )
+                    val activation = config.activation?.let { vault.unprotect("activation", it) }
                     try {
                         val result = http.request(
                             "POST",
@@ -422,13 +424,17 @@ class RelayRuntime(
                                 .put(
                                     "publicKey",
                                     keys.apiPublic
-                                ).put("activation", activation.toString(Charsets.UTF_8))
+                                ).apply {
+                                    activation?.let {
+                                        put("activation", it.toString(Charsets.UTF_8))
+                                    }
+                                }
                                 .toString().toByteArray()
                         )
                         require(result.getString("handle") == keys.handle)
                         dao.config(config.copy(activation = null, registered = true))
                     } finally {
-                        activation.fill(0)
+                        activation?.fill(0)
                     }
                 }
                 prepareAutomatic?.invoke()

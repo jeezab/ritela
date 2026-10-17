@@ -2,6 +2,6 @@
     <string name="partner_current_diary_fields">Поля дневника — необязательно · выбрано: %1$d</string>
     <string name="partner_current_diary_hint">Здесь только поля текущего дневника. Заметки и интимные данные нужно выбрать отдельно.</string>
     <string name="partner_internet_repair">Подключить или обновить интернет-доставку</string>
-    <string name="partner_internet_repair_hint">Активируйте пилот в обоих профилях, затем обменяйтесь приглашением и ответом. Существующие контакты и выбранные разрешения сохраняются.</string>
+    <string name="partner_internet_repair_hint">Включите интернет в обоих профилях, затем обменяйтесь приглашением и ответом. Регистрация автоматическая. Существующие контакты и выбранные разрешения сохраняются.</string>
     <string name="partner_check_delivery">Проверить доставку сейчас</string>
 </resources>

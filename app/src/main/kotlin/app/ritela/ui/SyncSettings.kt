@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -28,8 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -84,7 +81,6 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
     var working by remember(repository) { mutableStateOf(false) }
     var error by remember(repository) { mutableStateOf(false) }
     var activation by remember(repository) { mutableStateOf(false) }
-    var token by remember(repository) { mutableStateOf("") }
     val registered = (state as? SyncSettingsLoad.Ready)?.value?.registered == true
     val active = registered && (state as? SyncSettingsLoad.Ready)?.value?.internetRequested == true
     var disable by remember(repository) { mutableStateOf(false) }
@@ -236,7 +232,6 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
             if (activation) {
                 val dismissActivation = {
                     activation = false
-                    token = ""
                 }
                 PartnerModal(
                     stringResource(R.string.sync_internet_enable),
@@ -246,12 +241,9 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                             TextButton(
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                     .testTag("sync-activate-confirm"),
-                                enabled = registered || token.matches(Regex("[0-9a-f]{64}")),
                                 onClick = {
-                                    val value = token
-                                    token = ""
                                     activation = false
-                                    perform { repository.activate(value) }
+                                    perform { repository.activate() }
                                 }
                             ) { Text(stringResource(R.string.sync_consent_confirm)) }
                             TextButton(
@@ -262,20 +254,6 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                     }
                 ) {
                     Text(stringResource(R.string.sync_consent))
-                    if (!registered) {
-                        androidx.compose.material3.OutlinedTextField(
-                            token,
-                            { if (it.length <= 64) token = it },
-                            singleLine = true,
-                            label = { Text(stringResource(R.string.sync_activation)) },
-                            modifier = Modifier.fillMaxWidth().testTag("sync-activation-token"),
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                autoCorrectEnabled = false
-                            )
-                        )
-                    }
                 }
             }
             if (disable || cancelling != null) {

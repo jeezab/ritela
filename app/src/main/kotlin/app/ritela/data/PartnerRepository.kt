@@ -68,7 +68,7 @@ class PartnerRepository(
     private val syncMessages = app.ritela.data.sync.SyncMessageQueue(database)
     val messages = combine(dao.messages(), database.syncReceive().states()) { history, states ->
         history.map { message ->
-            if (!message.outgoing && message.kind == "SYNC_CAPS" &&
+            if (message.kind == "SYNC_CAPS" &&
                 message.body.isNotEmpty() && JSONObject(message.body).has("authorRequest") &&
                 !JSONObject(message.body).getJSONObject("authorRequest").optBoolean("renewal")
             ) {
@@ -203,7 +203,7 @@ class PartnerRepository(
             mutex.withLock {
                 database.withTransaction {
                     val message = requireNotNull(dao.message(id))
-                    if (!message.outgoing && message.kind == "SYNC_CAPS" &&
+                    if (message.kind == "SYNC_CAPS" &&
                         message.body.isNotEmpty() &&
                         JSONObject(message.body).has("authorRequest")
                     ) {

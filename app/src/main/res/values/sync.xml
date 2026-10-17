@@ -2,10 +2,9 @@
     <string name="sync_settings_summary">Queue and sharing methods</string>
     <string name="sync_internet_enable">Enable internet sync</string>
     <string name="sync_internet_enabled">Internet sync enabled</string>
-    <string name="sync_activation">Pilot activation code</string>
     <string name="sync_consent">Allow this profile to contact the configured relay server? Shared content is encrypted, but the server can see connection addresses, package sizes and timing. Background delivery may be delayed. This does not allow automatic sharing of medical records. Previously received copies cannot be recalled.</string>
-    <string name="sync_consent_confirm">Allow and activate</string>
-    <string name="sync_connection_problem">Delivery is paused or waiting to retry. Check your connection and pilot access.</string>
+    <string name="sync_consent_confirm">Allow and connect</string>
+    <string name="sync_connection_problem">Delivery is paused or waiting to retry. Check your connection and registration.</string>
     <string name="sync_link_help">@string/sync_connection_steps</string>
     <string name="sync_link_prepare">Prepare internet link: %1$s</string>
     <string name="sync_title">Synchronization</string>

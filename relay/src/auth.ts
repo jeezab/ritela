@@ -3,6 +3,8 @@ export interface Env {
   CAPABILITY_PEPPER: string;
   RECOVERY_EPOCH: string;
   RATE_LIMITER: RateLimit;
+  REGISTRATION_RATE_LIMITER: RateLimit;
+  AUTO_REGISTRATION?: string;
 }
 export class ApiError extends Error {
   constructor(public status: number, public code: string) { super(code); }

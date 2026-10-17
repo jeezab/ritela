@@ -1,4 +1,22 @@
-# Ritela Relay: локальный закрытый пилот
+# Ritela Relay
+
+2026-10-17: по запросу пользователя добавлена автоматическая регистрация без
+activation token: подписанный POST /v1/devices с handle/publicKey после явного
+согласия в Android. AUTO_REGISTRATION=true разрешает этот путь, false закрывает
+новые регистрации без кода. Прежние токены и зарегистрированные устройства
+совместимы; отозванный или pre-recovery handle не регистрируется заново.
+Новых таблиц/миграций/секретов нет. Wrangler config добавляет отдельный
+REGISTRATION_RATE_LIMITER (3 попытки/IP/60 s). Его счётчики локальны для точки
+Cloudflare, не являются строгим глобальным пределом:
+https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/.
+Строгий общий предел 100 устройств остаётся в атомарной D1 guard; это ограниченный
+тестовый запуск, не защита от массового заполнения всех мест распределённым ботом.
+Перед широким открытым запуском отдельно решить CAPTCHA/anti-abuse и ёмкость.
+
+После проверок обновление Worker: `npx.cmd wrangler deploy` из relay.
+Миграции повторно применять не нужно. Один git push не развёртывает Cloudflare.
+Android [инструкция](../docs/RITELA_SYNC_USING.md) заменяет ниже историческую
+инструкцию о кодах и отдельных setup-файлах.
 
 2026-10-16: оператор сообщил об успешном развёртывании Worker `ritela-relay`:
 https://ritela-relay.zabvenen.workers.dev. Конфигурация `wrangler.jsonc` в коммите
@@ -12,7 +30,7 @@ Production secrets в репозиторий/Android не добавляются
 Android использует публичный origin из `gradle.properties`; наличие адреса не
 включает consent и не регистрирует телефон. Отключённая по сборке версия:
 `-Pritela.relayOrigin=`. Для пилота на обоих телефонах требуется явная активация
-выданными оператором кодами и ручной обмен setup. Коды не передавать в чат/коммиты.
+согласием, автоматической регистрацией и мастером приглашения. Коды не нужны.
 
 Локальные проверки (Node 24, PowerShell):
 
@@ -36,9 +54,9 @@ npm.cmd audit
 2. Установить независимые случайные `CAPABILITY_PEPPER` (не менее 32 символов)
    и `RECOVERY_EPOCH` (не менее 16), через secret storage, без логов/коммитов.
    Установить ту же epoch в единственной строке `relay_state`. До этого API закрыт.
-3. Создать криптографически случайные 256-bit activation tokens вне репозитория.
+3. Для legacy token-only режима можно создать криптографически случайные 256-bit activation tokens вне репозитория.
    В D1 записывать только SHA-256 lowercase hex, срок действия; выдавать token
-   пользователю защищённым каналом. Публичного mint/registration UI нет.
+   пользователю защищённым каналом. Новый auto enrollment этого не требует.
 4. Настроить отдельный защищённый журнал revocations/deletions для восстановления.
    После Time Travel закрыть доступ, сменить внешнюю epoch, повторно применить
    журнал и обновить D1 epoch. Старые devices не должны ожить из snapshot.
@@ -56,7 +74,7 @@ request UUID; delivery ID остаётся неизменным для идем�
 
 Endpoints (все authenticated, кроме регистрации с proof of possession новой key):
 
-- `POST /v1/devices`: `{handle, publicKey, activation}`; handle UUID генерирует клиент.
+- `POST /v1/devices`: `{handle, publicKey, activation?}`; handle UUID генерирует клиент.
 - `DELETE /v1/devices/{handle}`: только свой; повторное удаление допустимо.
 - `POST /v1/routes`: receiver создаёт route для конкретного sender.
 - `DELETE /v1/routes/{route}`: receiver или назначенный sender закрывает route.

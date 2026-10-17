@@ -72,6 +72,7 @@ class RelayRuntimeTest {
 
     /** In-memory relay verifies the exact production API signatures, without opening a socket. */
     private inner class Server : RelayHttpExchange {
+        val transcript = JSONArray()
         val keys = mutableMapOf<String, String>()
         val routes = mutableMapOf<String, Route>()
         val authorities = mutableMapOf<String, String>()
@@ -93,6 +94,13 @@ class RelayRuntimeTest {
         ): RelayHttpResponse {
             authorize()
             calls++
+            transcript.put(
+                JSONObject().put("method", request.method).put("target", request.url.file)
+                    .put(
+                        "headers",
+                        JSONObject(request.headers)
+                    ).put("body", PartnerCrypto.b64(request.body))
+            )
             entered?.complete(Unit)
             release?.await()
             authorize()
@@ -293,7 +301,7 @@ class RelayRuntimeTest {
             partner.automaticIncoming = automatic::verifyIncoming
         }
         suspend fun activate() {
-            runtime.activate("a".repeat(64), true)
+            runtime.activate(consent = true)
             assertEquals(RelayRun.SUCCESS, runtime.runOnce())
         }
         suspend fun reopen() {
@@ -547,6 +555,90 @@ class RelayRuntimeTest {
                     ).snapshot.contains("AFTER_REPAIR")
                 )
                 assertEquals(1, b.partner.messages.first().count { it.kind == "SYNC_REQUEST" })
+            }
+        }
+    }
+
+    @Test fun periodsForecastsAndDiaryProduceAReplayableWorkerTranscript() = runBlocking {
+        val server = Server()
+        Phone(server).use { a ->
+            Phone(server).use { b ->
+                setup(a, b)
+                val today = LocalDate.now().toEpochDay()
+                for (ago in listOf(66, 38, 10)) {
+                    a.db.periods().addIfSeparate(
+                        app.ritela.data.PeriodEntity(
+                            UUID.randomUUID().toString(),
+                            today - ago,
+                            today - ago + 4,
+                            time,
+                            time
+                        )
+                    )
+                }
+                a.db.dayLogs().save(
+                    DayLogEntity.from(DayLog(LocalDate.ofEpochDay(20001), note = "SYNTHETIC"))
+                )
+                a.automatic.enable(
+                    b.local.identityId,
+                    b.local.deviceId,
+                    ShareScope(
+                        setOf(
+                            ShareCategory.PERIODS,
+                            ShareCategory.FORECASTS,
+                            ShareCategory.SECTIONS
+                        ),
+                        sections = setOf("note")
+                    )
+                )
+                a.runtime.runOnce()
+                b.runtime.runOnce()
+                val request = b.partner.messages.first().single { it.kind == "SYNC_REQUEST" }
+                val sent = a.partner.messages.first().single { it.kind == "SYNC_REQUEST" }
+                assertFalse(a.automatic.isApproved(sent.id))
+                assertFalse(request.hiddenFromChat)
+                b.automatic.approve(request.id)
+                repeat(4) {
+                    a.runtime.runOnce()
+                    b.runtime.runOnce()
+                }
+                assertNull(a.db.relay().config()!!.error)
+                assertNull(b.db.relay().config()!!.error)
+                assertTrue(a.automatic.approval(sent.id).first())
+                val baseline =
+                    JSONObject(
+                        requireNotNull(b.db.syncReceive().state(a.local.identityId)).snapshot
+                    )
+                assertEquals(3, baseline.getJSONArray("periods").length())
+                assertTrue(baseline.getJSONArray("forecasts").length() > 0)
+                assertTrue(baseline.toString().contains("SYNTHETIC"))
+                time += 1000
+                a.db.dayLogs().save(
+                    DayLogEntity.from(DayLog(LocalDate.ofEpochDay(20001), note = "UPDATED"))
+                )
+                repeat(3) {
+                    a.runtime.runOnce()
+                    b.runtime.runOnce()
+                }
+                assertTrue(
+                    requireNotNull(
+                        b.db.syncReceive().state(a.local.identityId)
+                    ).snapshot.contains("UPDATED")
+                )
+                a.partner.deleteMessage(sent.id)
+                assertTrue(a.automatic.isApproved(sent.id))
+                assertEquals(1, a.db.syncState().links().single().automaticEnabled)
+                val output =
+                    File(
+                        requireNotNull(
+                            File(
+                                requireNotNull(System.getProperty("ritela.screenshotDir"))
+                            ).parentFile
+                        ),
+                        "relay-runtime-transcript.json"
+                    )
+                output.parentFile?.mkdirs()
+                output.writeText(server.transcript.toString())
             }
         }
     }

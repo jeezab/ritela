@@ -2,6 +2,6 @@
     <string name="partner_current_diary_fields">Optional diary fields · Selected: %1$d</string>
     <string name="partner_current_diary_hint">Only fields in your current diary are listed. Notes and intimate data require a separate selection.</string>
     <string name="partner_internet_repair">Connect or renew internet delivery</string>
-    <string name="partner_internet_repair_hint">Activate the pilot in both profiles, then exchange an invitation and its response. Existing contacts and selected permissions are preserved.</string>
+    <string name="partner_internet_repair_hint">Enable internet in both profiles, then exchange an invitation and its response. Registration is automatic. Existing contacts and selected permissions are preserved.</string>
     <string name="partner_check_delivery">Check delivery now</string>
 </resources>

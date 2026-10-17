@@ -1,5 +1,10 @@
 # Ritela Sync — результат локального этапа 4
 
+Актуализация 2026-10-17: после исходного этапа Worker развёрнут, Android relay
+подключён. По новому запросу добавлен auto enrollment без кода после согласия,
+с отдельным registration limiter; прежний token path сохраняется. Сведения ниже
+описывают исторический checkpoint этапа 4. Текущее состояние — docs/STATUS.md.
+
 Реализованы Worker/D1 и Android transport crypto primitives. Production relay
 не развёрнут, рабочая D1 не открывалась. Android пока без INTERNET permissions;
 HTTP, scheduler и подключение primitives к очереди — этап 5.

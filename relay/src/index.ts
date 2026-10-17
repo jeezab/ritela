@@ -6,10 +6,34 @@ import { createRoute, reserveBaseline, revokeDevice, revokeRoute } from "./route
 
 async function register(auth: Auth) {
   const b = jsonBody(auth);
-  requireApi(b.handle === auth.device.handle && hex(b.activation) && b.publicKey === auth.device.api_public_key);
+  requireApi(b.handle === auth.device.handle && b.publicKey === auth.device.api_public_key &&
+    (b.activation === undefined || hex(b.activation)));
   const existingDevice = await sql(auth, "SELECT 1 FROM relay_devices WHERE handle=? AND api_public_key=? " +
     "AND state='ACTIVE' AND recovery_epoch=?", b.handle, b.publicKey, auth.env.RECOVERY_EPOCH).first();
   if (existingDevice) return {handle: b.handle};
+  if (b.activation === undefined) {
+    requireApi(auth.env.AUTO_REGISTRATION === "true", 403, "REGISTRATION_DISABLED");
+    requireApi(auth.env.REGISTRATION_RATE_LIMITER, 503, "NOT_CONFIGURED");
+    requireApi(!await sql(auth, "SELECT 1 FROM relay_devices WHERE handle=?", b.handle).first(),
+      403, "DEVICE_UNAVAILABLE");
+    requireApi((await sql(auth, "SELECT COUNT(*) AS count FROM relay_devices").first<{count: number}>())!.count < 100,
+      429, "REGISTRATION_CAPACITY");
+    try {
+      await auth.env.DB.batch([
+        sql(auth, "INSERT INTO mutation_guards(id,ok) SELECT ?,CASE WHEN " +
+          "(SELECT COUNT(*) FROM relay_devices)<100 AND EXISTS(SELECT 1 FROM relay_state WHERE id=1 " +
+          "AND recovery_epoch=?) THEN 1 ELSE 0 END", auth.requestId, auth.env.RECOVERY_EPOCH),
+        sql(auth, "INSERT INTO relay_devices(handle,api_public_key,key_version,state,recovery_epoch,created_at) " +
+          "VALUES(?,?,1,'ACTIVE',?,?)", b.handle, b.publicKey, auth.env.RECOVERY_EPOCH, auth.now),
+        sql(auth, "DELETE FROM mutation_guards WHERE id=?", auth.requestId)
+      ]);
+    } catch {
+      const won = await sql(auth, "SELECT 1 FROM relay_devices WHERE handle=? AND api_public_key=? " +
+        "AND state='ACTIVE' AND recovery_epoch=?", b.handle, b.publicKey, auth.env.RECOVERY_EPOCH).first();
+      if (!won) throw new ApiError(429, "REGISTRATION_CAPACITY");
+    }
+    return {handle: b.handle};
+  }
   const tokenHash = await sha(b.activation); const bodyHash = await sha(auth.body);
   const token = await sql(auth, "SELECT * FROM activation_tokens WHERE token_hash=?", tokenHash).first<any>();
   if (token?.redeemed_by) {
@@ -51,6 +75,10 @@ export default {
       const isUpload = request.method === "PUT" && /^\/v1\/routes\/[^/]+\/packets\/[^/]+$/.test(path);
       const body = await readBounded(request, isUpload ? 262144 : 16384);
       const enrolling = path === "/v1/devices" && request.method === "POST";
+      if (enrolling && env.REGISTRATION_RATE_LIMITER) {
+        requireApi((await env.REGISTRATION_RATE_LIMITER.limit({key: "registration:" +
+          await sha(request.headers.get("CF-Connecting-IP") ?? "local")})).success, 429, "REGISTRATION_RATE_LIMIT");
+      }
       let registrationKey: string | undefined;
       if (enrolling) {
         try { registrationKey = JSON.parse(new TextDecoder("utf-8", {fatal: true}).decode(body)).publicKey; }

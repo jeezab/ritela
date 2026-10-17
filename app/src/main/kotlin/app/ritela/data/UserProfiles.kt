@@ -225,6 +225,9 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
         app.ritela.data.sync.ForegroundSync(context.applicationContext, profileId, relay)
     }
     val syncChatVisible = MutableStateFlow(false)
+    private val syncWake = kotlinx.coroutines.channels.Channel<Unit>(
+        kotlinx.coroutines.channels.Channel.CONFLATED
+    )
     fun syncInteraction() = foregroundSync.interacted()
     suspend fun syncNow(retry: Boolean = false) {
         foregroundSync.interacted()
@@ -236,7 +239,7 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
         syncChatVisible.collectLatest { chat ->
             while (!syncClosed) {
                 val result = foregroundSync.check()
-                kotlinx.coroutines.delay(
+                val delay =
                     if (result ==
                         app.ritela.data.sync.RelayRun.MORE
                     ) {
@@ -244,7 +247,14 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
                     } else {
                         foregroundSync.interval(chat)
                     }
-                )
+                if (kotlinx.coroutines.withTimeoutOrNull(delay) {
+                        syncWake.receive()
+                        true
+                    } ==
+                    true
+                ) {
+                    foregroundSync.send()
+                }
             }
         }
     }
@@ -296,6 +306,7 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
         }
     }
     private val syncObservation = partnerKeyScope.launch {
+        var previousAutomatic: String? = null
         database.invalidationTracker.createFlow(
             "sync_profile_state",
             "relay_config",
@@ -329,6 +340,11 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
             )
         }.distinctUntilChanged().collect { signal ->
             if (signal.first && !syncClosed) {
+                val automatic = signal.second.firstOrNull { it.startsWith("auto:") }
+                if (automatic != previousAutomatic) {
+                    previousAutomatic = automatic
+                    syncWake.trySend(Unit)
+                }
                 syncScheduler.ensure(signal.second.isNotEmpty())
             } else if (!syncClosed &&
                 database.relay().config() != null
