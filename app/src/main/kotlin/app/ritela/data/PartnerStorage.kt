@@ -62,6 +62,12 @@ interface PartnerDao {
     suspend fun history(identity: String): List<PartnerMessage>
 
     @Query(
+        "SELECT * FROM partner_messages WHERE identity=:identity AND device=:device " +
+            "AND outgoing=1 AND hiddenFromChat=1"
+    )
+    suspend fun concealed(identity: String, device: String): List<PartnerMessage>
+
+    @Query(
         "SELECT * FROM partner_messages WHERE identity=:identity AND device=:device AND outgoing=:outgoing AND kind='SYNC_CAPS' AND body!='' ORDER BY created DESC,rowid DESC LIMIT 128"
     )
     suspend fun controls(identity: String, device: String, outgoing: Boolean): List<PartnerMessage>

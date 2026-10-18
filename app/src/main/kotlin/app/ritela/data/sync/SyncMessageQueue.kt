@@ -82,7 +82,8 @@ class SyncMessageQueue(private val database: RitelaDatabase) {
                 SyncMessageOffer.EXISTS
             }
         }
-        if (message.hiddenFromChat || message.delivered || message.envelope.isEmpty() ||
+        val part = transportPart(message)
+        if ((!part && message.hiddenFromChat) || message.delivered || message.envelope.isEmpty() ||
             message.body.isEmpty()
         ) {
             return@withTransaction SyncMessageOffer.TERMINAL
@@ -106,22 +107,45 @@ class SyncMessageQueue(private val database: RitelaDatabase) {
         if (error == null) SyncMessageOffer.QUEUED else SyncMessageOffer.BLOCKED
     }
 
+    /** Parent stays visible and unwrapped; its hidden parts are the internet packets. */
+    suspend fun hold(message: PartnerMessage): SyncMessageOffer = database.withTransaction {
+        require(message.outgoing && message.kind == "DATA" && !message.hiddenFromChat)
+        if (dao.get(message.id) != null) return@withTransaction SyncMessageOffer.EXISTS
+        require(database.partner().message(message.id) == message)
+        val link = binding(message) ?: return@withTransaction SyncMessageOffer.OFF
+        dao.insert(
+            SyncMessageIntentRow(
+                message.id, message.identity, message.device, message.kind, link.epoch,
+                link.context, link.grants, digest(message), "PENDING_PARTS"
+            )
+        )
+        SyncMessageOffer.QUEUED
+    }
+
+    internal suspend fun accepting(message: PartnerMessage, extra: Int): Boolean {
+        if (extra <= 1 || binding(message) == null) return false
+        return dao.count() + extra < 65536 && dao.pendingCount() + extra < 512
+    }
+
     /** Recheck just before any future wrapping/dispatch; never resurrect terminal IDs. */
     suspend fun pending(): List<PartnerMessage> = database.withTransaction {
         val result = mutableListOf<PartnerMessage>()
         for (row in dao.active()) {
             val message = database.partner().message(row.messageId)
             val link = message?.let { binding(it) }
-            if (message == null || message.hiddenFromChat || message.body.isEmpty() ||
+            val part = message?.let(::transportPart) == true
+            if (message == null || (message.hiddenFromChat && !part) || message.body.isEmpty() ||
                 message.envelope.isEmpty()
             ) {
                 dao.finish(row.messageId, "CANCELLED", "CONTENT_REMOVED")
+                cancelParent(message)
             } else if (message.delivered) {
                 dao.finish(row.messageId, "ACKED")
             } else if (link == null || row.epoch != link.epoch || row.context != link.context ||
                 row.grantsDigest != link.grants || row.messageDigest != digest(message)
             ) {
                 dao.finish(row.messageId, "CANCELLED", "ACCESS_CHANGED")
+                cancelParent(message)
             } else if (row.state == "PENDING_WRAP") {
                 result += message
             }
@@ -139,7 +163,40 @@ class SyncMessageQueue(private val database: RitelaDatabase) {
             val row = dao.get(id) ?: return@withTransaction
             require(row.identity == identity && row.device == device)
             if (row.state != "CANCELLED") dao.finish(id, "ACKED")
+            completeParent(id)
         }
+
+    private suspend fun completeParent(partId: String) {
+        val message = database.partner().message(partId) ?: return
+        val body = runCatching { JSONObject(message.body) }.getOrNull() ?: return
+        if (!ShareParts.transport(body)) return
+        val batch = body.getString("batch")
+        val expected = body.getInt("parts")
+        val siblings = database.partner().concealed(message.identity, message.device).filter {
+            runCatching {
+                val part = JSONObject(it.body)
+                part.optString("batch") == batch && part.optInt("parts") == expected
+            }.getOrDefault(false)
+        }
+        if (siblings.size < expected || siblings.any { dao.get(it.id)?.state != "ACKED" }) return
+        database.partner().delivered(batch)
+        val parent = dao.get(batch)
+        if (parent != null && parent.state != "CANCELLED") dao.finish(batch, "ACKED")
+    }
+
+    private suspend fun cancelParent(message: PartnerMessage?) {
+        val batch = message?.let {
+            runCatching { JSONObject(it.body).optString("batch") }.getOrNull()
+        }
+        if (batch.isNullOrEmpty()) return
+        val parent = dao.get(batch)
+        if (parent != null && parent.state !in setOf("ACKED", "CANCELLED")) {
+            dao.finish(batch, "CANCELLED", "CONTENT_REMOVED")
+        }
+    }
+
+    private fun transportPart(message: PartnerMessage): Boolean = message.hiddenFromChat &&
+        runCatching { ShareParts.transport(JSONObject(message.body)) }.getOrDefault(false)
 
     private data class Binding(val epoch: Long, val context: String, val grants: String)
 

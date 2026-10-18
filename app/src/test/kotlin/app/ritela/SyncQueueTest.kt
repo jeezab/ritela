@@ -121,8 +121,17 @@ class SyncQueueTest {
         db: RitelaDatabase,
         encoder: SyncPacketEncoder = fakeEncoder,
         projector: ShareProjector = ShareProjector(),
-        limit: Long = 16 * 1024 * 1024
-    ) = SyncQueueRepository(db, encoder, projector, { time }, { 0.5 }, limit)
+        limit: Long = 16 * 1024 * 1024,
+        parts: Int = app.ritela.domain.sync.SyncLimits.BASELINE_PARTS
+    ) = SyncQueueRepository(
+        db,
+        encoder,
+        projector,
+        { time },
+        { 0.5 },
+        limit,
+        parts
+    )
     private fun period() = PeriodEntity(
         UUID.randomUUID().toString(),
         LocalDate.now().minusDays(60).toEpochDay(),
@@ -203,6 +212,47 @@ class SyncQueueTest {
             assertNull(repo.claim()) // Same link cannot overtake the in-flight baseline.
             assertTrue(repo.stored(lease))
             assertEquals(delta.packetId, repo.claim()!!.packetId)
+        } finally {
+            close(db, name)
+        }
+    }
+
+    @Test fun baselineLargerThanOneWaveContinuesAsDeltas() = runBlocking {
+        val name = "sync-waves-${UUID.randomUUID()}.db"
+        val db = syncTestDatabase(context, name)
+        try {
+            val notes = ShareScope(setOf(ShareCategory.SECTIONS), sections = setOf("note"))
+            allow(db, notes)
+            repeat(200) { index ->
+                db.dayLogs().save(
+                    DayLogEntity.from(
+                        DayLog(LocalDate.ofEpochDay(20_000L + index), note = "n")
+                    )
+                )
+            }
+            val repo = queue(db, parts = 1)
+            assertEquals(SyncPreparation.ENQUEUED, repo.prepare(peer, device))
+            val first = db.syncQueue().packets().single()
+            assertEquals("BASELINE", first.kind)
+            val firstDays = app.ritela.data.PartnerCodec.objects(
+                JSONObject(first.envelope.toString(Charsets.UTF_8)).getJSONArray("records")
+            ).count { it.getString("type") == "DAY" }
+            assertTrue(firstDays in 1 until 200)
+            var guard = 0
+            var preparation = repo.prepare(peer, device)
+            while (preparation == SyncPreparation.ENQUEUED) {
+                assertTrue(++guard < 10)
+                preparation = repo.prepare(peer, device)
+            }
+            assertEquals(SyncPreparation.UNCHANGED, preparation)
+            val packets = db.syncQueue().packets()
+            assertEquals("DELTA", packets[1].kind)
+            val days = packets.flatMap { packet ->
+                app.ritela.data.PartnerCodec.objects(
+                    JSONObject(packet.envelope.toString(Charsets.UTF_8)).getJSONArray("records")
+                )
+            }.filter { it.getString("type") == "DAY" }.map { it.getString("key") }.toSet()
+            assertEquals(200, days.size)
         } finally {
             close(db, name)
         }

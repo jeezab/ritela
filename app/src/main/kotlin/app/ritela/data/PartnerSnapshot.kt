@@ -85,8 +85,8 @@ fun partnerDataMessage(messages: List<PartnerMessage>, identities: Set<String>):
     val synchronized = projections.map { it.identity }.toSet()
     return (
         projections + messages.filter {
-            !it.outgoing && it.identity in identities && it.kind == "DATA" &&
-                it.identity !in synchronized && it.body.isNotEmpty()
+            !it.outgoing && !it.hiddenFromChat && it.identity in identities &&
+                it.kind == "DATA" && it.identity !in synchronized && it.body.isNotEmpty()
         }
         ).maxByOrNull { it.received }
 }

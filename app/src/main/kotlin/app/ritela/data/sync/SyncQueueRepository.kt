@@ -41,8 +41,14 @@ class SyncQueueRepository(
     private val projector: ShareProjector = ShareProjector(),
     private val now: () -> Long = System::currentTimeMillis,
     private val jitter: () -> Double = { kotlin.random.Random.nextDouble() },
-    private val queueLimit: Long = SyncLimits.DEVICE_BYTES.toLong()
+    private val queueLimit: Long = SyncLimits.DEVICE_BYTES.toLong(),
+    private val baselinePartLimit: Int = SyncLimits.BASELINE_PARTS,
+    private val baselineByteLimit: Long = SyncLimits.BASELINE_BYTES.toLong()
 ) : SyncQueuePort {
+    // Matches the deployed D1 reservation CHECK. Overflow continues as later deltas.
+    private companion object {
+        const val RESERVATION_BYTES = 6_291_456L
+    }
     private val dao get() = database.syncQueue()
     private val journal get() = database.syncJournal()
 
@@ -125,56 +131,73 @@ class SyncQueueRepository(
                 chunk.put(record)
             }
             if (chunk.length() > 0 || chunks.isEmpty()) chunks += chunk
-            if (chunks.size > SyncLimits.BASELINE_PARTS ||
-                (
-                    baseline && chunks.sumOf { it.toString().toByteArray().size.toLong() } >
-                        SyncLimits.BASELINE_BYTES
-                    )
-            ) {
-                throw SyncPreparationException("BASELINE_TOO_LARGE")
-            }
-            val batch = UUID.randomUUID().toString()
-            val kind = if (baseline) "BASELINE" else "DELTA"
-            var lastSequence = sequence
-            var totalPayloadBytes = 0L
-            for ((part, entries) in chunks.withIndex()) {
-                lastSequence = Math.addExact(next, part.toLong())
-                if (!baseline) {
-                    for (i in 0 until entries.length()) {
-                        entries.getJSONObject(i).put("revision", lastSequence)
-                    }
-                }
-                val body = JSONObject().put("records", entries)
-                    .put("scope", PartnerCodec.scope(requireNotNull(policy.scope)))
-                if (baseline && chunks.size > 1) {
-                    body.put("batch", batch).put("part", part).put("parts", chunks.size)
-                }
-                val payload = canonicalJson(body)
-                val size = payload.toByteArray().size
-                totalPayloadBytes += size
-                if (size > SyncLimits.PROJECTED_BYTES - 1024 ||
-                    (baseline && totalPayloadBytes > SyncLimits.BASELINE_BYTES)
-                ) {
+            val chosen = mutableListOf<JSONArray>()
+            var chosenBytes = 0L
+            for (piece in chunks) {
+                val size = piece.toString().toByteArray().size.toLong()
+                if (size > SyncLimits.PROJECTED_BYTES - 1024) {
                     throw SyncPreparationException("BASELINE_TOO_LARGE")
                 }
-                val id = UUID.randomUUID().toString()
-                val bytes = encoder.encode(
-                    SyncDraft(id, peer, device, policy.scopeEpoch, lastSequence, kind, payload)
-                ).copyOf()
-                require(bytes.isNotEmpty() && bytes.size <= SyncLimits.ENVELOPE_BYTES)
-                if (dao.queuedBytes() + bytes.size > queueLimit || dao.packetCount() >= 512 ||
-                    dao.packetCount(peer, device) >= SyncLimits.ROUTE_PACKETS
+                if (chosen.isNotEmpty() && (
+                        chosen.size >= baselinePartLimit ||
+                            (baseline && chosenBytes + size > baselineByteLimit)
+                        )
                 ) {
-                    throw SyncPreparationException("QUEUE_FULL")
+                    break
                 }
+                chosen += piece
+                chosenBytes += size
+            }
+            if (chosen.isEmpty()) throw SyncPreparationException("BASELINE_TOO_LARGE")
+            val batch = UUID.randomUUID().toString()
+            val kind = if (baseline) "BASELINE" else "DELTA"
+            val encoded = chosen.mapIndexed { part, entries ->
+                preparedPacket(
+                    peer, device, policy, hash, kind, batch, next, part, chosen.size, entries
+                )
+            }
+            var used = 0
+            var queuedBytes = dao.queuedBytes()
+            var queuedPackets = dao.packetCount()
+            var routePackets = dao.packetCount(peer, device)
+            var reservation = 0L
+            for (packet in encoded) {
+                val reserve = packet.bytes.size.toLong() * 2 + 2048L
+                if (queuedBytes + packet.bytes.size > queueLimit || queuedPackets >= 512 ||
+                    routePackets >= SyncLimits.ROUTE_PACKETS ||
+                    (baseline && reservation + reserve > RESERVATION_BYTES)
+                ) {
+                    break
+                }
+                queuedBytes += packet.bytes.size
+                queuedPackets++
+                routePackets++
+                reservation += reserve
+                used++
+            }
+            if (used == 0) throw SyncPreparationException("QUEUE_FULL")
+            val wave = if (used == encoded.size) {
+                encoded
+            } else {
+                chosen.take(used).mapIndexed { part, entries ->
+                    preparedPacket(
+                        peer, device, policy, hash, kind, batch, next, part, used, entries
+                    )
+                }
+            }
+            val included = wave.sumOf { it.records }
+            val covered = if (included == updates.size) through else updates[included - 1].revision
+            var lastSequence = sequence
+            for (packet in wave) {
+                lastSequence = packet.sequence
                 dao.insert(
                     SyncOutboxRow(
-                        id, peer, device, policy.scopeEpoch, hash, kind,
-                        after, through, lastSequence, bytes
+                        packet.id, peer, device, policy.scopeEpoch, hash, kind,
+                        after, covered, lastSequence, packet.bytes
                     )
                 )
             }
-            for (item in updates) {
+            for (item in updates.take(included)) {
                 if (item.body ==
                     null
                 ) {
@@ -193,13 +216,55 @@ class SyncQueueRepository(
                 }
             }
             dao.progress(
-                SyncLinkProgressRow(peer, device, policy.scopeEpoch, through, lastSequence, hash)
+                SyncLinkProgressRow(peer, device, policy.scopeEpoch, covered, lastSequence, hash)
             )
             SyncPreparation.ENQUEUED
         }
     } catch (_: SyncPreparationException) {
         SyncPreparation.BLOCKED
     }
+
+    private suspend fun preparedPacket(
+        peer: String,
+        device: String,
+        policy: app.ritela.domain.sync.SyncLinkPolicy,
+        hash: String,
+        kind: String,
+        batch: String,
+        next: Long,
+        part: Int,
+        count: Int,
+        entries: JSONArray
+    ): PreparedPacket {
+        val sequence = Math.addExact(next, part.toLong())
+        if (kind != "BASELINE") {
+            for (index in 0 until entries.length()) {
+                entries.getJSONObject(index).put("revision", sequence)
+            }
+        }
+        val body = JSONObject().put("records", entries)
+            .put("scope", PartnerCodec.scope(requireNotNull(policy.scope)))
+        if (kind == "BASELINE" && count > 1) {
+            body.put("batch", batch).put("part", part).put("parts", count)
+        }
+        val payload = canonicalJson(body)
+        if (payload.toByteArray().size > SyncLimits.PROJECTED_BYTES - 1024) {
+            throw SyncPreparationException("BASELINE_TOO_LARGE")
+        }
+        val id = UUID.randomUUID().toString()
+        val bytes = encoder.encode(
+            SyncDraft(id, peer, device, policy.scopeEpoch, sequence, kind, payload)
+        ).copyOf()
+        require(bytes.isNotEmpty() && bytes.size <= SyncLimits.ENVELOPE_BYTES)
+        return PreparedPacket(id, sequence, entries.length(), bytes)
+    }
+
+    private data class PreparedPacket(
+        val id: String,
+        val sequence: Long,
+        val records: Int,
+        val bytes: ByteArray
+    )
 
     /** A consistent first snapshot; it never opens the key vault or infers consent. */
     private suspend fun backfill() {

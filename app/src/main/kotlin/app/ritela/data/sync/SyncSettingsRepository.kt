@@ -32,7 +32,8 @@ interface SyncSettingsDao {
             "0 AS records,COALESCE(m.delivered,0) AS delivered,i.errorCode AS error," +
             "COALESCE(m.created,0) AS created FROM sync_message_intents i " +
             "LEFT JOIN partner_messages m ON m.id=i.messageId " +
-            "LEFT JOIN relay_packets r ON r.id=i.messageId UNION ALL " +
+            "LEFT JOIN relay_packets r ON r.id=i.messageId " +
+            "WHERE COALESCE(m.hiddenFromChat,0)=0 UNION ALL " +
             "SELECT o.packetId,o.peerIdentity,o.peerDevice,o.kind,o.state,1," +
             "COALESCE(m.delivered,0),o.errorCode,COALESCE(m.created,0) FROM sync_outbox o " +
             "LEFT JOIN partner_messages m ON m.id=o.packetId) " +
@@ -45,7 +46,8 @@ interface SyncSettingsDao {
 
     @Query(
         "UPDATE sync_message_intents SET state='CANCELLED',errorCode='USER_CANCELLED' " +
-            "WHERE state IN ('PENDING_WRAP','BLOCKED') AND (:id IS NULL OR messageId=:id)"
+            "WHERE state IN ('PENDING_WRAP','BLOCKED','PENDING_PARTS') " +
+            "AND (:id IS NULL OR messageId=:id)"
     )
     suspend fun cancelMessages(id: String? = null)
 
@@ -140,6 +142,7 @@ class SyncSettingsRepository(
                     row.state in setOf(
                         "PENDING_WRAP",
                         "PENDING",
+                        "PENDING_PARTS",
                         "READY",
                         "RETRY_WAIT",
                         "IN_FLIGHT"

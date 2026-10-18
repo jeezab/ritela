@@ -2,22 +2,28 @@ package app.ritela
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import app.ritela.data.DayLogEntity
 import app.ritela.data.LocalPartnerKeys
 import app.ritela.data.PartnerMessage
 import app.ritela.data.PartnerRepository
 import app.ritela.data.RitelaDatabase
 import app.ritela.data.sync.SyncMessageOffer
 import app.ritela.data.sync.SyncMessageQueue
+import app.ritela.domain.DayLog
 import app.ritela.domain.Doodle
 import app.ritela.domain.DoodleOpening
 import app.ritela.domain.DoodlePoint
 import app.ritela.domain.DoodleStroke
 import app.ritela.domain.ShareCategory
 import app.ritela.domain.ShareScope
+import app.ritela.domain.sync.SyncLimits
+import java.time.LocalDate
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -160,6 +166,54 @@ class SyncMessageQueueTest {
             val third = p.send()
             p.ra.enableDevice(p.kb.identityId, p.kb.deviceId, false)
             assertEquals("CANCELLED", p.a.syncMessageIntents().get(third.id)!!.state)
+        }
+    }
+
+    @Test fun largeJournalIsQueuedInPartsAndReassembled() = runBlocking {
+        Pair().use { p ->
+            p.setup()
+            p.allow(p.a, p.kb.identityId, p.kb.deviceId)
+            val days = 150
+            repeat(days) { index ->
+                p.a.dayLogs().save(
+                    DayLogEntity.from(
+                        DayLog(LocalDate.ofEpochDay(20_000L + index), note = "n".repeat(1000))
+                    )
+                )
+            }
+            val message = p.ra.confirmData(
+                p.kb.identityId,
+                p.kb.deviceId,
+                ShareScope(setOf(ShareCategory.SECTIONS), setOf("note"))
+            )
+            val parent = p.a.syncMessageIntents().get(message.id)!!
+            assertEquals("PENDING_PARTS", parent.state)
+            assertNotEquals("MESSAGE_TOO_LARGE", parent.errorCode)
+            assertFalse(message.hiddenFromChat)
+            assertEquals(days, JSONObject(message.body).getJSONArray("days").length())
+            val parts = SyncMessageQueue(p.a).pending()
+            assertTrue(parts.size > 1)
+            assertTrue(parts.none { it.id == message.id })
+            assertTrue(
+                parts.all {
+                    it.hiddenFromChat &&
+                        it.body.toByteArray().size <= SyncLimits.PROJECTED_BYTES - 2048
+                }
+            )
+            for (part in parts.reversed()) p.rb.receive(part.envelope.toByteArray())
+            val merged = p.b.partner().message(message.id)!!
+            assertFalse(merged.hiddenFromChat)
+            assertEquals(days, JSONObject(merged.body).getJSONArray("days").length())
+            assertTrue(
+                p.b.partner().history(p.ka.identityId).filter { it.hiddenFromChat }.size ==
+                    parts.size
+            )
+            for (part in parts) {
+                val received = p.b.partner().message(part.id)!!
+                p.ra.receive(p.rb.acknowledgement(received).envelope.toByteArray())
+            }
+            assertTrue(p.ra.retry(message.id).delivered)
+            assertEquals("ACKED", p.a.syncMessageIntents().get(message.id)!!.state)
         }
     }
 

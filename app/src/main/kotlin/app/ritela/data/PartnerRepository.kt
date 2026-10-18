@@ -1,11 +1,13 @@
 package app.ritela.data
 
 import androidx.room.withTransaction
+import app.ritela.data.sync.ShareParts
 import app.ritela.data.sync.SyncApplyRepository
 import app.ritela.data.sync.SyncAuthorGrants
 import app.ritela.data.sync.SyncCapabilityRow
 import app.ritela.data.sync.SyncDraft
 import app.ritela.data.sync.SyncEnvelopeCodec
+import app.ritela.data.sync.SyncMessageOffer
 import app.ritela.domain.Doodle
 import app.ritela.domain.EstimatedCyclePhase
 import app.ritela.domain.JournalLayout
@@ -671,45 +673,20 @@ class PartnerRepository(
                 val keys = loadKeys()
                 val id = packetId ?: UUID.randomUUID().toString()
                 val created = now()
-                val body = JSONObject().put("format", "ritela.partner").put("v", 1).put("id", id)
-                    .put(
-                        "from",
-                        keys.identityId
-                    ).put("device", keys.deviceId).put("to", identity).put("targetDevice", device)
-                    .put(
-                        "link",
-                        remote.remoteNonce
-                    ).put("kind", kind).put("created", created).put("content", payload).toString()
-                val secret = PartnerCrypto.random(32)
-                val iv = PartnerCrypto.random(12)
-                val key = SecretKeySpec(secret, "AES")
-                val wrapped = try {
-                    PartnerCrypto.wrap(PartnerCrypto.publicKey(contact.publicKey), secret)
-                } finally {
-                    secret.fill(0)
+                val envelope = manualEnvelope(keys, contact, remote, kind, id, created, payload)
+                val parts = if (kind ==
+                    "DATA"
+                ) {
+                    ShareParts.split(payload, id)?.takeIf { it.size > 1 }
+                } else {
+                    null
                 }
-                val ciphertext = PartnerCrypto.crypt(
-                    Cipher.ENCRYPT_MODE,
-                    key,
-                    iv,
-                    "ritela.partner:1",
-                    body.toByteArray()
-                )
-                val header = JSONObject().put("format", "ritela.partner.encrypted").put("v", 1)
-                    .put("from", keys.identityId).put("device", keys.deviceId).put("to", identity)
-                    .put("targetDevice", device).put("key", PartnerCrypto.b64(wrapped))
-                    .put(
-                        "iv",
-                        PartnerCrypto.b64(iv)
-                    ).put("data", PartnerCrypto.b64(ciphertext)).toString()
-                val envelope = JSONObject().put("header", header).put(
-                    "signature",
-                    PartnerCrypto.sign(
-                        PartnerCrypto.privateKey(keys.devicePrivate, "EC"),
-                        header
-                    )
-                ).toString()
-                require(envelope.toByteArray().size <= PartnerCrypto.MAX_PACKET)
+                require(parts != null || envelope.toByteArray().size <= PartnerCrypto.MAX_PACKET)
+                val storedEnvelope = if (envelope.toByteArray().size <= PartnerCrypto.MAX_PACKET) {
+                    envelope
+                } else {
+                    ""
+                }
                 PartnerMessage(
                     id, identity, device, true, kind, created, created,
                     JSONObject(payload.toString()).apply {
@@ -719,7 +696,7 @@ class PartnerRepository(
                             remove("relay")
                         }
                     }.toString(),
-                    envelope
+                    storedEnvelope
                 ).also {
                     dao.insert(it)
                     rememberDoodle(it)
@@ -746,10 +723,71 @@ class PartnerRepository(
                             )
                         )
                     }
-                    if (queueIntent) syncMessages.offer(it)
+                    if (queueIntent && parts != null && syncMessages.accepting(it, parts.size)) {
+                        check(syncMessages.hold(it) == SyncMessageOffer.QUEUED)
+                        for (part in parts) {
+                            val partId = UUID.randomUUID().toString()
+                            val partEnvelope = manualEnvelope(
+                                keys,
+                                contact,
+                                remote,
+                                kind,
+                                partId,
+                                created,
+                                part
+                            )
+                            require(partEnvelope.toByteArray().size <= PartnerCrypto.MAX_PACKET)
+                            val partMessage = PartnerMessage(
+                                partId, identity, device, true, kind, created, created,
+                                part.toString(), partEnvelope, hiddenFromChat = true
+                            )
+                            dao.insert(partMessage)
+                            check(syncMessages.offer(partMessage) == SyncMessageOffer.QUEUED)
+                        }
+                    } else if (queueIntent) {
+                        syncMessages.offer(it)
+                    }
                 }
             }
         }
+    }
+
+    private fun manualEnvelope(
+        keys: LocalPartnerKeys,
+        contact: PartnerIdentity,
+        remote: PartnerDevice,
+        kind: String,
+        id: String,
+        created: Long,
+        payload: JSONObject
+    ): String {
+        val body = JSONObject().put("format", "ritela.partner").put("v", 1).put("id", id)
+            .put("from", keys.identityId).put("device", keys.deviceId).put("to", contact.id)
+            .put("targetDevice", remote.id).put("link", remote.remoteNonce).put("kind", kind)
+            .put("created", created).put("content", payload).toString()
+        val secret = PartnerCrypto.random(32)
+        val iv = PartnerCrypto.random(12)
+        val key = SecretKeySpec(secret, "AES")
+        val wrapped = try {
+            PartnerCrypto.wrap(PartnerCrypto.publicKey(contact.publicKey), secret)
+        } finally {
+            secret.fill(0)
+        }
+        val ciphertext = PartnerCrypto.crypt(
+            Cipher.ENCRYPT_MODE,
+            key,
+            iv,
+            "ritela.partner:1",
+            body.toByteArray()
+        )
+        val header = JSONObject().put("format", "ritela.partner.encrypted").put("v", 1)
+            .put("from", keys.identityId).put("device", keys.deviceId).put("to", contact.id)
+            .put("targetDevice", remote.id).put("key", PartnerCrypto.b64(wrapped))
+            .put("iv", PartnerCrypto.b64(iv)).put("data", PartnerCrypto.b64(ciphertext)).toString()
+        return JSONObject().put("header", header).put(
+            "signature",
+            PartnerCrypto.sign(PartnerCrypto.privateKey(keys.devicePrivate, "EC"), header)
+        ).toString()
     }
 
     suspend fun receive(bytes: ByteArray): ReceivedPartnerPacket = withContext(Dispatchers.IO) {
@@ -974,6 +1012,9 @@ class PartnerRepository(
                 syncMessages.acknowledged(original.id, sender.id, device.id)
             }
         }
+        val storedBody = JSONObject(content.toString()).apply {
+            if (kind == "SYNC_CAPS") remove("relay")
+        }
         val message =
             PartnerMessage(
                 id, sender.id, device.id, false, kind,
@@ -981,16 +1022,13 @@ class PartnerRepository(
                     require(it in 0..253402300799999L)
                 },
                 now(),
-                JSONObject(content.toString()).apply {
-                    if (kind ==
-                        "SYNC_CAPS"
-                    ) {
-                        remove("relay")
-                    }
-                }.toString(),
-                stored, delivered = true
+                storedBody.toString(),
+                stored,
+                delivered = true,
+                hiddenFromChat = kind == "DATA" && ShareParts.transport(storedBody)
             )
         dao.insert(message)
+        if (message.hiddenFromChat) assembleShare(sender, device, storedBody)
         if (keepDigest) {
             database.relay().received(
                 app.ritela.data.sync.RelayReceivedRow(
@@ -1261,6 +1299,36 @@ class PartnerRepository(
                 }
             }
         }
+    private suspend fun assembleShare(
+        sender: PartnerIdentity,
+        device: PartnerDevice,
+        content: JSONObject
+    ) {
+        val batch = content.getString("batch")
+        if (dao.message(batch) != null) return
+        val expected = content.getInt("parts")
+        val stored = dao.history(sender.id).filter { message ->
+            !message.outgoing && message.device == device.id && message.hiddenFromChat &&
+                message.body.isNotEmpty() && runCatching {
+                    val body = JSONObject(message.body)
+                    body.optString("batch") == batch && body.optInt("parts") == expected
+                }.getOrDefault(false)
+        }
+        if (stored.map { JSONObject(it.body).getInt("part") }.toSet() !=
+            (0 until expected).toSet()
+        ) {
+            return
+        }
+        val merged = ShareParts.merge(stored.map { JSONObject(it.body) })
+        validateData(merged)
+        dao.insert(
+            PartnerMessage(
+                batch, sender.id, device.id, false, "DATA",
+                stored.minOf { it.created }, now(), merged.toString(), "", delivered = true
+            )
+        )
+    }
+
     private fun validateData(content: JSONObject) {
         val scope = PartnerCodec.scope(content.getJSONObject("scope"))
         require(scope.categories.isNotEmpty())
@@ -1316,6 +1384,13 @@ class PartnerRepository(
             require(it.getString("language") in listOf("system", "ru", "en"))
             ThemeMode.valueOf(it.getString("theme"))
         }
+        if (content.has("batch")) {
+            val count = content.getInt("parts")
+            require(count in 2..10000 && content.getInt("part") in 0 until count)
+            require(
+                UUID.fromString(content.getString("batch")).toString() == content.getString("batch")
+            )
+        }
         if (content.has("note")) {
             require(
                 content.getString("note").length in 1..app.ritela.domain.SavedDoodles.NOTE_LIMIT
@@ -1327,7 +1402,8 @@ class PartnerRepository(
                 it in setOf(
                     "scope", "periods", "days", "labels", "forecasts",
                     "cycleDay", "duration", "settings", "phase", "asOf",
-                    "calculatedAt", "algorithm", "cycleLength", "note", "doodle"
+                    "calculatedAt", "algorithm", "cycleLength", "note", "doodle",
+                    "batch", "part", "parts"
                 )
             }
         )

@@ -187,7 +187,6 @@ class SyncApplyRepository(
         }
         val snapshot = snapshot(peer, current.scope)
         validateSnapshot(snapshot)
-        require(snapshot.toString().toByteArray().size <= SyncLimits.BASELINE_BYTES)
         dao.state(current.copy(snapshot = canonicalJson(snapshot)))
     }
 
