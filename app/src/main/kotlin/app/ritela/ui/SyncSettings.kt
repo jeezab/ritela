@@ -33,9 +33,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ritela.R
 import app.ritela.RitelaApplication
-import app.ritela.data.sync.SyncQueueContents
-import app.ritela.data.sync.SyncQueueEntry
-import app.ritela.data.sync.SyncQueueStatus
 import app.ritela.data.sync.SyncSettingsRepository
 import app.ritela.data.sync.SyncSettingsSnapshot
 import kotlinx.coroutines.CancellationException
@@ -70,7 +67,6 @@ private sealed interface SyncSettingsLoad {
 
 @Composable
 internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () -> Unit) {
-    val session = LocalProfileSession.current
     val flow = remember(repository) {
         repository.snapshots.map<SyncSettingsSnapshot, SyncSettingsLoad> {
             SyncSettingsLoad.Ready(it)
@@ -84,9 +80,6 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
     val registered = (state as? SyncSettingsLoad.Ready)?.value?.registered == true
     val active = registered && (state as? SyncSettingsLoad.Ready)?.value?.internetRequested == true
     var disable by remember(repository) { mutableStateOf(false) }
-    var cancelling by remember(repository) { mutableStateOf<SyncQueueEntry?>(null) }
-    var details by remember(repository) { mutableStateOf<SyncQueueContents?>(null) }
-    var showDetails by remember(repository) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     fun perform(action: suspend () -> Unit) {
         scope.launch {
@@ -176,40 +169,13 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                                         stringResource(R.string.sync_connection_problem)
                                     )
                                 }
-                                SyncAction(R.string.sync_disable, "sync-disable", !working) {
-                                    disable =
-                                        true
-                                }
+                                OutlinedButton(
+                                    onClick = { disable = true },
+                                    enabled = !working,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                        .testTag("sync-disable")
+                                ) { Text(stringResource(R.string.sync_disable)) }
                             }
-                        }
-                        Text(
-                            stringResource(R.string.sync_queue_title),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            stringResource(R.string.sync_queue_description),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        if (loaded.value.entries.isEmpty()) {
-                            Text(
-                                stringResource(R.string.sync_queue_empty),
-                                modifier = Modifier.testTag("sync-queue-empty")
-                            )
-                        }
-                        loaded.value.entries.forEach { entry ->
-                            SyncQueueCard(
-                                entry,
-                                working,
-                                onDetails = {
-                                    perform {
-                                        details = repository.contents(entry.key)
-                                        showDetails =
-                                            true
-                                    }
-                                },
-                                onCancel = { cancelling = entry },
-                                onRetry = { perform { session?.syncNow(retry = true) } }
-                            )
                         }
                     }
                 }
@@ -256,43 +222,13 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                     Text(stringResource(R.string.sync_consent))
                 }
             }
-            if (disable || cancelling != null) {
-                val entry = cancelling
+            if (disable) {
                 AlertDialog(
-                    onDismissRequest = {
-                        disable = false
-                        cancelling = null
-                    },
-                    title = {
-                        Text(
-                            stringResource(
-                                if (disable) {
-                                    R.string.sync_disable
-                                } else if (entry?.records ==
-                                    true
-                                ) {
-                                    R.string.sync_pause_records
-                                } else {
-                                    R.string.sync_cancel_send
-                                }
-                            )
-                        )
-                    },
+                    onDismissRequest = { disable = false },
+                    title = { Text(stringResource(R.string.sync_disable)) },
                     text = {
                         Column(Modifier.verticalScroll(rememberScrollState())) {
-                            Text(
-                                stringResource(
-                                    if (disable) {
-                                        R.string.sync_disable_confirmation
-                                    } else if (entry?.records ==
-                                        true
-                                    ) {
-                                        R.string.sync_pause_confirmation
-                                    } else {
-                                        R.string.sync_cancel_confirmation
-                                    }
-                                )
-                            )
+                            Text(stringResource(R.string.sync_disable_confirmation))
                         }
                     },
                     confirmButton = {
@@ -302,146 +238,18 @@ internal fun SyncSettingsDialog(repository: SyncSettingsRepository, onClose: () 
                                 "sync-confirm-action"
                             ),
                             onClick = {
-                                val disabling = disable
                                 disable = false
-                                cancelling = null
-                                perform {
-                                    if (disabling) {
-                                        repository.disable()
-                                    } else {
-                                        entry?.let {
-                                            repository.cancel(it.key)
-                                        }
-                                    }
-                                }
+                                perform { repository.disable() }
                             }
                         ) { Text(stringResource(R.string.sync_confirm)) }
                     },
                     dismissButton = {
-                        TextButton(onClick = {
-                            disable = false
-                            cancelling = null
-                        }) { Text(stringResource(R.string.cancel)) }
-                    }
-                )
-            }
-            if (showDetails) {
-                AlertDialog(
-                    onDismissRequest = { showDetails = false },
-                    title = { Text(stringResource(R.string.sync_contents)) },
-                    text = {
-                        Column(
-                            Modifier.verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val contents = details
-                            if (contents ==
-                                null
-                            ) {
-                                Text(stringResource(R.string.sync_contents_unavailable))
-                            } else {
-                                contents.categories.forEach {
-                                    Text(stringResource(PartnerFormatter.category(it)))
-                                }
-                                if (contents.note) Text(stringResource(R.string.sync_note))
-                                if (contents.doodle) {
-                                    Text(
-                                        stringResource(R.string.partner_doodle_kind)
-                                    )
-                                }
-                                if (contents.categories.isEmpty() && !contents.note &&
-                                    !contents.doodle
-                                ) {
-                                    Text(stringResource(R.string.sync_receipt))
-                                }
-                            }
+                        TextButton(onClick = { disable = false }) {
+                            Text(stringResource(R.string.cancel))
                         }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            modifier = Modifier.testTag("sync-details-close"),
-                            onClick = {
-                                showDetails = false
-                            }
-                        ) { Text(stringResource(R.string.done)) }
                     }
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun SyncQueueCard(
-    entry: SyncQueueEntry,
-    working: Boolean,
-    onDetails: () -> Unit,
-    onCancel: () -> Unit,
-    onRetry: () -> Unit
-) {
-    SettingsGroup(Modifier.testTag("sync-entry-${entry.key}")) {
-        Text(
-            entry.recipient ?: stringResource(R.string.sync_recipient_unavailable),
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text(
-            stringResource(
-                when {
-                    entry.records -> R.string.sync_records
-                    entry.kind == "DOODLE" -> R.string.partner_doodle_kind
-                    entry.kind == "DATA" -> R.string.sync_message
-                    entry.kind == "SYNC_CAPS" -> R.string.sync_connection_controls
-                    else -> R.string.sync_receipt
-                }
-            )
-        )
-        Text(
-            stringResource(
-                when (entry.status) {
-                    SyncQueueStatus.WAITING -> R.string.sync_waiting
-
-                    SyncQueueStatus.BLOCKED -> if (entry.tooLarge) {
-                        R.string.sync_too_large
-                    } else {
-                        R.string.sync_blocked
-                    }
-
-                    SyncQueueStatus.AWAITING_RECEIPT -> R.string.sync_awaiting_receipt
-
-                    SyncQueueStatus.DELIVERED -> R.string.sync_delivered
-
-                    SyncQueueStatus.CANCELLED -> R.string.sync_cancelled
-
-                    SyncQueueStatus.UNAVAILABLE -> R.string.sync_status_unavailable
-                }
-            ),
-            modifier = Modifier.testTag("sync-status-${entry.key}")
-        )
-        SyncAction(R.string.sync_contents, "sync-contents-${entry.key}", !working, onDetails)
-        entry.problem?.let { problem ->
-            Text(stringResource(syncProblemText(problem)), color = MaterialTheme.colorScheme.error)
-            if (!entry.tooLarge) {
-                SyncAction(R.string.sync_chat_retry, "sync-retry-${entry.key}", !working, onRetry)
-            }
-        }
-        if (entry.canCancel) {
-            SyncAction(
-                if (entry.records) R.string.sync_pause_records else R.string.sync_cancel_send,
-                "sync-cancel-${entry.key}",
-                !working,
-                onCancel
-            )
-        }
-    }
-}
-
-@Composable
-private fun SyncAction(label: Int, tag: String, enabled: Boolean, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)
-    ) {
-        Text(stringResource(label))
     }
 }

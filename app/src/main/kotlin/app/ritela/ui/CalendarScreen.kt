@@ -68,7 +68,6 @@ import app.ritela.domain.monthDays
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import kotlinx.coroutines.launch
 
@@ -445,9 +444,7 @@ fun MonthHeader(
         ) { Text("‹", style = MaterialTheme.typography.headlineMedium) }
         TextButton(onClick = onChoose, modifier = Modifier.weight(1f).testTag("month-selector")) {
             Text(
-                month.format(
-                    DateTimeFormatter.ofPattern("LLLL yyyy", LocalConfiguration.current.locales[0])
-                ),
+                monthYearLabel(month, LocalConfiguration.current.locales[0]),
                 style = MaterialTheme.typography.titleLarge
             )
             Text(" ▾")
@@ -812,9 +809,7 @@ fun MonthYearPicker(
                             ).heightIn(min = 48.dp).testTag("select-month-$number")
                         ) {
                             Text(
-                                java.time.Month.of(
-                                    number
-                                ).getDisplayName(TextStyle.SHORT_STANDALONE, locale)
+                                monthShortLabel(number, locale)
                             )
                         }
                     }

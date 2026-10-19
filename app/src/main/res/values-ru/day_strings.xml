@@ -43,7 +43,7 @@
         <item quantity="other">%d дн.</item>
     </plurals>
     <string name="days_range">%1$d–%2$d дн.</string>
-    <string name="chart_empty">Отметьте два начала месячных — появится первая длина цикла.</string>
+    <string name="chart_empty">Отметьте два начала месячных, и график появится.</string>
     <string name="chart_values">Длина циклов в днях: %s</string>
     <string name="calendar_history">История записей</string>
     <string name="day_has_log">Есть отметки дня</string>

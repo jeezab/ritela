@@ -62,7 +62,6 @@ import app.ritela.domain.periodConflict
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.UUID
 import kotlinx.coroutines.launch
@@ -312,12 +311,7 @@ private fun PeriodEntryContent(
                     choosingMonth = true
                 }, modifier = Modifier.fillMaxWidth().testTag("month-selector")) {
                     Text(
-                        month.format(
-                            DateTimeFormatter.ofPattern(
-                                "LLLL yyyy",
-                                LocalConfiguration.current.locales[0]
-                            )
-                        ),
+                        monthYearLabel(month, LocalConfiguration.current.locales[0]),
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -329,11 +323,9 @@ private fun PeriodEntryContent(
                         val displayed = firstMonth.plusMonths(index.toLong())
                         Column {
                             Text(
-                                displayed.format(
-                                    DateTimeFormatter.ofPattern(
-                                        "LLLL yyyy",
-                                        LocalConfiguration.current.locales[0]
-                                    )
+                                monthYearLabel(
+                                    displayed,
+                                    LocalConfiguration.current.locales[0]
                                 ),
                                 Modifier.padding(vertical = 12.dp),
                                 style = MaterialTheme.typography.titleMedium

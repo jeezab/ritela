@@ -35,7 +35,6 @@ import app.ritela.R
 import app.ritela.domain.CalendarDayInfo
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 
 /** Common calendar display with dates supplied by the caller. */
@@ -79,12 +78,7 @@ internal fun CalendarMonthFeed(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    month.format(
-                        DateTimeFormatter.ofPattern(
-                            "LLLL yyyy",
-                            LocalConfiguration.current.locales[0]
-                        )
-                    ),
+                    monthYearLabel(month, LocalConfiguration.current.locales[0]),
                     style = MaterialTheme.typography.titleLarge,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
@@ -103,12 +97,7 @@ internal fun CalendarMonthFeed(
                 val displayed = firstMonth.plusMonths(index.toLong())
                 Column(Modifier.testTag("calendar-month-$displayed")) {
                     Text(
-                        displayed.format(
-                            DateTimeFormatter.ofPattern(
-                                "LLLL yyyy",
-                                LocalConfiguration.current.locales[0]
-                            )
-                        ),
+                        monthYearLabel(displayed, LocalConfiguration.current.locales[0]),
                         Modifier.padding(
                             horizontal = Spacing.medium,
                             vertical = Spacing.medium

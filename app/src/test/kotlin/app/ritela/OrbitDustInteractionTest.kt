@@ -65,7 +65,7 @@ class OrbitDustInteractionTest {
             }
             assertEquals(OrbitMarker.FOLLICULAR, selected.value)
             compose.onNodeWithText(
-                compose.activity.getString(R.string.help_follicular_body)
+                compose.activity.getString(R.string.orbit_follicular_info)
             ).assertIsDisplayed()
             compose.onNodeWithTag("orbit-phase-close").performClick()
         }
@@ -75,7 +75,7 @@ class OrbitDustInteractionTest {
             }
             assertEquals(OrbitMarker.LUTEAL, selected.value)
             compose.onNodeWithText(
-                compose.activity.getString(R.string.help_luteal_body)
+                compose.activity.getString(R.string.orbit_luteal_info)
             ).assertIsDisplayed()
             compose.onNodeWithTag("orbit-phase-close").performClick()
         }

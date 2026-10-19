@@ -118,4 +118,16 @@ class OrbitGeometryTest {
             assertTrue(geometry.labelClearsEllipse(luteal, width, 18f))
         }
     }
+
+    @Test fun lutealArrowStopsOutsideTheEllipse() {
+        val geometry = OrbitGeometry.inViewport(Size(350f, 228f), 32f)
+        val luteal = geometry.phaseCallout(350f, 228f, 160f, 18f, 8f, false)
+        val start = luteal + Offset(80f, 18f)
+        val aim = geometry.outsideAim(start, 0.46f, OrbitMarker.END.progress)
+        assertTrue((aim - geometry.center).getDistance() < (start - geometry.center).getDistance())
+        for (index in 0..16) {
+            val point = start + (aim - start) * (index / 16f)
+            assertFalse(geometry.insideEllipse(point))
+        }
+    }
 }

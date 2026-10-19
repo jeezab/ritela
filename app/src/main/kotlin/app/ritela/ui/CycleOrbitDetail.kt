@@ -17,6 +17,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -68,9 +69,9 @@ fun OrbitPhaseInfo(marker: OrbitMarker, onDismiss: () -> Unit) {
                         stringResource(
                             when (marker) {
                                 OrbitMarker.START -> R.string.orbit_start_info
-                                OrbitMarker.FOLLICULAR -> R.string.help_follicular_body
-                                OrbitMarker.OVULATION -> R.string.help_ovulation_body
-                                OrbitMarker.LUTEAL -> R.string.help_luteal_body
+                                OrbitMarker.FOLLICULAR -> R.string.orbit_follicular_info
+                                OrbitMarker.OVULATION -> R.string.orbit_ovulation_info
+                                OrbitMarker.LUTEAL -> R.string.orbit_luteal_info
                                 OrbitMarker.END -> R.string.orbit_end_info
                             }
                         )
@@ -201,7 +202,7 @@ internal fun CycleOrbitDetails(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                TextButton(onClick = {
+                                OutlinedButton(onClick = {
                                     focusDay =
                                         (focusDay - 1).coerceIn(1, state.length.toLong())
                                 }, modifier = Modifier.testTag("orbit-previous")) {
@@ -210,12 +211,12 @@ internal fun CycleOrbitDetails(
                                         stringResource(R.string.orbit_previous_day)
                                     )
                                 }
-                                TextButton(onClick = {
+                                OutlinedButton(onClick = {
                                     focusDay = state.currentDay
                                 }, modifier = Modifier.testTag("orbit-reset")) {
                                     Text(stringResource(R.string.home_title))
                                 }
-                                TextButton(onClick = {
+                                OutlinedButton(onClick = {
                                     focusDay =
                                         (focusDay + 1).coerceIn(1, state.length.toLong())
                                 }, modifier = Modifier.testTag("orbit-next")) {
@@ -226,16 +227,15 @@ internal fun CycleOrbitDetails(
                                 }
                             }
                             if (state.overdue) Text(stringResource(R.string.orbit_overdue))
-                            FlowRow {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OrbitMarker.entries.forEach { marker ->
-                                    TextButton(onClick = {
+                                    OutlinedButton(onClick = {
                                         selectedMarker = marker
                                     }, modifier = Modifier.testTag("orbit-legend-${marker.name}")) {
                                         Text(stringResource(orbitMarkerTitle(marker)))
                                     }
                                 }
                             }
-                            HelpCards(null, CycleAnalysis(), state.focusDate)
                         }
                     }
                 }

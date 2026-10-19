@@ -5,9 +5,12 @@ import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import app.ritela.domain.CalendarDayKind
 import app.ritela.ui.CalendarDayFormatter
+import app.ritela.ui.monthYearLabel
 import java.time.LocalDate
+import java.time.YearMonth
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,6 +48,15 @@ class CalendarDayFormatterTest {
             }
             assertEquals(5, CalendarDayKind.entries.map { formatter.status(it) }.distinct().size)
         }
+    }
+
+    @Test fun russianMonthHeadingUsesRussianName() {
+        val heading = monthYearLabel(YearMonth.of(2026, 10), Locale.forLanguageTag("ru"))
+        assertTrue(heading.lowercase().contains("октябрь"))
+        assertTrue(heading.contains("2026"))
+        val history = formatter("ru-RU").date(LocalDate.of(2026, 10, 30))
+        assertTrue(history.lowercase().contains("октября"))
+        assertFalse(history.contains("October"))
     }
 
     @Test fun datesAndRangesHandleMonthsYearsAndSingleDayWithoutDuplicateDates() {

@@ -150,10 +150,10 @@ class PartnerExperienceTest {
             compose.onNodeWithTag("orbit-open").performScrollTo().performClick()
             compose.onNodeWithTag("orbit-detail").assertIsDisplayed()
             compose.onNode(hasTestTag("help-cards") and hasAnyAncestor(hasTestTag("orbit-detail")))
-                .performScrollTo().assertIsDisplayed()
+                .assertDoesNotExist()
             compose.onNodeWithTag("orbit-legend-FOLLICULAR").performScrollTo().performClick()
             compose.onNode(
-                hasText(compose.activity.getString(R.string.help_follicular_body)) and
+                hasText(compose.activity.getString(R.string.orbit_follicular_info)) and
                     hasAnyAncestor(hasTestTag("orbit-phase-info"))
             ).assertIsDisplayed()
             compose.onNodeWithTag("orbit-phase-close").performClick()

@@ -108,6 +108,37 @@ internal class OrbitGeometry(
         return Offset(left, top)
     }
 
+    /** Nearest point of the arc, stopped just outside the ellipse so the arrow does not cross it. */
+    fun outsideAim(anchor: Offset, fromProgress: Float, toProgress: Float): Offset {
+        val start = min(fromProgress, toProgress)
+        val end = max(fromProgress, toProgress)
+        var nearest = position(start)
+        var best = Float.MAX_VALUE
+        val steps = 64
+        for (index in 0..steps) {
+            val point = position(start + (end - start) * index / steps.toFloat())
+            val distance = (point - anchor).getDistanceSquared()
+            if (distance < best) {
+                best = distance
+                nearest = point
+            }
+        }
+        var outside = anchor
+        val walk = 40
+        for (index in 1..walk) {
+            val point = anchor + (nearest - anchor) * (index / walk.toFloat())
+            if (insideEllipse(point)) return outside
+            outside = point
+        }
+        return outside
+    }
+
+    fun insideEllipse(point: Offset): Boolean {
+        val nx = (point.x - center.x) / horizontalRadius
+        val ny = (point.y - center.y) / verticalRadius
+        return nx * nx + ny * ny < 1f
+    }
+
     /** True when every sample of the label box is outside the ellipse. */
     fun labelClearsEllipse(topLeft: Offset, width: Float, height: Float): Boolean {
         val steps = 8

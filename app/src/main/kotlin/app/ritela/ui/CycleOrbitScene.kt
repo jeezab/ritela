@@ -409,15 +409,18 @@ fun CycleOrbitScene(
             Canvas(Modifier.fillMaxSize().clearAndSetSemantics {}) {
                 val follicularSize = labelSize(follicularLabel)
                 val lutealSize = labelSize(lutealLabel)
+                val follicularStart = follicularCallout + Offset(follicularSize.width * .5f, 0f)
+                val lutealStart = lutealCallout + Offset(lutealSize.width * .5f, lutealSize.height)
+                val ovulation = orbitOvulationProgress(cycleLength)
                 drawPhaseArrow(
-                    follicularCallout + Offset(follicularSize.width * .5f, 0f),
-                    geometry.position(orbitOvulationProgress(cycleLength) * .7f)
+                    follicularStart,
+                    geometry.position(ovulation * .7f),
+                    geometry.center
                 )
                 drawPhaseArrow(
-                    lutealCallout + Offset(lutealSize.width * .5f, lutealSize.height),
-                    geometry.position(
-                        (orbitOvulationProgress(cycleLength) + OrbitMarker.END.progress) / 2f
-                    )
+                    lutealStart,
+                    geometry.outsideAim(lutealStart, ovulation, OrbitMarker.END.progress),
+                    geometry.center
                 )
             }
             OrbitPhaseCaption(
@@ -491,14 +494,22 @@ private fun OrbitPhaseCaption(
     )
 }
 
-private fun DrawScope.drawPhaseArrow(start: Offset, target: Offset) {
+private fun DrawScope.drawPhaseArrow(start: Offset, target: Offset, center: Offset) {
     val delta = target - start
     val distance = delta.getDistance()
     if (distance < 8.dp.toPx()) return
     val direction = delta / distance
-    val normal = Offset(-direction.y, direction.x)
     val end = target - direction * 5.dp.toPx()
-    val control = (start + end) * .5f + normal * 6.dp.toPx()
+    val mid = (start + end) * .5f
+    val away = mid - center
+    val bend = if (away.getDistance() >
+        1f
+    ) {
+        away / away.getDistance()
+    } else {
+        Offset(-direction.y, direction.x)
+    }
+    val control = mid + bend * 4.dp.toPx()
     val tangent = (end - control).let { it / it.getDistance().coerceAtLeast(1f) }
     val side = Offset(-tangent.y, tangent.x)
     val head = 5.dp.toPx()

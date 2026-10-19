@@ -1,7 +1,6 @@
 <resources>
     <string name="sync_problem_route">The connection is incomplete or expired. Exchange an updated invitation with this contact.</string>
-    <string name="sync_connection_controls">Connection settings</string>
-    <string name="sync_connection_steps">Enable internet in both profiles before creating invitations. Registration is automatic, without an account or activation code. Exchange the invitation and responses, compare the verification code and confirm the connection. Medical access is selected separately.</string>
+    <string name="sync_connection_steps">Enable internet in both profiles before creating invitations. Registration is automatic, without an account or activation code. Exchange the invitation and responses, compare the verification code and confirm the connection. Diary access is selected separately.</string>
     <string name="sync_auto_enable">Automatically update this selection</string>
     <string name="sync_auto_consent">Send this package and allow future changes to the selected fields for this recipient. New fields stay private. The recipient approves updates once in the chat. You can stop updates in the contact details.</string>
     <string name="sync_auto_request">Request for automatic updates</string>

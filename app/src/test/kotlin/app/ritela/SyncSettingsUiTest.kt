@@ -57,7 +57,9 @@ class SyncSettingsUiTest {
         compose.onNodeWithTag("nav-settings").performClick()
         compose.onNodeWithTag("sync-settings").performScrollTo().performClick()
         compose.waitUntil(10000) {
-            compose.onAllNodesWithTag("sync-queue-empty").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithTag(
+                "sync-internet-unavailable"
+            ).fetchSemanticsNodes().isNotEmpty()
         }
         val internet = compose.onNodeWithTag("sync-internet-unavailable")
         if (BuildConfig.RELAY_ORIGIN.isEmpty()) {
@@ -65,7 +67,7 @@ class SyncSettingsUiTest {
         } else {
             internet.assertIsEnabled()
         }
-        compose.onNodeWithTag("sync-queue-empty").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("sync-internet-unavailable").performScrollTo().assertIsDisplayed()
         assertFalse(
             runBlocking {
                 app.profiles.session.value.syncSettings.read().internetRequested
@@ -111,7 +113,9 @@ class SyncSettingsUiTest {
                 HomeTheme { SyncSettingsDialog(repository) {} }
             }
             compose.waitUntil(10000) {
-                compose.onAllNodesWithTag("sync-queue-empty").fetchSemanticsNodes().isNotEmpty()
+                compose.onAllNodesWithTag(
+                    "sync-internet-unavailable"
+                ).fetchSemanticsNodes().isNotEmpty()
             }
             compose.onNodeWithTag("sync-internet-unavailable").performScrollTo().performClick()
             compose.onNodeWithTag("sync-activate-confirm").assertIsEnabled()
@@ -132,7 +136,7 @@ class SyncSettingsUiTest {
         }
     }
 
-    @Test fun contentsNeverExposeTextAndCancellationRequiresConfirmation() {
+    @Test fun settingsHideTheQueueAndMessageText() {
         ready()
         database { db ->
             runBlocking { seedSyncSettings(db) }
@@ -140,37 +144,16 @@ class SyncSettingsUiTest {
                 HomeTheme { SyncSettingsDialog(SyncSettingsRepository(db)) {} }
             }
             compose.waitUntil(10000) {
-                compose.onAllNodesWithTag("sync-entry-m:message").fetchSemanticsNodes().isNotEmpty()
+                compose.onAllNodesWithTag("sync-internet-unavailable")
+                    .fetchSemanticsNodes().isNotEmpty()
             }
-            compose.onNodeWithTag("sync-contents-m:message").performScrollTo().performClick()
-            compose.waitUntil(10000) {
-                compose.onAllNodesWithTag("sync-details-close").fetchSemanticsNodes().isNotEmpty()
-            }
-            compose.onNodeWithText("Текст послания").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithTag("sync-entry-m:message").assertDoesNotExist()
             compose.onNodeWithText("PRIVATE_SENTINEL").assertDoesNotExist()
-            compose.onNodeWithTag("sync-details-close").performClick()
-            compose.onNodeWithTag("sync-cancel-m:message").performScrollTo().performClick()
-            compose.onNodeWithText(compose.activity.getString(R.string.cancel)).performClick()
+            compose.onNodeWithText("Очередь и история").assertDoesNotExist()
             assertEquals(
                 "PENDING_WRAP",
-                runBlocking {
-                    db.syncMessageIntents().get("message")!!.state
-                }
+                runBlocking { db.syncMessageIntents().get("message")!!.state }
             )
-            compose.onNodeWithTag("sync-cancel-m:message").performScrollTo().performClick()
-            compose.onNodeWithTag("sync-confirm-action").performClick()
-            compose.waitUntil(5000) {
-                runBlocking { db.syncMessageIntents().get("message")!!.state == "CANCELLED" }
-            }
-            assertEquals(
-                "PRIVATE_SENTINEL",
-                org.json.JSONObject(
-                    runBlocking {
-                        db.partner().message("message")!!.body
-                    }
-                ).getString("note")
-            )
-            assertFalse(runBlocking { db.partner().message("message")!!.delivered })
             compose.activity.setContent {}
             compose.waitForIdle()
         }

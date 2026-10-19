@@ -10,6 +10,9 @@
     <string name="orbit_ovulation">Ovulation</string>
     <string name="orbit_luteal">Luteal phase</string>
     <string name="orbit_end">End / transition</string>
+    <string name="orbit_follicular_info">This part of the path is the time before ovulation, from day 1 of the period.</string>
+    <string name="orbit_ovulation_info">The pearl marks the estimated ovulation day. It is not a confirmed observation.</string>
+    <string name="orbit_luteal_info">This part of the path is the time after ovulation and before the next period.</string>
     <string name="orbit_start_info">The sun anchors the start of the cycle. Day 1 is the first day of your period.</string>
     <string name="orbit_end_info">The moon represents the ending and transition towards a new cycle. It does not predict the exact day your next period will start.</string>
     <string name="orbit_overdue">Your cycle is longer than the estimate. Today’s marker stays at the end of the path; a new cycle has not been assumed.</string>
