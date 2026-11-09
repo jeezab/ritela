@@ -55,7 +55,6 @@ $labels = [ordered]@{
     'home-recorded-dark' = 'История · тёмная тема'
     'home-narrow-large-text' = 'Узкий экран · шрифт 200%'
     'period-entry' = 'Запись дат'
-    'period-finish' = 'Выбор окончания'
     'period-edit' = 'Изменение дат'
     'period-delete' = 'Подтверждение удаления'
     'calendar-recorded' = 'Календарь · записанные даты'

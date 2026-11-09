@@ -127,6 +127,17 @@ class HomeScreenTest {
         compose.onNodeWithTag("forecast-hero").assertIsDisplayed()
         compose.onNodeWithText("Изменить даты").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Завершить").assertDoesNotExist()
+        saveRendering("home-active")
+        val saved = runBlocking { repository.periods.first().single() }
+        check(
+            runBlocking {
+                repository.edit(saved.id, start.minusDays(10), start.minusDays(6))
+            } == null
+        )
+        compose.activityRule.scenario.recreate()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Отметить месячные").fetchSemanticsNodes().isNotEmpty()
+        }
         saveRendering("home-recorded")
     }
 
