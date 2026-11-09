@@ -113,23 +113,20 @@ class HomeScreenTest {
         }
         compose.onNodeWithText("Отметить месячные").performClick()
         saveRendering("period-entry", dialog = true)
-        compose.onNodeWithTag("entry-ongoing").performClick()
         val repository = (compose.activity.application as RitelaApplication).periods
         assertTrue(runBlocking { repository.periods.first().isEmpty() })
         compose.onNodeWithTag("entry-save").assertIsEnabled().performClick()
+        val start = LocalDate.now()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isNotEmpty()
+            runBlocking {
+                val period = repository.periods.first().singleOrNull()
+                period?.start == start && period.end == start.plusDays(4)
+            } && compose.onAllNodesWithTag("forecast-hero").fetchSemanticsNodes().isNotEmpty()
         }
         compose.activityRule.scenario.recreate()
-        compose.onNodeWithText("Продолжается").assertIsDisplayed()
-        saveRendering("home-active")
-        compose.onNodeWithText("Завершить").performClick()
-        saveRendering("period-finish", dialog = true)
-        compose.onNodeWithText("Готово").performClick()
-        compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Продолжается").fetchSemanticsNodes().isEmpty()
-        }
-        compose.onNodeWithText("Отметить месячные").assertIsDisplayed()
+        compose.onNodeWithTag("forecast-hero").assertIsDisplayed()
+        compose.onNodeWithText("Изменить даты").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Завершить").assertDoesNotExist()
         saveRendering("home-recorded")
     }
 
@@ -174,9 +171,8 @@ class HomeScreenTest {
                     }
                 }
             }
-            compose.onNodeWithText(
-                if (ongoing) "Завершить" else "Отметить месячные"
-            ).assertIsDisplayed()
+            compose.onNodeWithText("Изменить даты").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Завершить").assertDoesNotExist()
             saveRendering(if (ongoing) "home-active-dark" else "home-recorded-dark")
         }
     }
@@ -215,14 +211,17 @@ class HomeScreenTest {
             compose.onAllNodesWithText("Изменить даты").fetchSemanticsNodes().isNotEmpty()
         }
         saveRendering("period-edit", dialog = true)
-        compose.onNodeWithTag("entry-ongoing").performClick()
+        val earlier = requireNotNull(original.end).minusDays(1)
+        compose.onNodeWithTag("entry-end").performClick()
+        compose.onNodeWithTag("entry-day-$earlier").performScrollTo().performClick()
+        compose.onNodeWithTag("entry-save").performClick()
         compose.waitUntil(10_000) {
-            runBlocking { repository.periods.first().single().end == null }
+            runBlocking { repository.periods.first().single().end == earlier }
         }
         val changed = runBlocking { repository.periods.first().single() }
         assertEquals(original.id, changed.id)
         assertEquals(original.createdAt, changed.createdAt)
-        assertEquals(null, changed.end)
+        assertEquals(earlier, changed.end)
         compose.onNodeWithTag("calendar-history").performClick()
         compose.onNodeWithText("Удалить").performScrollTo().performClick()
         saveRendering("period-delete", dialog = true)
@@ -264,7 +263,9 @@ class HomeScreenTest {
         compose.onNodeWithTag("entry-save").performClick()
         compose.waitUntil(10_000) { runBlocking { repository.periods.first().size == 2 } }
         val saved = runBlocking { repository.periods.first().first { it.start == day } }
-        assertEquals(day, saved.end)
+        val earlier = runBlocking { repository.periods.first().first { it.start == today } }
+        val length = app.ritela.domain.analyzeCycles(listOf(earlier), today).periodDuration
+        assertEquals(app.ritela.domain.filledPeriodEnd(day, length, listOf(earlier)), saved.end)
         saveRendering("calendar-recorded")
     }
 
@@ -413,11 +414,14 @@ class HomeScreenTest {
         }
         compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithText("Edit dates").assertIsDisplayed()
-        compose.onNodeWithTag("entry-ongoing").performClick()
+        val end = LocalDate.now()
+        compose.onNodeWithTag("entry-end").performClick()
+        compose.onNodeWithTag("entry-day-$end").performScrollTo().performClick()
+        compose.onNodeWithTag("entry-save").performClick()
         compose.waitUntil(10_000) {
             runBlocking {
                 (compose.activity.application as RitelaApplication)
-                    .periods.periods.first().single().end == null
+                    .periods.periods.first().single().end == end
             }
         }
         compose.onNodeWithTag("calendar-history").performClick()
@@ -736,7 +740,6 @@ class HomeScreenTest {
         saveRendering("period-occupied", dialog = true)
         compose.onNodeWithTag("entry-day-2026-10-08").performClick()
         compose.onNodeWithTag("entry-day-2026-10-16").assertIsNotEnabled()
-        compose.onNodeWithTag("entry-ongoing").assertIsNotEnabled()
         compose.onNodeWithTag("entry-save").assertIsEnabled()
         compose.onNodeWithTag("entry-day-2026-10-09").performClick()
         compose.onNodeWithTag("entry-save").assertIsEnabled()
@@ -790,7 +793,7 @@ class HomeScreenTest {
         compose.onNodeWithTag("cycle-insights").performScrollTo()
         saveRendering("home-sparklines")
         compose.onNodeWithText("31", substring = false).performScrollTo().performClick()
-        compose.onNodeWithText("7 мая 2026 г. · 31 дн.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("7 мая 2026 · 31 дн.").performScrollTo().assertIsDisplayed()
     }
 
     private fun renderForecastHome() {

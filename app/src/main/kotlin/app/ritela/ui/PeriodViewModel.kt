@@ -19,6 +19,8 @@ import app.ritela.domain.PeriodProblem
 import app.ritela.domain.PeriodRange
 import app.ritela.domain.PredictionDefaults
 import app.ritela.domain.analyzeCycles
+import app.ritela.domain.filledPeriodEnd
+import app.ritela.domain.periodConflict
 import java.time.LocalDate
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -106,11 +108,42 @@ class PeriodViewModel(
     }
 
     fun save(start: LocalDate, end: LocalDate?) {
-        persist { repository.add(start, end) }
+        persist { repository.add(start, end ?: filledEnd(start)) }
     }
 
     fun savePeriods(ranges: List<PeriodRange>) {
-        persist { repository.addAll(ranges) }
+        val resolved = ranges.map { range ->
+            if (range.end != null) range else PeriodRange(range.start, filledEnd(range.start))
+        }
+        persist { repository.addAll(resolved) }
+    }
+
+    /** An open record is the old "still going" state. Store the calculated length instead. */
+    fun fillOpenPeriods() {
+        val snapshot = state.value
+        if (snapshot.saving) return
+        val open = snapshot.periods.filter { it.end == null && it.id.toString() !in filledOpen }
+        if (open.isEmpty()) return
+        open.forEach { filledOpen += it.id.toString() }
+        viewModelScope.launch {
+            for (period in open) {
+                val end = filledPeriodEnd(
+                    period.start,
+                    snapshot.analysis.periodDuration,
+                    snapshot.periods,
+                    period.id
+                )
+                if (periodConflict(snapshot.periods, period.start, end, period.id) != null) continue
+                repository.edit(period.id, period.start, end)
+            }
+        }
+    }
+
+    private val filledOpen = mutableSetOf<String>()
+
+    private fun filledEnd(start: LocalDate): LocalDate {
+        val snapshot = state.value
+        return filledPeriodEnd(start, snapshot.analysis.periodDuration, snapshot.periods)
     }
 
     fun finish(id: UUID, end: LocalDate) {

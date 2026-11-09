@@ -14,12 +14,10 @@
     <string name="delete_title">Delete this period?</string>
     <string name="delete_description">This cannot be undone.</string>
     <string name="confirm_delete">Delete period</string>
-    <string name="clear_end">Still ongoing</string>
     <string name="period_range">%1$s — %2$s</string>
     <string name="start_date">Start: %1$s</string>
     <string name="end_date">End: %1$s</string>
     <string name="ongoing">Ongoing</string>
-    <string name="finish_period">Finish period</string>
     <string name="save">Save</string>
     <string name="saving">Saving…</string>
     <string name="cancel">Cancel</string>
@@ -49,7 +47,7 @@
     <string name="default_forecast_basis">Based on a %d-day cycle</string>
     <string name="choose_month">Month and year</string>
     <string name="year">Year</string>
-    <string name="range_entry_hint">Choose the start and end in either order.</string>
+    <string name="range_entry_hint">Choose the first day. The app fills the usual length right away. If bleeding stopped sooner, change the last day.</string>
     <plurals name="period_duration_days">
         <item quantity="one">Estimated duration: %d day</item>
         <item quantity="other">Estimated duration: %d days</item>

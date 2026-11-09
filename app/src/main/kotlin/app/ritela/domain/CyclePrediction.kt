@@ -58,7 +58,9 @@ fun analyzeCycles(
     val day = ChronoUnit.DAYS.between(latest.start, today) + 1
     val starts = ordered.map { it.start }
     val usable = recentIntervals(starts, today)
-    val durations = ordered.filter { it.end != null && it.start >= today.minusYears(1) }
+    val durations = ordered.filter {
+        it.end != null && it.end <= today && it.start >= today.minusYears(1)
+    }
         .takeLast(12).map { ChronoUnit.DAYS.between(it.start, it.end) + 1.0 }
     val duration = personalizedLength(durations, defaults.periodDuration, 3)
     val length = personalizedLength(usable, defaults.cycleLength, 4)

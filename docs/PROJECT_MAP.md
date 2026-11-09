@@ -1,5 +1,10 @@
 # Карта проекта
 
+2026-11-09: Period.filledPeriodEnd задаёт конец по periodDuration. Home больше не
+заменяет орбиту карточкой открытых месячных и не предлагает «Завершить».
+PeriodEntry заполняет длительность с первого дня. PeriodViewModel.fillOpenPeriods
+закрывает прежние записи без конца.
+
 2026-10-17: RelayRuntime/SyncSettings регистрируют устройство автоматически после
 согласия, без кода; Worker index/auth/config поддерживают auto enrollment, отдельный
 registration limiter и прежний legacy token path. AutomaticSharing показывает

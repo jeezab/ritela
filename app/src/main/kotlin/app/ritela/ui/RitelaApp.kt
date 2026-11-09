@@ -5,7 +5,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -68,7 +67,6 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
     }
     val pendingInvitation by pendingInvitations.collectAsStateWithLifecycle(initialValue = null)
     var adding by rememberSaveable { mutableStateOf(false) }
-    var finishingId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingId by rememberSaveable { mutableStateOf<String?>(null) }
     var loggingField by rememberSaveable { mutableStateOf<String?>(null) }
@@ -83,12 +81,14 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
         }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.refreshToday() }
+    LaunchedEffect(state.loading, state.periods.count { it.end == null }) {
+        if (!state.loading) model.fillOpenPeriods()
+    }
     LaunchedEffect(state.saved) {
         if (state.saved) {
             loggingDay = null
             loggingField = null
             adding = false
-            finishingId = null
             editingId = null
             deletingId = null
             model.clearResult()
@@ -101,8 +101,6 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
             adding = false
             loggingDay = null
             editingId = null
-            finishingId =
-                null
             deletingId = null
         }
     }
@@ -163,11 +161,6 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                         model.clearResult()
                         addingDay = state.today.toEpochDay()
                         adding = true
-                    },
-                    onFinish = {
-                        model.clearResult()
-                        finishingId =
-                            it.id.toString()
                     },
                     onEdit = {
                         editingId = it.id.toString()
@@ -271,23 +264,6 @@ fun RitelaApp(model: PeriodViewModel = viewModel(factory = PeriodViewModel.Facto
                 onChange = model::clearResult
             )
         }
-        finishingId?.let { id ->
-            PickDate(
-                LocalDate.now(),
-                minimum = state.periods.firstOrNull {
-                    it.id.toString() == id
-                }?.start,
-                onDismiss = {
-                    finishingId =
-                        null
-                },
-                onChoose = {
-                    model.finish(UUID.fromString(id), it)
-                    finishingId =
-                        null
-                }
-            )
-        }
     }
 }
 
@@ -296,7 +272,6 @@ fun HomeScreen(
     contentPadding: PaddingValues = PaddingValues(),
     state: PeriodUiState = PeriodUiState(loading = false),
     onAdd: () -> Unit = {},
-    onFinish: (Period) -> Unit = {},
     onEdit: (Period) -> Unit = {},
     onLogDay: () -> Unit = {},
     today: LocalDate = LocalDate.now(),
@@ -328,12 +303,16 @@ fun HomeScreen(
                 )
             }
             val active = state.periods.firstOrNull { it.end == null }
-            val latest = active ?: state.periods.firstOrNull()
-            val hasForecast =
-                !state.loading && active == null && state.analysis.forecasts.isNotEmpty()
-            if (hasForecast) ForecastCard(state.analysis, state.today)
+            val current = state.periods.firstOrNull { period ->
+                val end = period.end
+                today >= period.start && (end == null || today <= end)
+            } ?: active
+            val latest = current ?: state.periods.firstOrNull()
+            val hasForecast = !state.loading && state.analysis.forecasts.isNotEmpty()
+            val showCycle = !state.loading && state.periods.isNotEmpty()
+            if (showCycle) ForecastCard(state.analysis, state.today)
             if (hasForecast) HomeInsightTiles(state.analysis)
-            if (!hasForecast) {
+            if (!showCycle) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.extraLarge,
@@ -373,7 +352,7 @@ fun HomeScreen(
                     }
                 }
             }
-            if (active == null) {
+            if (current == null) {
                 Button(
                     onClick = onAdd,
                     enabled = !state.loading && !state.saving,
@@ -395,21 +374,15 @@ fun HomeScreen(
                     )
                 }
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.medium)) {
-                    TextButton(onClick = { onEdit(active) }, enabled = !state.saving) {
-                        Text(stringResource(R.string.edit))
-                    }
-                    Button(onClick = { onFinish(active) }, enabled = !state.saving) {
-                        Text(stringResource(R.string.finish_period))
-                    }
+                TextButton(
+                    onClick = { onEdit(current) },
+                    enabled = !state.saving,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = HomeSpacing.action)
+                ) {
+                    Text(stringResource(R.string.edit_period))
                 }
             }
             state.problem?.let { Text(problemText(it), color = MaterialTheme.colorScheme.error) }
-            if (!state.loading && state.periods.isNotEmpty() &&
-                active == null && !hasForecast
-            ) {
-                ForecastCard(state.analysis, state.today)
-            }
             DaySummary(
                 state.dayLogs.firstOrNull { it.date == today },
                 onLogDay,

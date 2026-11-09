@@ -68,13 +68,14 @@ fun ForecastCard(
     val orbit = orbitInteractionState(analysis, today)
     val next = analysis.forecasts.firstOrNull()
     val scene = cycleSceneState(analysis, today)
+    val orbitReady = analysis.cycleDay != null
     CycleForecastHero(
         analysis.cycleDay, next?.predictedStartDate, scene.phase, orbit.currentProgress,
-        today, reducedMotion, analysis.unavailable, next != null, orbit.length,
+        today, reducedMotion, analysis.unavailable, orbitReady, orbit.length,
         { showInfo = true }, { showOrbit = true }, { selectedMarker = it }
     )
     if (showInfo) PredictionMethodInfo(analysis) { showInfo = false }
-    if (showOrbit && next != null) {
+    if (showOrbit && orbitReady) {
         CycleOrbitDetail(analysis, today, reducedMotion) { showOrbit = false }
     }
     selectedMarker?.let { OrbitPhaseInfo(it) { selectedMarker = null } }

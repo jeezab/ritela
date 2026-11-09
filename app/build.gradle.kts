@@ -100,7 +100,9 @@ android {
         abortOnError = true
         warningsAsErrors = true
         // Pinned toolchain updates are advisory; correctness/privacy warnings still fail.
-        informational.addAll(listOf("AndroidGradlePluginVersion", "NewerVersionAvailable"))
+        informational.addAll(
+            listOf("AndroidGradlePluginVersion", "NewerVersionAvailable", "GradleDependency")
+        )
     }
 }
 

@@ -58,6 +58,7 @@ import app.ritela.domain.PeriodProblem
 import app.ritela.domain.PeriodRange
 import app.ritela.domain.PeriodRangeSelection
 import app.ritela.domain.calendarDay
+import app.ritela.domain.filledPeriodEnd
 import app.ritela.domain.periodConflict
 import java.time.Instant
 import java.time.LocalDate
@@ -118,11 +119,11 @@ private fun PeriodEntryContent(
     startEmpty: Boolean,
     onSaveBatch: ((List<PeriodRange>) -> Unit)?
 ) {
+    val duration = state.analysis.periodDuration.coerceAtLeast(1)
+    val suggestedEnd = filledPeriodEnd(initialStart, duration, state.periods, editingId)
     var startDay by rememberSaveable { mutableStateOf(initialStart.toEpochDay()) }
     var endDay by rememberSaveable {
-        mutableStateOf(
-            if (editing) initialEnd?.toEpochDay() else (initialEnd ?: initialStart).toEpochDay()
-        )
+        mutableStateOf<Long?>((initialEnd ?: suggestedEnd).toEpochDay())
     }
     var anchorDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var hasSelection by rememberSaveable { mutableStateOf(!startEmpty) }
@@ -158,7 +159,6 @@ private fun PeriodEntryContent(
     val others = state.periods.filter { it.id != editingId } + pendingRecords
     val closedValid =
         hasSelection && selection.end != null && selection.canSave(others, state.today)
-    val ongoingValid = hasSelection && selection.canKeepOngoing(others, state.today)
     val conflict = if (hasSelection) {
         periodConflict(
             others,
@@ -169,7 +169,8 @@ private fun PeriodEntryContent(
         null
     }
     val firstMonth = YearMonth.of(1900, 1)
-    val monthCount = (state.today.year - 1900) * 12 + state.today.monthValue
+    val lastVisible = state.today.plusDays(14)
+    val monthCount = (lastVisible.year - 1900) * 12 + lastVisible.monthValue
     fun indexOf(month: YearMonth): Int = ((month.year - 1900) * 12 + month.monthValue - 1)
         .coerceIn(0, monthCount - 1)
     val list =
@@ -344,7 +345,22 @@ private fun PeriodEntryContent(
                                     !state.saving &&
                                         selection.canPick(others, it, state.today)
                                 },
-                                onDay = { setSelection(selection.pick(it)) }
+                                onDay = { day ->
+                                    val picked = selection.pick(day)
+                                    val shown = if (!editing && picked.anchor != null) {
+                                        picked.copy(
+                                            end = filledPeriodEnd(
+                                                picked.start,
+                                                duration,
+                                                others,
+                                                editingId
+                                            )
+                                        )
+                                    } else {
+                                        picked
+                                    }
+                                    setSelection(shown)
+                                }
                             )
                         }
                     }
@@ -372,16 +388,6 @@ private fun PeriodEntryContent(
                     Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    OutlinedButton(
-                        { if (batchMode) markRange(null) else onSave(selection.start, null) },
-                        enabled = !state.saving && ongoingValid,
-                        modifier = Modifier.weight(
-                            1f
-                        ).fillMaxHeight().heightIn(min = 56.dp).testTag("entry-ongoing"),
-                        contentPadding = PaddingValues(6.dp)
-                    ) {
-                        Text(stringResource(R.string.clear_end), textAlign = TextAlign.Center)
-                    }
                     if (batchMode) {
                         OutlinedButton(
                             { markRange(requireNotNull(selection.end)) },

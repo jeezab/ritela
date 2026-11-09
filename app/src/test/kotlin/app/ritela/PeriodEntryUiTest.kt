@@ -72,7 +72,7 @@ class PeriodEntryUiTest {
             }
         }
         compose.onNodeWithTag("month-selector")
-            .assertTextEquals("август 2026")
+            .assertTextEquals("Август 2026")
         compose.onNodeWithTag("month-selector").performClick()
         compose.onNodeWithTag("select-month-10").assertTextEquals(
             java.time.Month.OCTOBER.getDisplayName(
@@ -97,7 +97,6 @@ class PeriodEntryUiTest {
         }
         compose.onNodeWithTag("entry-day-${first.plusDays(2)}").performClick()
         compose.onNodeWithTag("entry-day-$first").performClick().assertIsSelected()
-        compose.onNodeWithTag("entry-ongoing").assertIsNotEnabled()
         compose.onNodeWithTag("entry-save").assertIsEnabled().performClick()
         assertEquals(first to first.plusDays(2), saved)
         compose.onNodeWithTag("next-month").assertDoesNotExist()
@@ -157,11 +156,10 @@ class PeriodEntryUiTest {
                 )
             }
         }
-        val bounds = listOf("entry-ongoing", "entry-save", "entry-save-more").map {
+        val bounds = listOf("entry-save", "entry-save-more").map {
             compose.onNodeWithTag(it).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         }
         assertEquals(bounds[0].height, bounds[1].height, 1f)
-        assertEquals(bounds[0].height, bounds[2].height, 1f)
         assertTrue(
             compose.onNodeWithTag("entry-month-grid").fetchSemanticsNode().boundsInRoot.height > 48
         )
@@ -242,7 +240,7 @@ class PeriodEntryUiTest {
         assertTrue(runBlocking { repository.periods.first().isEmpty() })
     }
 
-    @Test fun ongoingDraftBlocksFollowingDaysAndSavesOnlyOnConfirmation() {
+    @Test fun choosingAStartFillsTheCalculatedLength() {
         val repository = (compose.activity.application as RitelaApplication).periods
         val start = LocalDate.now().minusDays(2)
         compose.waitUntil(10_000) {
@@ -251,8 +249,6 @@ class PeriodEntryUiTest {
         }
         compose.onNodeWithText("Отметить месячные").performClick()
         compose.onNodeWithTag("entry-day-$start").performClick()
-        compose.onNodeWithTag("entry-ongoing").performClick()
-        compose.onNodeWithTag("entry-day-${LocalDate.now()}").assertIsNotEnabled()
         assertTrue(runBlocking { repository.periods.first().isEmpty() })
         compose.onNodeWithTag("entry-save").performClick()
         compose.waitUntil(10_000) {
@@ -261,7 +257,7 @@ class PeriodEntryUiTest {
         }
         val period = runBlocking { repository.periods.first().single() }
         assertEquals(start, period.start)
-        assertEquals(null, period.end)
+        assertEquals(start.plusDays(4), period.end)
     }
 
     @Test fun failedSaveKeepsMarkedRangesForRetry() {

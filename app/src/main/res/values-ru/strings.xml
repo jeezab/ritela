@@ -14,12 +14,10 @@
     <string name="delete_title">Удалить запись?</string>
     <string name="delete_description">Вернуть её после удаления не получится.</string>
     <string name="confirm_delete">Удалить запись</string>
-    <string name="clear_end">Ещё идут</string>
     <string name="period_range">%1$s — %2$s</string>
     <string name="start_date">Начало: %1$s</string>
     <string name="end_date">Окончание: %1$s</string>
     <string name="ongoing">Продолжается</string>
-    <string name="finish_period">Завершить</string>
     <string name="save">Сохранить</string>
     <string name="saving">Сохранение…</string>
     <string name="cancel">Отмена</string>
@@ -51,7 +49,7 @@
     <string name="default_forecast_basis">На основе цикла в %d дней</string>
     <string name="choose_month">Месяц и год</string>
     <string name="year">Год</string>
-    <string name="range_entry_hint">Выберите начало и конец периода в любом порядке.</string>
+    <string name="range_entry_hint">Выберите первый день. Приложение сразу отметит обычную длительность. Если месячные закончились раньше, измените последний день.</string>
     <plurals name="period_duration_days">
         <item quantity="one">Ожидаемая длительность: %d день</item>
         <item quantity="few">Ожидаемая длительность: %d дня</item>
