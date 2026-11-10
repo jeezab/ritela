@@ -409,10 +409,19 @@ private fun CalendarDayDetails(
                     if (date <=
                         state.today
                     ) {
-                        TextButton(
+                        Button(
                             onClick = { onAdd(date) },
-                            enabled =
-                                !state.loading && !state.saving
+                            enabled = !state.loading && !state.saving,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = HomeSpacing.action)
+                                .background(
+                                    HomeColors.action,
+                                    androidx.compose.foundation.shape.CircleShape
+                                ),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                contentColor = HomeColors.bottom
+                            )
                         ) {
                             Icon(painterResource(R.drawable.ic_drop), null)
                             Text(

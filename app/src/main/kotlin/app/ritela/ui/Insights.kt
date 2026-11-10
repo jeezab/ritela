@@ -15,6 +15,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -150,10 +151,11 @@ fun CalendarDayRecords(
             )
             log?.calendarIcon?.let { Icon(painterResource(journalIcon(it)), null) }
             if (editable) {
-                TextButton(onClick = onEdit, modifier = Modifier.testTag("log-day")) {
-                    Text(
-                        stringResource(R.string.selected_day_add_record)
-                    )
+                OutlinedButton(
+                    onClick = onEdit,
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("log-day")
+                ) {
+                    Text(stringResource(R.string.selected_day_add_record))
                 }
             }
         }
