@@ -4,6 +4,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertHasClickAction
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -21,7 +23,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Density
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import app.ritela.data.PartnerMessage
 import app.ritela.domain.PartnerContact
 import app.ritela.domain.PartnerSharing
@@ -451,6 +457,98 @@ class PartnerMessengerTest {
         }
         compose.onNodeWithText("Margo").assertIsDisplayed()
         compose.onNodeWithText("Alex").assertIsDisplayed()
+    }
+
+    @Test fun composerRisesByOneKeyboardHeight() {
+        ready()
+        compose.activity.setContent {
+            HomeTheme { ConversationPreviewContent("doodle") }
+        }
+        val before = compose.onNodeWithTag(
+            "partner-composer"
+        ).fetchSemanticsNode().boundsInRoot.bottom
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot.bottom
+        val keyboard = 480
+        compose.runOnIdle {
+            val view = compose.activity.window.decorView
+            val insets = WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, keyboard))
+                .build()
+            ViewCompat.dispatchApplyWindowInsets(view, insets)
+        }
+        compose.onNodeWithTag("partner-message-field").performClick()
+        compose.waitForIdle()
+        val after = compose.onNodeWithTag(
+            "partner-composer"
+        ).fetchSemanticsNode().boundsInRoot.bottom
+        val lift = before - after
+        assertTrue(
+            "Field rose $lift px for a $keyboard px keyboard (root $root, before $before, after $after)",
+            lift in (keyboard - 80f)..(keyboard + 80f)
+        )
+    }
+
+    @Test fun deletedDoodleDoesNotStayOnTheConversation() {
+        ready()
+        val now = 1791792000000L
+        val contact = PartnerContact("preview", "Margo", setOf("peer"))
+        val doodle = app.ritela.domain.Doodle(
+            listOf(
+                app.ritela.domain.DoodleStroke(
+                    listOf(
+                        app.ritela.domain.DoodlePoint(.2f, .3f),
+                        app.ritela.domain.DoodlePoint(.8f, .7f)
+                    ),
+                    0xFFDB8298,
+                    .08f
+                )
+            )
+        )
+        val drawn = PartnerMessage(
+            "doodle", "peer", "device", true, "DOODLE", now, now,
+            app.ritela.data.PartnerCodec.doodle(doodle).toString(), "", delivered = true
+        )
+        val note = message("note", "peer", now + 60000)
+        val shown = mutableStateOf(listOf(drawn, note))
+        compose.activity.setContent {
+            HomeTheme {
+                PartnerConversation(
+                    contact, shown.value, "", false, true, now, {}, {}, {}, {}, {},
+                    delete = { message, _ ->
+                        shown.value = shown.value.filter { it.id != message.id }
+                    }
+                )
+            }
+        }
+        compose.onNodeWithTag("partner-thumbnail-doodle").assertIsDisplayed()
+        val before = compose.onRoot().captureToImage().asAndroidBitmap()
+        compose.onNodeWithTag("partner-message-actions-doodle").performTouchInput {
+            longClick(Offset(20f, 20f))
+        }
+        compose.onNodeWithTag("partner-message-delete").performClick()
+        compose.onNodeWithTag("partner-message-delete-confirm").performClick()
+        compose.onNodeWithTag("partner-message-doodle").assertDoesNotExist()
+        compose.onNodeWithTag("partner-thumbnail-doodle").assertDoesNotExist()
+        compose.waitForIdle()
+        val after = compose.onRoot().captureToImage().asAndroidBitmap()
+        assertTrue(rosePixels(before) > 20)
+        assertEquals(0, rosePixels(after))
+    }
+
+    private fun rosePixels(bitmap: android.graphics.Bitmap): Int {
+        var count = 0
+        for (y in 0 until bitmap.height) {
+            for (x in 0 until bitmap.width) {
+                val pixel = bitmap.getPixel(x, y)
+                val red = android.graphics.Color.red(pixel)
+                val green = android.graphics.Color.green(pixel)
+                val blue = android.graphics.Color.blue(pixel)
+                if (red in 180..240 && green in 90..160 && blue in 120..180 && red > green + 30) {
+                    count++
+                }
+            }
+        }
+        return count
     }
 
     private fun message(id: String, identity: String, time: Long) = PartnerMessage(
