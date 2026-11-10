@@ -701,9 +701,7 @@ class PartnerRepository(
                 val id = packetId ?: UUID.randomUUID().toString()
                 val created = now()
                 val envelope = manualEnvelope(keys, contact, remote, kind, id, created, payload)
-                val parts = if (kind ==
-                    "DATA"
-                ) {
+                val parts = if (kind == "DATA" || kind == "DOODLE") {
                     ShareParts.split(payload, id)?.takeIf { it.size > 1 }
                 } else {
                     null
@@ -1052,7 +1050,8 @@ class PartnerRepository(
                 storedBody.toString(),
                 stored,
                 delivered = true,
-                hiddenFromChat = kind == "DATA" && ShareParts.transport(storedBody)
+                hiddenFromChat = kind in setOf("DATA", "DOODLE") &&
+                    ShareParts.transport(storedBody)
             )
         dao.insert(message)
         if (message.hiddenFromChat) assembleShare(sender, device, storedBody)
@@ -1347,10 +1346,16 @@ class PartnerRepository(
             return
         }
         val merged = ShareParts.merge(stored.map { JSONObject(it.body) })
-        validateData(merged)
+        val kind = stored.map { it.kind }.toSet().single()
+        if (kind == "DOODLE") {
+            PartnerCodec.doodle(merged)
+        } else {
+            require(kind == "DATA")
+            validateData(merged)
+        }
         dao.insert(
             PartnerMessage(
-                batch, sender.id, device.id, false, "DATA",
+                batch, sender.id, device.id, false, kind,
                 stored.minOf { it.created }, now(), merged.toString(), "", delivered = true
             )
         )

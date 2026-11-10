@@ -109,7 +109,10 @@ class SyncMessageQueue(private val database: RitelaDatabase) {
 
     /** Parent stays visible and unwrapped; its hidden parts are the internet packets. */
     suspend fun hold(message: PartnerMessage): SyncMessageOffer = database.withTransaction {
-        require(message.outgoing && message.kind == "DATA" && !message.hiddenFromChat)
+        require(
+            message.outgoing && message.kind in setOf("DATA", "DOODLE") &&
+                !message.hiddenFromChat
+        )
         if (dao.get(message.id) != null) return@withTransaction SyncMessageOffer.EXISTS
         require(database.partner().message(message.id) == message)
         val link = binding(message) ?: return@withTransaction SyncMessageOffer.OFF

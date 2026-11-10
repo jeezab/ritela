@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.ritela.data.DayLogEntity
 import app.ritela.data.LocalPartnerKeys
+import app.ritela.data.PartnerCodec
 import app.ritela.data.PartnerMessage
 import app.ritela.data.PartnerRepository
 import app.ritela.data.RitelaDatabase
@@ -217,16 +218,49 @@ class SyncMessageQueueTest {
         }
     }
 
-    @Test fun oversizedDoodleKeepsManualExchangeAndBlocksInternetIntent() = runBlocking {
+    @Test fun largeDoodleAndDiaryDrawingAreQueuedInParts() = runBlocking {
         Pair().use { p ->
             p.setup()
             p.allow(p.a, p.kb.identityId, p.kb.deviceId)
             val message = p.ra.prepareDoodle(p.kb.identityId, p.kb.deviceId, doodle(4001))
-            assertEquals("BLOCKED", p.a.syncMessageIntents().get(message.id)!!.state)
-            assertEquals("MESSAGE_TOO_LARGE", p.a.syncMessageIntents().get(message.id)!!.errorCode)
-            assertTrue(SyncMessageQueue(p.a).pending().isEmpty())
-            assertEquals(message, p.ra.retry(message.id))
-            assertEquals(message.id, p.rb.receive(message.envelope.toByteArray()).message.id)
+            val parent = p.a.syncMessageIntents().get(message.id)!!
+            assertEquals("PENDING_PARTS", parent.state)
+            assertNotEquals("MESSAGE_TOO_LARGE", parent.errorCode)
+            assertTrue(message.envelope.isNotEmpty())
+            val parts = SyncMessageQueue(p.a).pending()
+            assertTrue(parts.size > 1)
+            assertTrue(
+                parts.all {
+                    it.hiddenFromChat &&
+                        it.body.toByteArray().size <= SyncLimits.PROJECTED_BYTES - 2048
+                }
+            )
+            for (part in parts.reversed()) p.rb.receive(part.envelope.toByteArray())
+            val merged = PartnerCodec.doodle(JSONObject(p.b.partner().message(message.id)!!.body))
+            assertEquals(1, merged.strokes.size)
+            assertEquals(4001, merged.strokes.sumOf { it.points.size })
+            for (part in parts) {
+                p.ra.receive(
+                    p.rb.acknowledgement(p.b.partner().message(part.id)!!).envelope.toByteArray()
+                )
+            }
+            assertTrue(p.ra.retry(message.id).delivered)
+            val shared = p.ra.confirmData(
+                p.kb.identityId,
+                p.kb.deviceId,
+                ShareScope(setOf(ShareCategory.SECTIONS), setOf("note")),
+                "hello",
+                doodle(4001)
+            )
+            assertEquals("PENDING_PARTS", p.a.syncMessageIntents().get(shared.id)!!.state)
+            val shareParts = SyncMessageQueue(p.a).pending()
+            assertTrue(shareParts.size > 1)
+            assertTrue(shareParts.none { it.id == shared.id })
+            for (part in shareParts.reversed()) p.rb.receive(part.envelope.toByteArray())
+            val restored = PartnerCodec.doodle(
+                JSONObject(p.b.partner().message(shared.id)!!.body).getJSONObject("doodle")
+            )
+            assertEquals(4001, restored.strokes.sumOf { it.points.size })
         }
     }
 
