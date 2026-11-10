@@ -319,7 +319,7 @@ internal fun DoodleEditor(
 
 @Composable
 internal fun DoodleThumbnail(strokes: List<DoodleStroke>, modifier: Modifier = Modifier) {
-    Canvas(modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+    Canvas(modifier) {
         drawDoodle(strokes)
     }
 }

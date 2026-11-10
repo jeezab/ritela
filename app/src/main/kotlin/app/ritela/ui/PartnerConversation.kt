@@ -48,8 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -299,7 +297,6 @@ internal fun PartnerConversation(
     var draft by rememberSaveable { mutableStateOf("") }
     var attachments by remember { mutableStateOf(false) }
     val formatter = PartnerFormatter(LocalResources.current)
-    val reducedMotion = orbitReducedMotion()
     val menuLabel = stringResource(R.string.partner_chat_menu)
     val addLabel = stringResource(R.string.partner_chat_add)
     val backLabel = stringResource(R.string.partner_back)
@@ -442,15 +439,7 @@ internal fun PartnerConversation(
                             },
                             { retry(message) },
                             !busy,
-                            if (reducedMotion) {
-                                Modifier
-                            } else {
-                                Modifier.animateItem(
-                                    fadeInSpec = tween(180),
-                                    placementSpec = null,
-                                    fadeOutSpec = tween(120)
-                                )
-                            },
+                            Modifier,
                             sender = sender,
                             delete = delete?.let { action -> { erase -> action(message, erase) } }
                         )
@@ -605,9 +594,8 @@ internal fun PartnerMessageBubble(
                                 )
                         if (visible) {
                             Canvas(
-                                Modifier.fillMaxWidth().height(104.dp).graphicsLayer {
-                                    compositingStrategy = CompositingStrategy.Offscreen
-                                }.testTag("partner-thumbnail-${message.id}")
+                                Modifier.fillMaxWidth().height(104.dp)
+                                    .testTag("partner-thumbnail-${message.id}")
                             ) { drawDoodle(doodle.strokes) }
                             if (doodle.caption.isNotBlank()) {
                                 Text(
