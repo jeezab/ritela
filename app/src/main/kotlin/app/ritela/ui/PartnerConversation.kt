@@ -20,13 +20,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -47,6 +50,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -501,7 +505,9 @@ internal fun PartnerConversation(
                         singleLine = true,
                         placeholder = { Text(stringResource(R.string.partner_message_hint)) }
                     )
-                    Button(
+                    val canSubmit = !busy && canSend && draft.isNotBlank()
+                    val sendLabel = stringResource(R.string.partner_send_message)
+                    IconButton(
                         {
                             val text = draft.trim()
                             if (text.isNotEmpty()) {
@@ -509,9 +515,26 @@ internal fun PartnerConversation(
                                 draft = ""
                             }
                         },
-                        Modifier.testTag("partner-create-message"),
-                        enabled = !busy && canSend && draft.isNotBlank()
-                    ) { Text(stringResource(R.string.partner_send_message)) }
+                        Modifier.padding(start = 4.dp).size(40.dp).background(
+                            if (canSubmit) {
+                                HomeColors.rose
+                            } else {
+                                HomeColors.border.copy(
+                                    alpha = 0.35f
+                                )
+                            },
+                            CircleShape
+                        ).testTag("partner-create-message").semantics {
+                            contentDescription = sendLabel
+                        },
+                        enabled = canSubmit
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_send),
+                            null,
+                            tint = if (canSubmit) HomeColors.text else HomeColors.muted
+                        )
+                    }
                 }
                 Text(
                     stringResource(R.string.partner_chat_manual),
