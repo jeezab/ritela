@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -138,18 +140,26 @@ internal fun CalendarMonthFeed(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            TextButton(onClick = {
-                showMonth(center)
-            }, modifier = Modifier.weight(1f).testTag("calendar-today")) {
+            OutlinedButton(
+                onClick = {
+                    showMonth(center)
+                },
+                modifier = Modifier.weight(1f).padding(end = 4.dp).heightIn(min = 48.dp)
+                    .testTag("calendar-today")
+            ) {
                 if (LocalDensity.current.fontScale > 1.3f) {
                     Icon(painterResource(R.drawable.ic_today), stringResource(R.string.home_title))
                 } else {
                     Text(stringResource(R.string.home_title))
                 }
             }
-            TextButton(onClick = {
-                onHistory()
-            }, modifier = Modifier.weight(1f).testTag("calendar-history")) {
+            OutlinedButton(
+                onClick = {
+                    onHistory()
+                },
+                modifier = Modifier.weight(1f).padding(start = 4.dp).heightIn(min = 48.dp)
+                    .testTag("calendar-history")
+            ) {
                 if (LocalDensity.current.fontScale > 1.3f) {
                     Icon(
                         painterResource(R.drawable.ic_chart),

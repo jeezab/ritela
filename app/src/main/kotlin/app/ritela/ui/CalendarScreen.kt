@@ -220,9 +220,10 @@ private fun CalendarContent(
                             }
                         }
                     }
-                    TextButton(onClick = {
-                        historyOpen = false
-                    }) { Text(stringResource(R.string.done)) }
+                    OutlinedButton(
+                        onClick = { historyOpen = false },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    ) { Text(stringResource(R.string.done)) }
                 }
             }
         }
