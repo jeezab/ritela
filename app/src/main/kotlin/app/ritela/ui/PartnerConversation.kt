@@ -24,8 +24,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -301,7 +303,7 @@ internal fun PartnerConversation(
     val menuLabel = stringResource(R.string.partner_chat_menu)
     val addLabel = stringResource(R.string.partner_chat_add)
     val backLabel = stringResource(R.string.partner_back)
-    Column(modifier.fillMaxSize().background(HomeColors.background).imePadding()) {
+    Column(modifier.fillMaxSize().background(HomeColors.background)) {
         Surface(color = HomeColors.top) {
             Row(
                 Modifier.fillMaxWidth().padding(end = 4.dp),
@@ -458,7 +460,7 @@ internal fun PartnerConversation(
         }
         Surface(color = HomeColors.top, shadowElevation = 4.dp) {
             Column(
-                Modifier.fillMaxWidth().padding(
+                Modifier.fillMaxWidth().imePadding().padding(
                     horizontal = 12.dp,
                     vertical = 6.dp
                 ).testTag("partner-composer")
@@ -497,14 +499,18 @@ internal fun PartnerConversation(
                             }
                         }
                     }
-                    androidx.compose.material3.OutlinedTextField(
-                        draft,
-                        { draft = it.take(app.ritela.domain.SavedDoodles.NOTE_LIMIT) },
-                        Modifier.weight(1f).testTag("partner-message-field"),
-                        enabled = !busy && canSend,
-                        singleLine = true,
-                        placeholder = { Text(stringResource(R.string.partner_message_hint)) }
-                    )
+                    Box(
+                        Modifier.weight(1f).height(56.dp).verticalScroll(rememberScrollState())
+                    ) {
+                        androidx.compose.material3.OutlinedTextField(
+                            draft,
+                            { draft = it.take(app.ritela.domain.SavedDoodles.NOTE_LIMIT) },
+                            Modifier.fillMaxWidth().testTag("partner-message-field"),
+                            enabled = !busy && canSend,
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.partner_message_hint)) }
+                        )
+                    }
                     val canSubmit = !busy && canSend && draft.isNotBlank()
                     val sendLabel = stringResource(R.string.partner_send_message)
                     IconButton(
