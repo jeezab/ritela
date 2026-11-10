@@ -59,6 +59,7 @@ import app.ritela.domain.PeriodRange
 import app.ritela.domain.PeriodRangeSelection
 import app.ritela.domain.calendarDay
 import app.ritela.domain.filledPeriodEnd
+import app.ritela.domain.latestSelectablePeriodEnd
 import app.ritela.domain.periodConflict
 import java.time.Instant
 import java.time.LocalDate
@@ -169,7 +170,7 @@ private fun PeriodEntryContent(
         null
     }
     val firstMonth = YearMonth.of(1900, 1)
-    val lastVisible = state.today.plusDays(14)
+    val lastVisible = latestSelectablePeriodEnd(state.today)
     val monthCount = (lastVisible.year - 1900) * 12 + lastVisible.monthValue
     fun indexOf(month: YearMonth): Int = ((month.year - 1900) * 12 + month.monthValue - 1)
         .coerceIn(0, monthCount - 1)
@@ -339,7 +340,7 @@ private fun PeriodEntryContent(
                                 tagPrefix = "entry-day",
                                 rangeStart = if (hasSelection) selection.start else null,
                                 rangeEnd = if (hasSelection) selection.end else null,
-                                futureEnabled = false,
+                                futureEnabled = true,
                                 info = { calendarDay(others, CycleAnalysis(), it, state.today) },
                                 dayEnabled = {
                                     !state.saving &&

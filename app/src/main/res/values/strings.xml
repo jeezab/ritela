@@ -47,7 +47,7 @@
     <string name="default_forecast_basis">Based on a %d-day cycle</string>
     <string name="choose_month">Month and year</string>
     <string name="year">Year</string>
-    <string name="range_entry_hint">Choose the first day. The app fills the usual length right away. If bleeding stopped sooner, change the last day.</string>
+    <string name="range_entry_hint">Choose the first day. The app fills the calculated length right away.</string>
     <plurals name="period_duration_days">
         <item quantity="one">Estimated duration: %d day</item>
         <item quantity="other">Estimated duration: %d days</item>

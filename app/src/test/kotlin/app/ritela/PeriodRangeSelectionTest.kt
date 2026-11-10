@@ -46,7 +46,13 @@ class PeriodRangeSelectionTest {
         assertFalse(before.canPick(listOf(existing), existing.start, today))
         assertTrue(before.canPick(listOf(existing), before.start.plusDays(1), today))
         assertTrue(PeriodRangeSelection(existing.start, existing.end).canSave(emptyList(), today))
-        assertFalse(before.canPick(emptyList(), today.plusDays(1), today))
+        assertTrue(before.canPick(emptyList(), today.plusDays(1), today))
+        val extended = before.pick(today.plusDays(4))
+        assertEquals(today.plusDays(4), extended.end)
+        assertTrue(extended.canSave(emptyList(), today))
+        assertTrue(before.canPick(emptyList(), today.plusDays(14), today))
+        assertFalse(before.canPick(emptyList(), today.plusDays(15), today))
+        assertFalse(PeriodRangeSelection(today).canPick(emptyList(), today.plusDays(1), today))
         assertFalse(PeriodRangeSelection(today.plusDays(1)).canKeepOngoing(emptyList(), today))
     }
 

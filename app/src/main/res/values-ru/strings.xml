@@ -49,7 +49,7 @@
     <string name="default_forecast_basis">На основе цикла в %d дней</string>
     <string name="choose_month">Месяц и год</string>
     <string name="year">Год</string>
-    <string name="range_entry_hint">Выберите первый день. Приложение сразу отметит обычную длительность. Если месячные закончились раньше, измените последний день.</string>
+    <string name="range_entry_hint">Выберите первый день. Приложение сразу отметит расчётную длительность.</string>
     <plurals name="period_duration_days">
         <item quantity="one">Ожидаемая длительность: %d день</item>
         <item quantity="few">Ожидаемая длительность: %d дня</item>
