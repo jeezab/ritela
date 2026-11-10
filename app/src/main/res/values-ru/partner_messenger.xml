@@ -1,6 +1,6 @@
 <resources>
     <string name="partner_chat_to">Для %1$s</string>
-    <string name="partner_chat_manual">Файл или Bluetooth · без автосинхронизации</string>
+    <string name="partner_chat_manual">Сообщение уходит по интернету. Файл и Bluetooth — если сети нет.</string>
     <string name="partner_chat_menu">Действия с партнёром</string>
     <string name="partner_chat_add">Добавить в переписку</string>
     <string name="partner_preview_doodle_caption">Для тебя ♡</string>
@@ -8,6 +8,9 @@
     <string name="partner_chat_empty_hint">Здесь появятся ваши дудлы и переданные данные.</string>
     <string name="partner_no_messages">Посланий пока нет</string>
     <string name="partner_share_data">Поделиться данными</string>
+    <string name="partner_message_hint">Сообщение</string>
+    <string name="partner_send_message">Отправить</string>
+    <string name="partner_offline_fallback">Нет интернета — файл или Bluetooth</string>
     <string name="partner_send_doodle">Отправить дудл</string>
     <string name="partner_back">Назад</string>
     <string name="partner_nearby">Рядом</string>

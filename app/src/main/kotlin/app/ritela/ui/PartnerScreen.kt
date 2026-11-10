@@ -372,6 +372,24 @@ fun PartnerScreen(padding: PaddingValues) {
                     prepareSend { model.repository.retry(message.id) }
                 },
                 senderNames = directory.identities.associate { it.id to it.name },
+                send = { text ->
+                    val person = identity
+                    val phone = device
+                    if (person != null && phone != null) {
+                        prepareSend {
+                            model.repository.confirmData(
+                                person.id,
+                                phone.id,
+                                app.ritela.domain.ShareScope(
+                                    setOf(app.ritela.domain.ShareCategory.SECTIONS),
+                                    setOf("note"),
+                                    emptyMap()
+                                ),
+                                text
+                            )
+                        }
+                    }
+                },
                 delete = { message, erase ->
                     if (sendRequests.message?.id == message.id ||
                         model.packet.value?.id == message.id
@@ -495,25 +513,42 @@ fun PartnerScreen(padding: PaddingValues) {
                     { model.pair(profileName) },
                     { model.candidate.value = null }
                 )
-                Text(stringResource(R.string.partner_verification_invitation_hint))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton({
-                        model.run {
-                            val value = model.repository.invitation(profileName)
-                            withContext(Dispatchers.Main) {
-                                savingInvitation = value
-                                saveInvitation.launch("ritela-invitation.ritela")
+                var offline by rememberSaveable { mutableStateOf(false) }
+                TextButton({ offline = !offline }, enabled = !busy) {
+                    Text(stringResource(R.string.partner_offline_fallback))
+                }
+                if (offline) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton({
+                            model.run {
+                                val value = model.repository.invitation(profileName)
+                                withContext(Dispatchers.Main) {
+                                    savingInvitation = value
+                                    saveInvitation.launch("ritela-invitation.ritela")
+                                }
                             }
+                        }, enabled = !busy) {
+                            Text(
+                                stringResource(R.string.partner_save_invitation)
+                            )
                         }
-                    }, enabled = !busy) { Text(stringResource(R.string.partner_save_invitation)) }
-                    TextButton({
-                        model.run {
-                            val value = model.repository.invitation(profileName)
-                            withContext(Dispatchers.Main) {
-                                PartnerFiles.shareInvitation(context, session.profileId, value)
+                        TextButton({
+                            model.run {
+                                val value = model.repository.invitation(profileName)
+                                withContext(Dispatchers.Main) {
+                                    PartnerFiles.shareInvitation(
+                                        context,
+                                        session.profileId,
+                                        value
+                                    )
+                                }
                             }
+                        }, enabled = !busy) {
+                            Text(
+                                stringResource(R.string.partner_share_invitation)
+                            )
                         }
-                    }, enabled = !busy) { Text(stringResource(R.string.partner_share_invitation)) }
+                    }
                 }
             }
         }

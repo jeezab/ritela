@@ -52,7 +52,7 @@ const fetchPath = (c: Client) => `/v1/devices/${c.handle}/packets`;
 beforeAll(async () => { await applyD1Migrations(bindings.DB, bindings.TEST_MIGRATIONS); });
 beforeEach(async () => {
   for (const table of ["packets", "packet_tombstones", "baseline_reservations", "routes", "author_transitions", "author_fences",
-    "request_nonces", "daily_usage", "relay_devices", "activation_tokens", "mutation_guards"])
+    "request_nonces", "daily_usage", "relay_devices", "activation_tokens", "mutation_guards", "pairing_replies"])
     await bindings.DB.prepare(`DELETE FROM ${table}`).run();
   await bindings.DB.prepare("UPDATE relay_state SET bytes=0,packets=0,tombstones=0,nonces=0," +
     "reserved_bytes=0,reserved_count=0,recovery_epoch=? WHERE id=1")
@@ -383,5 +383,16 @@ describe("closed pilot relay on local workerd/D1", () => {
     expect((await worker.fetch(await request(a, "GET", fetchPath(a)), changed)).status).toBe(503);
     await bindings.DB.prepare("UPDATE relay_state SET recovery_epoch=?").bind(changed.RECOVERY_EPOCH).run();
     expect((await worker.fetch(await request(a, "GET", fetchPath(a)), changed)).status).toBe(401);
+  });
+
+  it("stores one pairing reply until it expires", async () => {
+    const a = await enroll(), b = await enroll();
+    const slot = random();
+    const expiresAt = Date.now() + 600000;
+    expect((await call(a, "POST", "/v1/pairing", {slot, invitation: "signed-invite", expiresAt})).status).toBe(200);
+    expect((await call(b, "POST", "/v1/pairing", {slot, invitation: "other", expiresAt})).status).toBe(200);
+    expect((await (await call(b, "GET", "/v1/pairing/" + slot)).json() as any).invitation).toBe("signed-invite");
+    await bindings.DB.prepare("UPDATE pairing_replies SET expires_at=?").bind(Date.now() - 1).run();
+    expect((await (await call(a, "GET", "/v1/pairing/" + slot)).json() as any).invitation).toBeNull();
   });
 });

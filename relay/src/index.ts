@@ -2,6 +2,7 @@ import { ApiError, Auth, Env, authenticate, hex, jsonBody, readBounded, requireA
 import { initializeAuthority, transferAuthority } from "./authorities";
 import { cleanup } from "./cleanup";
 import { acknowledge, cancelPacket, fetchPackets, upload } from "./packets";
+import { publishPairing, readPairing } from "./pairing";
 import { createRoute, reserveBaseline, revokeDevice, revokeRoute } from "./routes";
 
 async function register(auth: Auth) {
@@ -90,6 +91,9 @@ export default {
       let result: unknown;
       const parts = path.split("/").slice(1);
       if (enrolling) result = await register(auth);
+      else if (path === "/v1/pairing" && request.method === "POST") result = await publishPairing(auth);
+      else if (parts[0] === "v1" && parts[1] === "pairing" && parts.length === 3 && hex(parts[2]) &&
+        request.method === "GET") result = await readPairing(auth, parts[2]);
       else if (path === "/v1/routes" && request.method === "POST") result = await createRoute(auth);
       else if (parts[0] === "v1" && parts.length === 4 && parts[1] === "authorities" && uuid(parts[2]) && request.method === "POST") {
         if (parts[3] === "initialize") result = await initializeAuthority(auth, parts[2]);

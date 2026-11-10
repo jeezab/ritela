@@ -112,7 +112,8 @@ internal fun PartnerChats(
     retry: (PartnerMessage) -> Unit,
     modifier: Modifier = Modifier,
     senderNames: Map<String, String> = emptyMap(),
-    delete: ((PartnerMessage, Boolean) -> Unit)? = null
+    delete: ((PartnerMessage, Boolean) -> Unit)? = null,
+    send: (String) -> Unit = {}
 ) {
     val holder = rememberSaveableStateHolder()
     val opened = contacts.firstOrNull { it.id == openedId }
@@ -133,7 +134,7 @@ internal fun PartnerChats(
             holder.SaveableStateProvider(current.id) {
                 PartnerConversation(
                     current, messages, status, busy, canSend, now, closeDialog, profile,
-                    action, open, retry, senderNames = senderNames, delete = delete
+                    action, open, retry, senderNames = senderNames, delete = delete, send = send
                 )
             }
         }
@@ -285,9 +286,11 @@ internal fun PartnerConversation(
     retry: (PartnerMessage) -> Unit,
     modifier: Modifier = Modifier,
     senderNames: Map<String, String> = emptyMap(),
-    delete: ((PartnerMessage, Boolean) -> Unit)? = null
+    delete: ((PartnerMessage, Boolean) -> Unit)? = null,
+    send: (String) -> Unit = {}
 ) {
     var menu by remember { mutableStateOf(false) }
+    var draft by rememberSaveable { mutableStateOf("") }
     var attachments by remember { mutableStateOf(false) }
     val formatter = PartnerFormatter(LocalResources.current)
     val reducedMotion = orbitReducedMotion()
@@ -472,6 +475,7 @@ internal fun PartnerConversation(
                         }
                         DropdownMenu(attachments, { attachments = false }) {
                             listOf(
+                                ConversationAction.SHARE to R.string.partner_share_data,
                                 ConversationAction.DOODLE to R.string.partner_send_doodle,
                                 ConversationAction.FILE to R.string.partner_import,
                                 ConversationAction.RECEIVE to R.string.partner_receive
@@ -489,11 +493,25 @@ internal fun PartnerConversation(
                             }
                         }
                     }
+                    androidx.compose.material3.OutlinedTextField(
+                        draft,
+                        { draft = it.take(app.ritela.domain.SavedDoodles.NOTE_LIMIT) },
+                        Modifier.weight(1f).testTag("partner-message-field"),
+                        enabled = !busy && canSend,
+                        singleLine = true,
+                        placeholder = { Text(stringResource(R.string.partner_message_hint)) }
+                    )
                     Button(
-                        { action(ConversationAction.SHARE) },
-                        Modifier.weight(1f).testTag("partner-create-message"),
-                        enabled = !busy && canSend
-                    ) { Text(stringResource(R.string.partner_share_data)) }
+                        {
+                            val text = draft.trim()
+                            if (text.isNotEmpty()) {
+                                send(text)
+                                draft = ""
+                            }
+                        },
+                        Modifier.testTag("partner-create-message"),
+                        enabled = !busy && canSend && draft.isNotBlank()
+                    ) { Text(stringResource(R.string.partner_send_message)) }
                 }
                 Text(
                     stringResource(R.string.partner_chat_manual),
@@ -760,4 +778,4 @@ private fun MultipleConversationsPreview() {
 
 private fun attachmentActions(canSend: Boolean): Set<ConversationAction> =
     setOf(ConversationAction.FILE, ConversationAction.RECEIVE) +
-        (if (canSend) setOf(ConversationAction.DOODLE) else emptySet())
+        (if (canSend) setOf(ConversationAction.DOODLE, ConversationAction.SHARE) else emptySet())

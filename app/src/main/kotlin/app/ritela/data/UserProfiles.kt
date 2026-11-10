@@ -216,6 +216,7 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
             it.prepareAutomatic = { automaticSync.prepare() }
             it.authorizeAutomatic = { id -> automaticSync.authorized(id) }
             it.afterDelivery = { automaticSync.refreshReservations() }
+            it.maintainConnections = { relayConnections.maintain() }
         }
     }
     private val syncScheduler by lazy {
@@ -287,6 +288,9 @@ class ProfileSession(context: Context, val profileId: String) : ViewModelStoreOw
             it.relayInvitation =
                 { invitation, target -> relayConnections.invitation(invitation, target) }
             it.relayPairing = { invitation -> relayConnections.accepted(invitation) }
+            it.deliverPairing = { slot, body ->
+                runCatching { relay.publishPairing(slot, body) }
+            }
             it.relayWake = { syncNow() }
             it.automaticIncoming =
                 { peer, device, content -> automaticSync.verifyIncoming(peer, device, content) }
@@ -410,6 +414,12 @@ class ProfileManager(private val context: Context) {
     val registry = ProfileRegistry(context.getSharedPreferences("users", Context.MODE_PRIVATE))
     private val active = MutableStateFlow(ProfileSession(context, registry.activeId))
     val session = active.asStateFlow()
+
+    init {
+        registry.profiles.value.firstOrNull { it.id == registry.activeId }?.name?.let {
+            active.value.partner.rememberName(it)
+        }
+    }
     private val changing = MutableStateFlow(false)
     val switching = changing.asStateFlow()
     private val mutex = Mutex()

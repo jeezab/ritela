@@ -1,5 +1,10 @@
 # Карта проекта
 
+2026-11-10: `relay/migrations/0002_pairing.sql` и `relay/src/pairing.ts` хранят одно
+подписанное приглашение на слот. `RelayConnections.maintain` забирает подтверждение
+и отдельно обновляет истёкший маршрут. Поле сообщения в `PartnerConversation`
+отправляет DATA с note.
+
 2026-11-09: Period.filledPeriodEnd задаёт конец по periodDuration. Home больше не
 заменяет орбиту карточкой открытых месячных и не предлагает «Завершить».
 PeriodEntry заполняет длительность с первого дня. PeriodViewModel.fillOpenPeriods

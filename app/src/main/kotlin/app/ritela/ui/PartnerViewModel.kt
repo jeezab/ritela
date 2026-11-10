@@ -129,6 +129,7 @@ class PartnerViewModel(
     }
     fun pair(name: String) = run {
         val target = requireNotNull(candidate.value)
+        repository.rememberName(name)
         repository.pair(target)
         pairingTarget.value = target
         invitation.value = repository.invitation(name, target)

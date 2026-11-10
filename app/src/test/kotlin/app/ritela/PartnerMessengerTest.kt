@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import app.ritela.data.PartnerMessage
 import app.ritela.domain.PartnerContact
@@ -159,12 +160,13 @@ class PartnerMessengerTest {
         val messages = (1..60).map { message("$it", "peer", it.toLong() * 60000) }
         var event: ConversationAction? = null
         var profile = ""
+        var sent = ""
         compose.activity.setContent {
             HomeTheme {
                 PartnerConversation(
                     first, messages, "Not connected", false, true, 1791792000000, {}, {
                         profile = "first"
-                    }, { event = it }, {}, {}
+                    }, { event = it }, {}, {}, send = { sent = it }
                 )
             }
         }
@@ -174,7 +176,13 @@ class PartnerMessengerTest {
         compose.onNodeWithTag("partner-composer").assertIsDisplayed()
         compose.onNodeWithTag("partner-profile").assertIsDisplayed().performClick()
         assertEquals("first", profile)
+        compose.onNodeWithTag("partner-message-field").performTextInput("hello")
         compose.onNodeWithTag("partner-create-message").performClick()
+        assertEquals("hello", sent)
+        compose.onNodeWithTag("partner-add-action").performClick()
+        compose.onNodeWithText(
+            compose.activity.getString(R.string.partner_share_data)
+        ).performClick()
         assertEquals(ConversationAction.SHARE, event)
         compose.onNodeWithTag("partner-add-action").performClick()
         compose.onNodeWithText(

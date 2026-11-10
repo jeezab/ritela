@@ -64,6 +64,12 @@ class PartnerRepository(
     internal var relaySetup: (suspend (String, String, JSONObject) -> Unit)? = null
     internal var relayInvitation: (suspend (String, PairInvitation?) -> String)? = null
     internal var relayPairing: (suspend (PairInvitation) -> Unit)? = null
+    internal var deliverPairing: (suspend (String, String) -> Unit)? = null
+    private var shownName = ""
+
+    fun rememberName(value: String) {
+        if (value.isNotBlank()) shownName = value
+    }
     internal var relayWake: (suspend () -> Unit)? = null
     internal var automaticIncoming: (suspend (String, String, JSONObject) -> Unit)? = null
     private val syncApply = SyncApplyRepository(database, ::validateData)
@@ -254,6 +260,7 @@ class PartnerRepository(
         }
     }
     suspend fun invitation(name: String, target: PairInvitation? = null): String {
+        rememberName(name)
         val keys = identity()
         val confirmed = target?.let { invite ->
             snapshot().identities.firstOrNull { it.id == invite.identity }?.devices
@@ -351,6 +358,26 @@ class PartnerRepository(
             )
         }
         relayPairing?.invoke(invitation)
+        runCatching {
+            val reply = invitation(shownName.ifBlank { invitation.name }, invitation)
+            deliverPairing?.invoke(
+                app.ritela.data.sync.pairingSlot(
+                    invitation.device.id,
+                    invitation.device.remoteNonce
+                ),
+                reply
+            )
+        }
+    }
+
+    /** A signed confirmation arrived over the internet. Trust starts only after it matches. */
+    suspend fun acceptMailbox(raw: String) {
+        val parsed = inspectInvitation(raw)
+        if (parsed.confirmation == null) return
+        val known = snapshot().identities.firstOrNull { it.id == parsed.identity }
+            ?.devices?.firstOrNull { it.id == parsed.device.id && it.enabled }
+        if (known?.mutualConfirmed == true) return
+        pair(parsed)
     }
 
     suspend fun verificationCode(invitation: PairInvitation): String =

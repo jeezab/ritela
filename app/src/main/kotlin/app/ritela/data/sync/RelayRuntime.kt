@@ -43,6 +43,7 @@ class RelayRuntime(
     private val dao get() = database.relay()
     val available get() = origin.isNotEmpty()
     internal var prepareAutomatic: (suspend () -> Unit)? = null
+    internal var maintainConnections: (suspend () -> Unit)? = null
     internal var authorizeAutomatic: (suspend (String) -> Boolean)? = null
     internal var afterDelivery: (suspend () -> Boolean)? = null
 
@@ -110,6 +111,24 @@ class RelayRuntime(
             check(SyncMessageQueue(database).offer(message) == SyncMessageOffer.QUEUED)
             message
         }
+    }
+
+    suspend fun publishPairing(slot: String, invitation: String) {
+        if (!registered() || invitation.length !in 1..12000) return
+        val keys = vault.load() ?: return
+        client(keys).request(
+            "POST",
+            "/v1/pairing",
+            JSONObject().put("slot", slot).put("invitation", invitation)
+                .put("expiresAt", now() + 7 * 86400000L).toString().toByteArray()
+        )
+    }
+
+    suspend fun readPairing(slot: String): String? {
+        if (!registered()) return null
+        val keys = vault.load() ?: return null
+        return client(keys).request("GET", "/v1/pairing/$slot").optString("invitation")
+            .takeIf { it.isNotEmpty() }
     }
 
     suspend fun receiveOffer(peer: String, device: String, certificate: String): String {
@@ -412,6 +431,7 @@ class RelayRuntime(
             if (config.nextAttempt == Long.MAX_VALUE) return@pump RelayRun.PAUSED
             if (config.nextAttempt > now()) return@pump RelayRun.RETRY
             try {
+                if (config.registered) maintainConnections?.invoke()
                 val keys = requireNotNull(vault.load())
                 val http = client(keys)
                 if (!config.registered) {

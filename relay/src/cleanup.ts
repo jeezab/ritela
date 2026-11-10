@@ -19,6 +19,8 @@ export async function cleanup(env: Env, now = Date.now()) {
       "WHERE day<? LIMIT 128)").bind(Math.floor(now / 86400000) - 2),
     env.DB.prepare("DELETE FROM routes WHERE route_id IN (SELECT r.route_id FROM routes r WHERE r.expires_at<=? " +
       "AND NOT EXISTS(SELECT 1 FROM packets p WHERE p.route_id=r.route_id) " +
-      "AND NOT EXISTS(SELECT 1 FROM packet_tombstones t WHERE t.route_id=r.route_id) LIMIT 16)").bind(now)
+      "AND NOT EXISTS(SELECT 1 FROM packet_tombstones t WHERE t.route_id=r.route_id) LIMIT 16)").bind(now),
+    env.DB.prepare("DELETE FROM pairing_replies WHERE slot IN (SELECT slot FROM pairing_replies " +
+      "WHERE expires_at<=? ORDER BY expires_at LIMIT 64)").bind(now)
   ]);
 }

@@ -29,9 +29,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -162,7 +162,9 @@ private fun CalendarContent(
                         style = MaterialTheme.typography.headlineMedium
                     )
                     Column(
-                        Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 12.dp),
+                        Modifier.weight(
+                            1f
+                        ).verticalScroll(rememberScrollState()).padding(top = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(Spacing.medium)
                     ) {
                         if (state.periods.isEmpty()) Text(stringResource(R.string.history_empty))

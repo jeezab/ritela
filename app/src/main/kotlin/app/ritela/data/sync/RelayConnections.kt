@@ -5,7 +5,20 @@ import app.ritela.data.PartnerCrypto
 import app.ritela.data.PartnerRepository
 import app.ritela.data.RitelaDatabase
 import java.io.IOException
+import java.security.MessageDigest
 import org.json.JSONObject
+
+internal fun pairingSlot(deviceId: String, nonce: String): String =
+    slot("ritela.pairing:1", deviceId, nonce)
+
+internal fun routeSlot(deviceId: String, nonce: String): String =
+    slot("ritela.route:1", deviceId, nonce)
+
+private fun slot(label: String, deviceId: String, nonce: String): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest("$label:$deviceId:$nonce".toByteArray(Charsets.UTF_8))
+    return digest.joinToString("") { "%02x".format(it) }
+}
 
 /** Public certificates travel with signed invitations. Capabilities remain protected locally. */
 class RelayConnections(
@@ -47,6 +60,33 @@ class RelayConnections(
             PartnerCrypto.sign(PartnerCrypto.privateKey(local.devicePrivate, "EC"), body)
         ).toString().also {
             require(it.toByteArray().size <= app.ritela.data.PartnerInvitationFile.MAX_BYTES)
+        }
+    }
+
+    /** Pull a confirmation or a renewed route, and refresh a route that has expired. */
+    suspend fun maintain() {
+        if (!runtime.registered() || !online()) return
+        val keys = partner.identity()
+        runCatching {
+            runtime.readPairing(pairingSlot(keys.deviceId, keys.nonce))?.let { raw ->
+                partner.acceptMailbox(raw)
+            }
+        }
+        runCatching {
+            runtime.readPairing(routeSlot(keys.deviceId, keys.nonce))?.let { raw ->
+                runtime.installSendRoute(raw)
+            }
+        }
+        partner.snapshot().identities.filter { it.exchangeEnabled }.forEach { peer ->
+            peer.devices.filter { it.enabled && it.mutualConfirmed }.forEach { device ->
+                if (runtime.sendRoute(peer.id, device.id) != null) return@forEach
+                val certificate = database.relay().peer(peer.id, device.id)?.certificate
+                    ?: return@forEach
+                runCatching {
+                    val offer = runtime.receiveOffer(peer.id, device.id, certificate)
+                    runtime.publishPairing(routeSlot(device.id, device.remoteNonce), offer)
+                }
+            }
         }
     }
 
