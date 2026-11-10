@@ -24,9 +24,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -159,7 +162,7 @@ private fun CalendarContent(
                         style = MaterialTheme.typography.headlineMedium
                     )
                     Column(
-                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(Spacing.medium)
                     ) {
                         if (state.periods.isEmpty()) Text(stringResource(R.string.history_empty))
@@ -186,24 +189,26 @@ private fun CalendarContent(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     if (period.end == null) Text(stringResource(R.string.ongoing))
-                                    Row {
-                                        TextButton(
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(
                                             onClick = {
                                                 historyOpen = false
                                                 onEdit(period)
                                             },
                                             enabled = !state.saving,
-                                            modifier = Modifier.testTag("edit-period-${period.id}")
+                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                                .testTag("edit-period-${period.id}")
                                         ) {
                                             Text(stringResource(R.string.edit))
                                         }
-                                        TextButton(
-                                            onClick = {
-                                                onDelete(period)
-                                            },
+                                        Button(
+                                            onClick = { onDelete(period) },
                                             enabled = !state.saving,
-                                            modifier = Modifier.testTag(
-                                                "delete-period-${period.id}"
+                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                                .testTag("delete-period-${period.id}"),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.error,
+                                                contentColor = MaterialTheme.colorScheme.onError
                                             )
                                         ) {
                                             Text(stringResource(R.string.delete))
