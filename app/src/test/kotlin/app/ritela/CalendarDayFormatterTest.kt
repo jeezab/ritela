@@ -59,6 +59,17 @@ class CalendarDayFormatterTest {
         assertFalse(history.contains("October"))
     }
 
+    @Test fun russianHistoryRangeUsesShortRussianMonths() {
+        val range = formatter("ru-RU").range(
+            LocalDate.of(2026, 9, 3),
+            LocalDate.of(2026, 11, 8)
+        )
+        assertTrue(range.contains("сент."))
+        assertTrue(range.contains("нояб."))
+        assertFalse(range.contains("Sept"))
+        assertFalse(range.contains("Nov"))
+    }
+
     @Test fun datesAndRangesHandleMonthsYearsAndSingleDayWithoutDuplicateDates() {
         for (language in listOf("ru-RU", "en-US")) {
             val formatter = formatter(language)

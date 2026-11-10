@@ -474,10 +474,13 @@ fun AppNavigation(
 }
 
 @Composable
-fun periodDates(period: Period): String = CalendarDayFormatter(
-    androidx.compose.ui.platform.LocalResources.current,
-    androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
-).period(period)
+fun periodDates(period: Period): String {
+    val resources = androidx.compose.ui.platform.LocalResources.current
+    return CalendarDayFormatter(
+        resources,
+        resources.configuration.locales[0]
+    ).period(period)
+}
 
 @Preview(
     name = "Empty · light",
