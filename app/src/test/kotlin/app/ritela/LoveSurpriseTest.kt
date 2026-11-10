@@ -25,6 +25,7 @@ import app.ritela.ui.LoveSurprise
 import app.ritela.ui.PeriodUiState
 import app.ritela.ui.SettingsScreen
 import app.ritela.ui.WithLoveButton
+import java.time.Duration
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -35,6 +36,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowSystemClock
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "en-rUS-w411dp-h891dp")
@@ -62,12 +64,22 @@ class LoveSurpriseTest {
         }
     }
 
+    private fun unlockLetter() {
+        compose.onNodeWithTag("with-love").performClick()
+        now += 2_000
+        repeat(8) {
+            compose.onNodeWithTag("with-love").performClick()
+            now += 100
+        }
+        compose.onNodeWithTag("love-letter").assertDoesNotExist()
+        compose.onNodeWithTag("with-love").performClick()
+        compose.waitForIdle()
+    }
+
     @Test
     fun letterIsEnglishAndCanBeClosedAndReopened() {
         content()
-        repeat(8) { compose.onNodeWithTag("with-love").performClick() }
-        compose.onNodeWithTag("love-letter").assertDoesNotExist()
-        compose.onNodeWithTag("with-love").performClick()
+        unlockLetter()
         compose.onNodeWithTag("love-letter").assertIsDisplayed()
         compose.onNodeWithTag("love-letter-text").assertTextEquals(
             "Margoshhhhh!\n\n" +
@@ -79,18 +91,27 @@ class LoveSurpriseTest {
         )
         compose.onNodeWithTag("love-letter-close").performClick()
         compose.onNodeWithTag("love-letter").assertDoesNotExist()
-        repeat(9) { compose.onNodeWithTag("with-love").performClick() }
+        unlockLetter()
         compose.onNodeWithTag("love-letter").assertIsDisplayed()
     }
 
     @Test
     fun longGapResetsUiSequenceWithReducedMotion() {
         content(reducedMotion = true)
-        repeat(8) { compose.onNodeWithTag("with-love").performClick() }
-        now = 1001
+        compose.onNodeWithTag("with-love").performClick()
+        now = 2_000
+        compose.onNodeWithTag("with-love").performClick()
+        now = 2_501
         compose.onNodeWithTag("with-love").performClick()
         compose.onNodeWithTag("love-letter").assertDoesNotExist()
-        repeat(8) { compose.onNodeWithTag("with-love").performClick() }
+        now = 4_501
+        repeat(8) {
+            compose.onNodeWithTag("with-love").performClick()
+            now += 100
+        }
+        compose.onNodeWithTag("love-letter").assertDoesNotExist()
+        compose.onNodeWithTag("with-love").performClick()
+        compose.waitForIdle()
         compose.onNodeWithTag("love-letter").assertIsDisplayed()
         compose.onNodeWithTag("love-letter-close").performClick()
         compose.onNodeWithTag("love-letter").assertDoesNotExist()
@@ -109,11 +130,15 @@ class LoveSurpriseTest {
         compose.onNodeWithTag("backup-import").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("with-love").performScrollTo().assertIsDisplayed()
         compose.mainClock.autoAdvance = false
-        repeat(9) {
+        compose.onNodeWithTag("with-love").performClick()
+        ShadowSystemClock.advanceBy(Duration.ofMillis(2_000))
+        repeat(8) {
             compose.onNodeWithTag("with-love").performClick()
-            compose.mainClock.advanceTimeBy(32)
+            ShadowSystemClock.advanceBy(Duration.ofMillis(100))
+            compose.mainClock.advanceTimeBy(16)
         }
-        compose.mainClock.advanceTimeBy(300)
+        compose.onNodeWithTag("with-love").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithTag("love-letter-text").assertTextEquals(
             "Маргошенька!\n\n" +
                 "время вместе летит незаметно.. спасибо тебе за всё, " +

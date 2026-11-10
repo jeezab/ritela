@@ -49,6 +49,7 @@ import androidx.compose.ui.window.Dialog
 import app.ritela.R
 import kotlin.random.Random
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private class LoveBurst(val origin: Offset, val spec: LoveBurstSpec) {
@@ -66,6 +67,7 @@ fun LoveSurprise(
 ) {
     val sequence = remember { LoveTapSequence() }
     val bursts = remember { mutableStateListOf<LoveBurst>() }
+    val hold = remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
     var anchor by remember { mutableStateOf(Offset.Zero) }
     var root by remember { mutableStateOf(Offset.Zero) }
@@ -95,7 +97,13 @@ fun LoveSurprise(
                         bursts.remove(burst)
                     }
                 }
-                if (sequence.tap(elapsedMillis())) showLetter = true
+                hold.value?.cancel()
+                if (sequence.tap(elapsedMillis())) {
+                    hold.value = scope.launch {
+                        delay(LOVE_QUIET_MILLIS)
+                        if (sequence.finish()) showLetter = true
+                    }
+                }
             },
             Modifier.onGloballyPositioned {
                 anchor = it.positionInRoot() + Offset(it.size.width / 2f, it.size.height / 2f)

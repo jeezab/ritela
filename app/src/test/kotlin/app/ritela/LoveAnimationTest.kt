@@ -10,23 +10,34 @@ import org.junit.Test
 
 class LoveAnimationTest {
     @Test
-    fun ninthTapOpensAndStartsFreshSequence() {
+    fun letterArmsOnlyAfterPauseAndNineCloseTaps() {
         val sequence = LoveTapSequence()
-        repeat(2) {
-            repeat(8) { assertFalse(sequence.tap(it * 100L)) }
-            assertTrue(sequence.tap(800))
+        repeat(2) { round ->
+            val start = round * 20_000L
+            assertFalse(sequence.tap(start))
+            assertFalse(sequence.tap(start + 1_999))
+            val opened = start + 1_999
+            assertFalse(sequence.tap(opened + 2_000))
+            repeat(7) { index ->
+                assertFalse(sequence.tap(opened + 2_000 + (index + 1) * 500L))
+            }
+            assertTrue(sequence.tap(opened + 2_000 + 8 * 500L))
+            assertTrue(sequence.finish())
+            assertFalse(sequence.finish())
         }
     }
 
     @Test
-    fun timeoutDependsOnAdjacentTapsAndExactBoundaryIsIncluded() {
+    fun changedTimingRestartsFromThatTap() {
         val sequence = LoveTapSequence()
-        repeat(8) { assertFalse(sequence.tap(it * 500L)) }
-        assertTrue(sequence.tap(4_000))
-        repeat(8) { assertFalse(sequence.tap(10_000 + it * 100L)) }
-        assertFalse(sequence.tap(11_201))
-        repeat(7) { assertFalse(sequence.tap(11_300 + it * 100L)) }
-        assertTrue(sequence.tap(12_000))
+        assertFalse(sequence.tap(0))
+        assertFalse(sequence.tap(2_000))
+        assertFalse(sequence.tap(2_501))
+        assertFalse(sequence.tap(4_501))
+        repeat(7) { assertFalse(sequence.tap(4_601 + it * 100L)) }
+        assertTrue(sequence.tap(4_601 + 7 * 100L))
+        assertFalse(sequence.tap(4_601 + 7 * 100L + 400))
+        assertFalse(sequence.finish())
     }
 
     @Test

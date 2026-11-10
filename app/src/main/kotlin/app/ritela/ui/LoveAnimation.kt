@@ -5,19 +5,53 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-/** Ephemeral UI gesture state; elapsed realtime is unaffected by wall-clock changes. */
+internal const val LOVE_PAUSE_MILLIS = 2_000L
+internal const val LOVE_GAP_MILLIS = 500L
+internal const val LOVE_QUIET_MILLIS = 1_000L
+
+/**
+ * One tap, two quiet seconds, nine taps at most half a second apart, then one quiet second.
+ * Any tap that breaks the step starts the sequence again.
+ */
 class LoveTapSequence {
     private var previous: Long? = null
-    private var count = 0
+    private var burst = 0
+    private var holding = false
 
+    /** True when the nine taps are complete and the final quiet second should start. */
     fun tap(elapsedMillis: Long): Boolean {
-        if (previous?.let { elapsedMillis - it > 500 || elapsedMillis < it } != false) count = 0
+        val last = previous
+        if (holding || last == null || elapsedMillis < last) return open(elapsedMillis)
+        if (burst == 0) {
+            if (elapsedMillis - last < LOVE_PAUSE_MILLIS) return open(elapsedMillis)
+        } else if (elapsedMillis - last > LOVE_GAP_MILLIS) {
+            return open(elapsedMillis)
+        }
+        burst++
         previous = elapsedMillis
-        count++
-        if (count < 9) return false
-        count = 0
-        previous = null
+        if (burst < 9) return false
+        holding = true
         return true
+    }
+
+    /** True once, after the quiet second, and only if no tap cancelled it. */
+    fun finish(): Boolean {
+        if (!holding) return false
+        clear()
+        return true
+    }
+
+    private fun open(elapsedMillis: Long): Boolean {
+        burst = 0
+        holding = false
+        previous = elapsedMillis
+        return false
+    }
+
+    private fun clear() {
+        burst = 0
+        holding = false
+        previous = null
     }
 }
 
