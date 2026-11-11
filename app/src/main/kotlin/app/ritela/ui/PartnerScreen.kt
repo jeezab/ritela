@@ -665,17 +665,6 @@ fun PartnerScreen(padding: PaddingValues) {
                         ) {
                             Text(stringResource(R.string.partner_internet_repair))
                         }
-                        androidx.compose.material3.OutlinedButton({
-                            model.run {
-                                if (session.relay.registered()) {
-                                    session.syncNow(retry = true)
-                                } else {
-                                    withContext(Dispatchers.Main) { connectionActivation = true }
-                                }
-                            }
-                        }, enabled = !busy, modifier = Modifier.testTag("partner-check-delivery")) {
-                            Text(stringResource(R.string.partner_check_delivery))
-                        }
                     }
                     if (source.devices.any { it.enabled && !it.mutualConfirmed }) {
                         Button({

@@ -1,5 +1,9 @@
 package app.ritela.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -15,19 +19,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +56,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -300,6 +308,15 @@ internal fun PartnerConversation(
     val menuLabel = stringResource(R.string.partner_chat_menu)
     val addLabel = stringResource(R.string.partner_chat_add)
     val backLabel = stringResource(R.string.partner_back)
+    val host = LocalView.current
+    DisposableEffect(host) {
+        val window = host.context.findActivity()?.window
+        val previous = window?.attributes?.softInputMode
+        window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+        onDispose {
+            if (window != null && previous != null) window.setSoftInputMode(previous)
+        }
+    }
     Column(modifier.fillMaxSize().background(HomeColors.background)) {
         Surface(color = HomeColors.top) {
             Row(
@@ -449,7 +466,9 @@ internal fun PartnerConversation(
         }
         Surface(color = HomeColors.top, shadowElevation = 4.dp) {
             Column(
-                Modifier.fillMaxWidth().imePadding().padding(
+                Modifier.fillMaxWidth().windowInsetsPadding(
+                    WindowInsets.ime.exclude(WindowInsets.navigationBars)
+                ).padding(
                     horizontal = 12.dp,
                     vertical = 6.dp
                 ).testTag("partner-composer")
@@ -488,58 +507,55 @@ internal fun PartnerConversation(
                             }
                         }
                     }
-                    Box(
-                        Modifier.weight(1f).height(56.dp).verticalScroll(rememberScrollState())
-                    ) {
-                        androidx.compose.material3.OutlinedTextField(
-                            draft,
-                            { draft = it.take(app.ritela.domain.SavedDoodles.NOTE_LIMIT) },
-                            Modifier.fillMaxWidth().testTag("partner-message-field"),
-                            enabled = !busy && canSend,
-                            singleLine = true,
-                            placeholder = { Text(stringResource(R.string.partner_message_hint)) }
-                        )
-                    }
+                    androidx.compose.material3.OutlinedTextField(
+                        draft,
+                        { draft = it.take(app.ritela.domain.SavedDoodles.NOTE_LIMIT) },
+                        Modifier.weight(1f).testTag("partner-message-field"),
+                        enabled = !busy && canSend,
+                        singleLine = true,
+                        placeholder = { Text(stringResource(R.string.partner_message_hint)) }
+                    )
                     val canSubmit = !busy && canSend && draft.isNotBlank()
                     val sendLabel = stringResource(R.string.partner_send_message)
-                    IconButton(
-                        {
+                    Box(
+                        Modifier.padding(start = 8.dp).size(32.dp).background(
+                            if (canSubmit) {
+                                HomeColors.rose
+                            } else {
+                                HomeColors.border.copy(alpha = 0.35f)
+                            },
+                            CircleShape
+                        ).testTag("partner-create-message").semantics {
+                            contentDescription = sendLabel
+                        }.clickable(enabled = canSubmit) {
                             val text = draft.trim()
                             if (text.isNotEmpty()) {
                                 send(text)
                                 draft = ""
                             }
                         },
-                        Modifier.padding(start = 4.dp).size(40.dp).background(
-                            if (canSubmit) {
-                                HomeColors.rose
-                            } else {
-                                HomeColors.border.copy(
-                                    alpha = 0.35f
-                                )
-                            },
-                            CircleShape
-                        ).testTag("partner-create-message").semantics {
-                            contentDescription = sendLabel
-                        },
-                        enabled = canSubmit
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             painterResource(R.drawable.ic_send),
                             null,
+                            Modifier.size(16.dp),
                             tint = if (canSubmit) HomeColors.text else HomeColors.muted
                         )
                     }
                 }
-                Text(
-                    stringResource(R.string.partner_chat_manual),
-                    Modifier.padding(start = 8.dp, bottom = 2.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = HomeColors.muted
-                )
             }
         }
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var current = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
 }
 
 @Composable

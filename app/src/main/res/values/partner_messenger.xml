@@ -1,6 +1,5 @@
 <resources>
     <string name="partner_chat_to">To %1$s</string>
-    <string name="partner_chat_manual">Messages go over the internet. File and Bluetooth are for when you are offline.</string>
     <string name="partner_chat_menu">Partner actions</string>
     <string name="partner_chat_add">Add to conversation</string>
     <string name="partner_preview_doodle_caption">For you ♡</string>

@@ -1,6 +1,5 @@
 <resources>
     <string name="partner_chat_to">Для %1$s</string>
-    <string name="partner_chat_manual">Сообщение уходит по интернету. Файл и Bluetooth — если сети нет.</string>
     <string name="partner_chat_menu">Действия с партнёром</string>
     <string name="partner_chat_add">Добавить в переписку</string>
     <string name="partner_preview_doodle_caption">Для тебя ♡</string>
